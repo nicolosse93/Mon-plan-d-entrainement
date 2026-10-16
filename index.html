@@ -469,7 +469,7 @@
         </div>
     </div>
 
-    <div id="supabase-status" role="status" aria-live="polite" class="fixed bottom-4 right-4 z-[60] flex items-center gap-3 rounded-xl border border-slate-700 bg-dark-800 px-4 py-3 text-sm shadow-xl">
+    <div id="supabase-status" role="status" aria-live="polite" class="fixed bottom-4 right-4 z-[60] hidden items-center gap-3 rounded-xl border border-slate-700 bg-dark-800 px-4 py-3 text-sm shadow-xl">
         <span id="supabase-status-message" class="text-slate-300">Vérification de Supabase...</span>
         <button id="supabase-check-btn" type="button" class="text-emerald-400 hover:text-emerald-300 disabled:cursor-wait disabled:opacity-50" aria-label="Vérifier la connexion à Supabase" title="Vérifier la connexion">
             <i id="supabase-status-icon" class="fa-solid fa-spinner animate-spin"></i>
@@ -477,11 +477,16 @@
     </div>
 
     <!-- SCRIPT APPLICATION -->
+    <script type="module">
+        import { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity } from './fitBuilder.js';
+        window.FitModule = { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity };
+    </script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5GrtRyqg1LV-wDZpFUxEnw_FHTDWbux';
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseStatusDiv = document.getElementById('supabase-status');
         const supabaseStatusMessage = document.getElementById('supabase-status-message');
         const supabaseStatusIcon = document.getElementById('supabase-status-icon');
         const supabaseCheckButton = document.getElementById('supabase-check-btn');
@@ -492,7 +497,11 @@
         let currentDateView = new Date();
 
         async function checkSupabaseConnection() {
-            supabaseStatusMessage.textContent = 'Vérification de Supabase...';
+            // Optionnel : on peut afficher le bloc s'il vérifie manuellement
+            // supabaseStatusDiv.classList.remove('hidden');
+            // supabaseStatusDiv.classList.add('flex');
+            
+            supabaseStatusMessage.textContent = 'Vérification...';
             supabaseStatusMessage.className = 'text-slate-300';
             supabaseStatusIcon.className = 'fa-solid fa-spinner animate-spin';
             supabaseCheckButton.disabled = true;
@@ -510,14 +519,19 @@
                     throw new Error(`Réponse HTTP ${response.status}`);
                 }
 
-                supabaseStatusMessage.textContent = 'Supabase est en ligne';
-                supabaseStatusMessage.className = 'text-emerald-400';
-                supabaseStatusIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+                // Cacher l'alerte si tout va bien
+                supabaseStatusDiv.classList.add('hidden');
+                supabaseStatusDiv.classList.remove('flex');
             } catch (error) {
                 const reason = error.name === 'AbortError'
                     ? 'Délai dépassé (8 s)'
                     : error.message;
-                supabaseStatusMessage.textContent = `Supabase inaccessible : ${reason}`;
+                
+                // Afficher l'alerte en cas d'erreur
+                supabaseStatusDiv.classList.remove('hidden');
+                supabaseStatusDiv.classList.add('flex');
+                
+                supabaseStatusMessage.textContent = `Hors-ligne : ${reason}`;
                 supabaseStatusMessage.className = 'text-red-400';
                 supabaseStatusIcon.className = 'fa-solid fa-circle-exclamation text-red-400';
             } finally {
@@ -1149,153 +1163,85 @@
             if (!currentExportWorkout) return;
             
             try {
-                // Change le curseur pour indiquer le chargement
-                document.body.style.cursor = 'wait';
-                
-                // Fetch le module FIT. Utilisation de jsDelivr standard et de l'export ESM de la librairie.
-                // Parfois jsdelivr/+esm a du mal avec certaines libs complexes, essayons l'approche unpkg ou skypack.
-                const fitSdk = await import('https://cdn.skypack.dev/@garmin/fitsdk');
-                const { Encoder, Profile } = fitSdk;
+                if (!window.FitModule) {
+                    throw new Error("Le module FIT n'a pas été chargé correctement.");
+                }
+                const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
                 
                 const w = currentExportWorkout;
-                const encoder = new Encoder(Profile.types.mesgNum.workout);
+                const encoder = new FitEncoder();
 
                 // 1. Message File ID (Indique à Garmin que c'est un entraînement)
-                encoder.writeMessage(Profile.types.mesgNum.fileId, {
-                    type: Profile.types.file.workout,
-                    manufacturer: Profile.types.manufacturer.development,
-                    product: 0,
-                    timeCreated: new Date(),
-                    serialNumber: Math.floor(Math.random() * 100000)
+                // defNum: 0=type, 1=manufacturer, 2=product, 3=serialNumber, 4=timeCreated
+                encoder.addMessage(MesgNum.fileId, {
+                    0: FileType.workout,
+                    1: Manufacturer.development,
+                    2: 0,
+                    3: Math.floor(Math.random() * 100000),
+                    4: Math.floor(Date.now() / 1000) - 631065600 // Temps FIT (secondes depuis 1989)
                 });
 
-                // 2. Détermination des étapes (Echauffement, Intervalles, Récupération)
+                // Détermination des étapes (Echauffement, Intervalles, Récupération)
                 let steps = [];
                 let stepIndex = 0;
 
-                // Echauffement
                 let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
                 let wTime = wTimeMatch ? parseInt(wTimeMatch[1]) * 60 : 600;
                 if (wTime > 0) {
                     steps.push({
-                        messageIndex: stepIndex++,
-                        durationTypes: Profile.types.wktStepDuration.time,
-                        durationValue: wTime * 1000,
-                        targetType: Profile.types.wktStepTarget.open,
-                        intensity: Profile.types.intensity.warmup
+                        254: stepIndex++, // messageIndex
+                        1: WktStepDuration.time, // durationType
+                        2: wTime * 1000, // durationValue
+                        3: WktStepTarget.open, // targetType
+                        5: Intensity.warmup // intensity
                     });
                 }
 
-                // Bloc Principal
                 let main = w.main_block || "";
                 if (w.type === 'Course') {
                     if (main.includes('5x')) {
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.repeatUntilStepsCmplt,
-                            durationValue: 5, 
-                            targetValue: 2, 
-                            intensity: Profile.types.intensity.active
-                        });
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.time,
-                            durationValue: 90 * 1000, // 1m30
-                            targetType: Profile.types.wktStepTarget.open,
-                            intensity: Profile.types.intensity.active
-                        });
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.time,
-                            durationValue: 90 * 1000, 
-                            targetType: Profile.types.wktStepTarget.open,
-                            intensity: Profile.types.intensity.rest
-                        });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.repeatUntilStepsCmplt, 2: 5, 4: 2, 5: Intensity.active });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 90000, 3: WktStepTarget.open, 5: Intensity.active });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 90000, 3: WktStepTarget.open, 5: Intensity.rest });
                     } else if (main.includes('2x 8 min')) {
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.repeatUntilStepsCmplt,
-                            durationValue: 2, 
-                            targetValue: 2, 
-                            intensity: Profile.types.intensity.active
-                        });
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.time,
-                            durationValue: 480 * 1000, 
-                            targetType: Profile.types.wktStepTarget.open,
-                            intensity: Profile.types.intensity.active
-                        });
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.time,
-                            durationValue: 120 * 1000, 
-                            targetType: Profile.types.wktStepTarget.open,
-                            intensity: Profile.types.intensity.rest
-                        });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.repeatUntilStepsCmplt, 2: 2, 4: 2, 5: Intensity.active });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 480000, 3: WktStepTarget.open, 5: Intensity.active });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 120000, 3: WktStepTarget.open, 5: Intensity.rest });
                     } else {
                         let tMatch = main.match(/(\d+)\s*min/);
                         let t = tMatch ? parseInt(tMatch[1]) * 60 : 1800;
-                        steps.push({
-                            messageIndex: stepIndex++,
-                            durationTypes: Profile.types.wktStepDuration.time,
-                            durationValue: t * 1000,
-                            targetType: Profile.types.wktStepTarget.open,
-                            intensity: Profile.types.intensity.active
-                        });
+                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: t * 1000, 3: WktStepTarget.open, 5: Intensity.active });
                     }
                 } else if (w.type === 'Vélo') {
                     let tMatch = main.match(/(\d+)\s*min/);
                     let t = tMatch ? parseInt(tMatch[1]) * 60 : (main.includes('1h55') ? 115 * 60 : 2700);
-                    steps.push({
-                        messageIndex: stepIndex++,
-                        durationTypes: Profile.types.wktStepDuration.time,
-                        durationValue: t * 1000,
-                        targetType: Profile.types.wktStepTarget.open,
-                        intensity: Profile.types.intensity.active
-                    });
+                    steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: t * 1000, 3: WktStepTarget.open, 5: Intensity.active });
                 } else {
-                    steps.push({
-                        messageIndex: stepIndex++,
-                        durationTypes: Profile.types.wktStepDuration.time,
-                        durationValue: 1800 * 1000,
-                        targetType: Profile.types.wktStepTarget.open,
-                        intensity: Profile.types.intensity.active
-                    });
+                    steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 1800000, 3: WktStepTarget.open, 5: Intensity.active });
                 }
 
-                // Retour au calme
                 let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
                 let cTime = cTimeMatch ? parseInt(cTimeMatch[1]) * 60 : 300;
                 if (cTime > 0) {
-                    steps.push({
-                        messageIndex: stepIndex++,
-                        durationTypes: Profile.types.wktStepDuration.time,
-                        durationValue: cTime * 1000,
-                        targetType: Profile.types.wktStepTarget.open,
-                        intensity: Profile.types.intensity.cooldown
-                    });
+                    steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: cTime * 1000, 3: WktStepTarget.open, 5: Intensity.cooldown });
                 }
 
-                // En-tête de l'entraînement
-                let sportType = w.type === 'Vélo' ? Profile.types.sport.cycling : Profile.types.sport.running;
-                let safeTitle = w.title.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 15); // Garmin limite souvent la longueur du titre à 15/16 caractères
-
-                encoder.writeMessage(Profile.types.mesgNum.workout, {
-                    wktName: safeTitle,
-                    sport: sportType,
-                    numValidSteps: steps.length
-                });
-
-                // Ajout des étapes encodées
-                steps.forEach((step) => {
-                    encoder.writeMessage(Profile.types.mesgNum.workoutStep, step);
-                });
-
-                // Génération du fichier binaire FIT !
-                const fitBytes = encoder.getBytes();
+                // En-tête Workout (defNum: 8=name, 4=sport, 6=numValidSteps)
+                let sportType = w.type === 'Vélo' ? Sport.cycling : Sport.running;
+                let safeTitle = w.title.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 15);
                 
-                // Création et téléchargement du fichier
+                encoder.addMessage(MesgNum.workout, {
+                    8: safeTitle,
+                    4: sportType,
+                    6: steps.length
+                });
+
+                steps.forEach((step) => {
+                    encoder.addMessage(MesgNum.workoutStep, step);
+                });
+
+                // Génération du fichier
+                const fitBytes = encoder.getBytes();
                 const blob = new Blob([fitBytes], { type: "application/vnd.ant.fit" });
                 const link = document.createElement('a');
                 link.href = window.URL.createObjectURL(blob);
@@ -1306,10 +1252,8 @@
                 document.body.removeChild(link);
 
             } catch (e) {
-                console.error("Erreur de génération FIT:", e);
-                alert("Erreur lors de la génération du fichier FIT. Assurez-vous d'avoir une connexion internet pour charger le SDK Garmin.");
-            } finally {
-                document.body.style.cursor = 'default';
+                console.error("Erreur FIT local:", e);
+                alert("Erreur locale lors de la génération du fichier FIT : " + e.message);
             }
         }
 
