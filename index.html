@@ -1,6 +1,4 @@
 <!DOCTYPE html>
-<html lang="fr" class="dark">
-<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Plan d'Entraînement Intelligent</title>
@@ -24,44 +22,72 @@
             }
         }
     </script>
+        <style>
+        /* Base styles (Light Mode by default) */
+        body { background-color: #f8fafc !important; color: #1e293b !important; transition: background-color 0.3s, color 0.3s; }
+        body .bg-dark-950 { background-color: #f8fafc !important; }
+        body .bg-dark-900 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        body .bg-dark-800 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+        body .bg-dark-800\/95 { background-color: rgba(255, 255, 255, 0.95) !important; }
+        body .bg-dark-700 { background-color: #f1f5f9 !important; }
+        body .text-slate-100, body .text-slate-200, body .text-slate-300 { color: #1e293b !important; }
+        body .text-slate-400 { color: #64748b !important; }
+        body .bg-dark-900\/80 { background-color: rgba(255, 255, 255, 0.8) !important; border-color: rgba(226, 232, 240, 0.8) !important; }
+        body .border-slate-700\/80 { border-color: rgba(226, 232, 240, 0.8) !important; }
+        body .bg-dark-900\/60 { background-color: rgba(255, 255, 255, 0.6) !important; border-color: rgba(226, 232, 240, 0.6) !important; }
+        body .border-slate-700\/60 { border-color: rgba(226, 232, 240, 0.6) !important; }
+        body .text-emerald-50 { color: #0f172a !important; }
+        body .hover\:bg-slate-700:hover { background-color: #e2e8f0 !important; }
+
+        /* Dark mode overrides */
+        .dark body { background-color: #090d16 !important; color: #f1f5f9 !important; }
+        .dark .bg-dark-950 { background-color: #090d16 !important; }
+        .dark .bg-dark-900 { background-color: #0f172a !important; border-color: #1e293b !important; }
+        .dark .bg-dark-800 { background-color: #1e293b !important; border-color: #334155 !important; }
+        .dark .bg-dark-800\/95 { background-color: rgba(30, 41, 59, 0.95) !important; }
+        .dark .bg-dark-700 { background-color: #334155 !important; }
+        .dark .text-slate-100, .dark .text-slate-200, .dark .text-slate-300 { color: #f1f5f9 !important; }
+        .dark .text-slate-400 { color: #94a3b8 !important; }
+        .dark .bg-dark-900\/80 { background-color: rgba(15, 23, 42, 0.8) !important; border-color: rgba(30, 41, 59, 0.8) !important; }
+        .dark .border-slate-700\/80 { border-color: rgba(51, 65, 85, 0.8) !important; }
+        .dark .bg-dark-900\/60 { background-color: rgba(15, 23, 42, 0.6) !important; border-color: rgba(30, 41, 59, 0.6) !important; }
+        .dark .border-slate-700\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
+        .dark .text-emerald-50 { color: #ecfdf5 !important; }
+        .dark .hover\:bg-slate-700:hover { background-color: #475569 !important; }
+    </style>
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-dark-900 text-slate-100 min-h-screen font-sans antialiased flex flex-col justify-between">
+<body class="min-h-screen flex flex-col font-sans bg-dark-950 text-slate-100">
 
-    <!-- ÉCRAN D'AUTHENTIFICATION -->
-    <div id="auth-screen" class="fixed inset-0 bg-dark-950/90 z-50 flex items-center justify-center p-4 hidden">
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 bg-dark-950 z-50 flex items-center justify-center p-4">
         <div class="bg-dark-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
             <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 mb-3 text-xl">
+                <div class="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
                     <i class="fa-solid fa-person-running"></i>
                 </div>
-                <h2 id="auth-title" class="text-2xl font-bold">Connexion à ton Plan</h2>
-                <p class="text-slate-400 text-sm mt-1">Sécurisé et synchronisé partout</p>
+                <h2 id="auth-title" class="text-2xl font-bold text-slate-100">Connexion à ton Plan</h2>
             </div>
-
             <form id="auth-form" class="space-y-4">
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Courriel</label>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Email</label>
                     <input type="email" id="email" required class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
                 </div>
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Mot de passe</label>
                     <input type="password" id="password" required class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
                 </div>
+                <div id="auth-error" class="hidden text-red-400 text-xs bg-red-900/20 p-3 rounded-xl border border-red-900/50"></div>
                 <button type="submit" id="auth-submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-900/30">
                     Se connecter
                 </button>
-            </form>
-
-            <div class="mt-6 text-center">
-                <button id="auth-toggle-mode" class="text-sm text-emerald-400 hover:underline">
+                <button type="button" id="auth-toggle-mode" class="w-full text-slate-400 hover:text-emerald-400 text-sm py-2 transition">
                     Pas encore de compte ? S'inscrire
                 </button>
-            </div>
-            <div id="auth-error" class="mt-4 text-red-400 text-sm text-center hidden"></div>
+            </form>
         </div>
     </div>
 
@@ -71,88 +97,78 @@
         <header class="bg-dark-800 border-b border-slate-700 sticky top-0 z-30 px-4 py-3 flex items-center justify-between shadow-md">
             <div class="flex items-center space-x-3">
                 <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                    <i class="fa-solid fa-bolt"></i>
-                </div>
-                <div class="flex items-baseline space-x-2">
-                    <h1 class="font-bold text-lg tracking-tight">Mon Plan Sportif</h1>
-                    <span class="text-[10px] font-mono bg-dark-700 text-slate-400 px-1.5 py-0.5 rounded border border-slate-600">v1.2.0</span>
-                </div>
+                    <button id="theme-toggle" class="p-2 rounded-lg bg-dark-700 text-emerald-400">
+                        <i class="fa-solid fa-moon"></i>
+                </button>
             </div>
-            <div class="flex items-center space-x-2 sm:space-x-3">
+                <div class="flex items-baseline">
+                    <h1 class="font-bold text-lg tracking-tight">Mon Plan Sportif</h1>
+                </div>
+    </div>
+            <div class="flex items-center space-x-3">
                 <button onclick="openProfileModal()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm transition flex items-center space-x-1.5">
                     <i class="fa-solid fa-user-gear text-emerald-400"></i>
                     <span class="hidden sm:inline">Profil & Garmin</span>
                 </button>
-                <button onclick="exportToGarminCalendar()" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-download"></i>
-                    <span class="hidden sm:inline">Export (ICS)</span>
+                <button onclick="openExportModal()" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span class="hidden sm:inline">Exporter (Intervals.icu)</span>
+                </button>
+                <button id="logout-btn" class="text-slate-400 hover:text-red-400 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
                 <span id="user-email-display" class="text-xs text-slate-400 hidden md:inline"></span>
-                <button id="logout-btn" class="bg-dark-700 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-sm transition">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                </button>
-            </div>
+                </div>
         </header>
 
         <!-- CONTENU PRINCIPAL -->
         <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 flex-1 space-y-6">
-            
-            <!-- SECTION STATS & ACTIONS COACH -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-dark-800 border border-slate-700 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-slate-400 uppercase font-semibold">Séances Réalisées</p>
-                        <h3 id="stat-completed" class="text-2xl font-bold mt-1 text-emerald-400">0 / 0</h3>
-                    </div>
-                    <div class="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center text-xl">
-                        <i class="fa-solid fa-check-circle"></i>
-                    </div>
-                </div>
+            <!-- stats summary placeholder -->
+            <div id="stat-completed" class="hidden"></div>
 
-                <div class="bg-dark-800 border border-slate-700 rounded-2xl p-4 md:col-span-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
+            <div class="bg-dark-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex items-center justify-between">
+                <div class="flex-1">
                         <h4 class="font-semibold text-slate-200">Coach Expert Intermédiaire</h4>
                         <p class="text-xs text-slate-400 mt-0.5">Planification intelligente basée sur tes allures Garmin (40 min / 1h course, 1h / 2h30 vélo).</p>
-                    </div>
-                    <div class="flex items-center space-x-2 w-full sm:w-auto">
-                        <button onclick="openGeneratorModal()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-900/30">
+                </div>
+                <div class="flex items-center space-x-3">
+                        <button onclick="openGeneratorModal()" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-900/30 whitespace-nowrap">
                             <i class="fa-solid fa-wand-magic-sparkles"></i>
                             <span>Générer un plan</span>
                         </button>
-                        <button onclick="openModal()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/30">
+                        <button onclick="openModal()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/30 whitespace-nowrap">
                             <i class="fa-solid fa-plus"></i>
                             <span>Séance unique</span>
                         </button>
+    </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- VUE CALENDRIER MENSUEL -->
+            <!-- VUE CALENDRIER HEBDOMADAIRE -->
             <div class="bg-dark-800 border border-slate-700 rounded-2xl p-4 sm:p-6 shadow-xl">
-                <div class="flex items-center justify-between mb-6">
+                <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 sticky top-[60px] sm:relative sm:top-0 bg-dark-800/95 backdrop-blur-sm z-20 py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 border-b border-slate-700/50 sm:border-none">
                     <div class="flex items-center space-x-3">
-                        <h3 id="calendar-month-title" class="font-bold text-xl capitalize">Octobre 2026</h3>
+                        <h3 id="calendar-month-title" class="font-bold text-lg sm:text-xl capitalize text-emerald-50">Semaine</h3>
                     </div>
                     <div class="flex items-center space-x-2">
-                        <button onclick="changeMonth(-1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm transition">
+                        <button onclick="changeWeek(-1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition">
                             <i class="fa-solid fa-chevron-left"></i>
                         </button>
-                        <button onclick="goToCurrentMonth()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm transition">
-                            Aujourd'hui
+                        <button onclick="goToCurrentWeek()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition font-medium">
+                            Cette semaine
                         </button>
-                        <button onclick="changeMonth(1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm transition">
+                        <button onclick="changeWeek(1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition">
                             <i class="fa-solid fa-chevron-right"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- En-têtes des jours de la semaine -->
-                <div class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-400 mb-2">
+                <!-- En-têtes des jours de la semaine (Desktop uniquement) -->
+                <div class="hidden sm:grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-400 mb-3">
                     <div>Lun</div><div>Mar</div><div>Mer</div><div>Jeu</div><div>Ven</div><div>Sam</div><div>Dim</div>
                 </div>
 
-                <!-- Grille du calendrier -->
-                <div id="calendar-grid" class="grid grid-cols-7 gap-2">
+                <!-- Grille du calendrier (Adaptative mobile) -->
+                <div id="calendar-grid" class="grid grid-cols-1 sm:grid-cols-7 gap-3">
                     <!-- Généré dynamiquement -->
                 </div>
 
@@ -184,33 +200,27 @@
                         <thead>
                             <tr class="bg-dark-900 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
                                 <th class="p-3 font-semibold">Métrique</th>
-                                <th class="p-3 font-semibold">Temps / Valeur</th>
-                                <th class="p-3 font-semibold">Allure / FC Cible</th>
+                                <th class="p-3 font-semibold">Temps</th>
+                                <th class="p-3 font-semibold">Allure (Calculée)</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-700/60">
                             <tr>
                                 <td class="p-3 font-medium text-slate-300">Prédiction 5K</td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-p5k-time" placeholder="ex: 22:30" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="prof-p5k-time" placeholder="22:30" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
                                 </td>
                                 <td class="p-3">
-                                    <div class="flex space-x-1">
-                                        <input type="text" id="prof-p5k-pace" placeholder="4:30 /km" class="w-20 bg-dark-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-                                        <input type="text" id="prof-p5k-hr" placeholder="175 bpm" class="w-20 bg-dark-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-                                    </div>
+                                    <input type="text" id="prof-p5k-pace" readonly class="w-full bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-emerald-400 font-mono italic">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="p-3 font-medium text-slate-300">Prédiction 10K</td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-p10k-time" placeholder="ex: 47:00" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="prof-p10k-time" placeholder="47:00" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
                                 </td>
                                 <td class="p-3">
-                                    <div class="flex space-x-1">
-                                        <input type="text" id="prof-p10k-pace" placeholder="4:42 /km" class="w-20 bg-dark-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-                                        <input type="text" id="prof-p10k-hr" placeholder="170 bpm" class="w-20 bg-dark-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-                                    </div>
+                                    <input type="text" id="prof-p10k-pace" readonly class="w-full bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-emerald-400 font-mono italic">
                                 </td>
                             </tr>
                             <tr>
@@ -235,6 +245,13 @@
                 <div class="flex space-x-3 pt-2">
                     <button type="button" onclick="closeProfileModal()" class="flex-1 bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl transition text-sm">Annuler</button>
                     <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg shadow-emerald-900/30 text-sm">Enregistrer le profil</button>
+                </div>
+                
+                <div class="pt-6 mt-4 border-t border-slate-700/60">
+                    <button type="button" onclick="deleteAllWorkouts()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Réinitialiser tout le calendrier (Supprimer)</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -291,7 +308,7 @@
 
     <!-- MODAL DÉTAILS / VISUALISATION DE LA SÉANCE -->
     <div id="details-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-dark-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+        <div class="bg-dark-800 border border-slate-700 w-full max-md rounded-2xl p-6 shadow-2xl space-y-4">
             <div class="flex items-center justify-between">
                 <span id="detail-type-badge" class="text-xs px-2.5 py-1 rounded-full border"></span>
                 <span id="detail-date" class="text-xs text-slate-400"></span>
@@ -323,6 +340,49 @@
         </div>
     </div>
 
+    <!-- MODAL EXPORT INTERVALS.ICU -->
+    <div id="export-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-dark-800 border border-slate-700 w-full max-w-2xl rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-file-export text-blue-400"></i>
+                    <span>Exporter vers Intervals.icu / Garmin</span>
+                </h3>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <p class="text-sm text-slate-400 mb-4">Copie le texte ci-dessous pour <a href="https://intervals.icu" target="_blank" class="text-emerald-400 hover:underline font-semibold">Intervals.icu</a> ou télécharge un fichier <strong>.ZWO</strong> (format Zwift/TrainingPeaks).</p>
+
+            <div class="flex space-x-2 mb-4 overflow-x-auto pb-2 scrollbar-hide" id="export-workout-tabs">
+                <!-- Onglets générés ici -->
+            </div>
+
+            <div class="relative flex-1 mt-2">
+                <textarea id="export-textarea" class="w-full h-64 bg-dark-950 border border-slate-700 rounded-xl p-4 pt-14 text-sm font-mono text-emerald-400 focus:outline-none focus:border-blue-500" readonly></textarea>
+                <div class="absolute top-3 right-3 flex space-x-2">
+                    <button onclick="copyExportText()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1.5 shadow">
+                        <i class="fa-regular fa-copy"></i>
+                        <span class="hidden sm:inline">Copier le texte</span>
+                    </button>
+                    <button onclick="downloadZWO()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1.5 shadow">
+                        <i class="fa-solid fa-file-arrow-down"></i>
+                        <span>Fichier .ZWO</span>
+                    </button>
+                    <button onclick="downloadFIT()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1.5 shadow">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Garmin (.FIT)</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="pt-4 mt-2">
+                <button onclick="closeExportModal()" class="w-full bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl transition text-sm">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL GÉNÉRATEUR INTELLIGENT DE SEMAINE -->
     <div id="generator-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-800 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -346,32 +406,51 @@
                     </select>
                 </div>
 
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Niveau d'énergie</label>
+                    <select id="gen-energy" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                        <option value="haute">Pêche d'enfer</option>
+                        <option value="normale" selected>Normal / Stable</option>
+                        <option value="fatigue">Fatigué (Besoin de récup)</option>
+                    </select>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Niveau d'énergie</label>
-                        <select id="gen-energy" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                            <option value="haute">Pêche d'enfer</option>
-                            <option value="normale" selected>Normal / Stable</option>
-                            <option value="fatigue">Fatigué (Besoin de récup)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Séances Course</label>
-                        <select id="gen-runs" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Course Semaine</label>
+                        <select id="gen-runs-week" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                            <option value="0">0 Séance</option>
                             <option value="1">1 Séance</option>
                             <option value="2" selected>2 Séances</option>
                             <option value="3">3 Séances</option>
+                            <option value="4">4 Séances</option>
                         </select>
                     </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Séances Vélo</label>
-                    <select id="gen-bikes" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                        <option value="0">0 Séance</option>
-                        <option value="1">1 Séance</option>
-                        <option value="2" selected>2 Séances (Semaine & WE)</option>
-                    </select>
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Course Weekend</label>
+                        <select id="gen-runs-we" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                            <option value="0">0 Séance</option>
+                            <option value="1" selected>1 Séance</option>
+                            <option value="2">2 Séances</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Vélo Semaine</label>
+                        <select id="gen-bikes-week" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                            <option value="0">0 Séance</option>
+                            <option value="1" selected>1 Séance</option>
+                            <option value="2">2 Séances</option>
+                            <option value="3">3 Séances</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Vélo Weekend</label>
+                        <select id="gen-bikes-we" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                            <option value="0">0 Séance</option>
+                            <option value="1" selected>1 Séance</option>
+                            <option value="2">2 Séances</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="bg-dark-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-400 space-y-1">
@@ -449,6 +528,22 @@
 
         // Éléments DOM
         const authScreen = document.getElementById('auth-screen');
+        const themeToggle = document.getElementById('theme-toggle');
+
+        document.addEventListener('DOMContentLoaded', () => {
+             // Let's set the icon to moon because clicking it will switch to dark
+            const icon = themeToggle.querySelector('i');
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+        });
+
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            const icon = themeToggle.querySelector('i');
+            icon.classList.toggle('fa-moon');
+            icon.classList.toggle('fa-sun');
+        });
+
         const appContent = document.getElementById('app-content');
         const authForm = document.getElementById('auth-form');
         const authTitle = document.getElementById('auth-title');
@@ -484,7 +579,7 @@
             } else {
                 authScreen.classList.remove('hidden');
                 appContent.classList.add('hidden');
-            }
+        }
         }
 
         authToggleMode.addEventListener('click', () => {
@@ -524,6 +619,37 @@
         // ==========================================
         // GESTION DU PROFIL & GARMIN
         // ==========================================
+
+        // Helper to convert time string (MM:SS) to seconds
+        function timeToSeconds(timeStr) {
+            const parts = timeStr.split(':');
+            if (parts.length !== 2) return 0;
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        }
+
+        // Helper to convert seconds to pace string (MM:SS /km)
+        function secondsToPace(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')} /km`;
+        }
+        function calculatePaces() {
+            const p5kTime = document.getElementById('prof-p5k-time').value;
+            const p10kTime = document.getElementById('prof-p10k-time').value;
+
+            if (p5kTime) {
+                const seconds = timeToSeconds(p5kTime);
+                document.getElementById('prof-p5k-pace').value = secondsToPace(seconds / 5);
+            }
+            if (p10kTime) {
+                const seconds = timeToSeconds(p10kTime);
+                document.getElementById('prof-p10k-pace').value = secondsToPace(seconds / 10);
+            }
+        }
+
+        document.getElementById('prof-p5k-time').addEventListener('input', calculatePaces);
+        document.getElementById('prof-p10k-time').addEventListener('input', calculatePaces);
+
         async function fetchProfile() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return;
@@ -537,11 +663,8 @@
             if (data && !error) {
                 userProfile = data;
                 document.getElementById('prof-p5k-time').value = data.p5k_time || '';
-                document.getElementById('prof-p5k-pace').value = data.p5k_pace || '';
-                document.getElementById('prof-p5k-hr').value = data.p5k_hr || '';
                 document.getElementById('prof-p10k-time').value = data.p10k_time || '';
-                document.getElementById('prof-p10k-pace').value = data.p10k_pace || '';
-                document.getElementById('prof-p10k-hr').value = data.p10k_hr || '';
+                calculatePaces(); // Calculate on load
                 document.getElementById('prof-vo2max').value = data.vo2max || '';
                 document.getElementById('prof-threshold-pace').value = data.threshold_pace || '';
                 document.getElementById('prof-threshold-hr').value = data.threshold_hr || '';
@@ -557,10 +680,8 @@
                 user_id: user.id,
                 p5k_time: document.getElementById('prof-p5k-time').value,
                 p5k_pace: document.getElementById('prof-p5k-pace').value,
-                p5k_hr: document.getElementById('prof-p5k-hr').value,
                 p10k_time: document.getElementById('prof-p10k-time').value,
                 p10k_pace: document.getElementById('prof-p10k-pace').value,
-                p10k_hr: document.getElementById('prof-p10k-hr').value,
                 vo2max: parseFloat(document.getElementById('prof-vo2max').value) || null,
                 threshold_pace: document.getElementById('prof-threshold-pace').value,
                 threshold_hr: document.getElementById('prof-threshold-hr').value,
@@ -570,7 +691,6 @@
             const { error } = await supabaseClient
                 .from('user_profiles')
                 .upsert(profileData, { onConflict: 'user_id' });
-
             if (!error) {
                 userProfile = profileData;
                 closeProfileModal();
@@ -602,12 +722,12 @@
             }
         }
 
-        function changeMonth(direction) {
-            currentDateView.setMonth(currentDateView.getMonth() + direction);
+                function changeWeek(direction) {
+            currentDateView.setDate(currentDateView.getDate() + (direction * 7));
             renderCalendar();
         }
 
-        function goToCurrentMonth() {
+        function goToCurrentWeek() {
             currentDateView = new Date();
             renderCalendar();
         }
@@ -615,76 +735,95 @@
         function renderCalendar() {
             calendarGrid.innerHTML = '';
             
-            const year = currentDateView.getFullYear();
-            const month = currentDateView.getMonth();
+            const startOfWeek = new Date(currentDateView);
+            // Fix timezone issue when getting start of day
+            startOfWeek.setHours(12, 0, 0, 0); 
+            
+            const day = startOfWeek.getDay();
+            // Ajustement pour que lundi soit le premier jour (1) et dimanche le dernier (0 -> 6)
+            const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+            startOfWeek.setDate(diff);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
 
             const monthNames = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-            calendarMonthTitle.textContent = `${monthNames[month]} ${year}`;
-
-            const firstDayOfMonth = new Date(year, month, 1);
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const dayNames = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
             
-            let startDay = firstDayOfMonth.getDay() - 1;
-            if (startDay === -1) startDay = 6;
-
-            let completedCount = 0;
-            let totalCount = workouts.length;
-
-            for (let i = 0; i < startDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = 'bg-dark-900/20 border border-slate-800/40 rounded-xl min-h-[120px] opacity-20';
-                calendarGrid.appendChild(emptyCell);
+            if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
+                calendarMonthTitle.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]} ${startOfWeek.getFullYear()}`;
+            } else {
+                calendarMonthTitle.textContent = `${startOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]} - ${endOfWeek.getDate()} ${monthNames[endOfWeek.getMonth()]} ${endOfWeek.getFullYear()}`;
             }
 
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            let completedCount = 0;
+            let totalCount = 0;
+            
+            let weeklyWorkouts = workouts.filter(w => {
+                const parts = w.date.split('-');
+                const d = new Date(parts[0], parts[1] - 1, parts[2]); // local date
+                return d >= startOfWeek && d <= endOfWeek;
+            });
+
+            const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' in local timezone
+
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(startOfWeek);
+                dayDate.setDate(startOfWeek.getDate() + i);
+                
+                // Format safely for local timezone to prevent off-by-one errors
+                const year = dayDate.getFullYear();
+                const month = String(dayDate.getMonth() + 1).padStart(2, '0');
+                const dt = String(dayDate.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${dt}`;
                 
                 const dayCell = document.createElement('div');
-                dayCell.className = 'bg-dark-900 border border-slate-700/80 rounded-xl p-2 min-h-[130px] flex flex-col justify-between transition hover:border-slate-500 relative group';
+                dayCell.className = 'bg-dark-900 border border-slate-700/80 rounded-2xl p-3 min-h-[120px] sm:min-h-[160px] flex flex-col transition hover:border-emerald-500/50 relative group';
                 dayCell.setAttribute('ondragover', 'allowDrop(event)');
                 dayCell.setAttribute('ondrop', `dropWorkout(event, '${dateStr}')`);
 
                 const dayHeader = document.createElement('div');
-                dayHeader.className = 'flex items-center justify-between text-xs text-slate-400 mb-1';
+                dayHeader.className = 'flex items-center justify-between mb-3';
                 
-                const isToday = new Date().toISOString().split('T')[0] === dateStr;
+                const isToday = todayStr === dateStr;
                 dayHeader.innerHTML = `
-                    <span class="${isToday ? 'bg-emerald-500 text-white font-bold px-1.5 py-0.5 rounded-md' : ''}">${day}</span>
-                    <button onclick="openModalForDate('${dateStr}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-emerald-400 transition"><i class="fa-solid fa-plus text-[10px]"></i></button>
+                    <div class="flex items-center space-x-2">
+                        <span class="sm:hidden font-bold text-xs uppercase tracking-wider text-slate-400">${dayNames[i]}</span>
+                        <span class="flex items-center justify-center w-7 h-7 text-sm ${isToday ? 'bg-emerald-500 text-white font-bold rounded-full' : 'text-slate-300 font-semibold'}">${dayDate.getDate()}</span>
+                    </div>
+                    <button onclick="openModalForDate('${dateStr}')" class="sm:opacity-0 group-hover:opacity-100 text-slate-500 hover:text-emerald-400 transition bg-dark-800 sm:bg-transparent p-1.5 sm:p-0 rounded-lg"><i class="fa-solid fa-plus text-xs"></i></button>
                 `;
                 dayCell.appendChild(dayHeader);
 
-                const dayWorkouts = workouts.filter(w => w.date === dateStr);
-                const count = dayWorkouts.length;
+                const dayWorkouts = weeklyWorkouts.filter(w => w.date === dateStr);
                 const workoutsContainer = document.createElement('div');
-                workoutsContainer.className = count === 1 ? 'flex-1 flex flex-col justify-center space-y-1 my-auto' : 'space-y-1.5 overflow-y-auto max-h-[95px]';
+                workoutsContainer.className = 'space-y-2 flex-1';
 
                 dayWorkouts.forEach(w => {
-                    if (w.completed) completedCount++;
-
                     const typeColors = {
-                        'Course': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-                        'Vélo': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-                        'Renfo': 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-                        'Repos': 'bg-slate-700/60 text-slate-300 border-slate-600'
+                        'Course': 'bg-blue-500/10 text-blue-300 border-blue-500/20',
+                        'Vélo': 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+                        'Renfo': 'bg-purple-500/10 text-purple-300 border-purple-500/20',
+                        'Repos': 'bg-slate-700/40 text-slate-400 border-slate-600/40'
                     };
                     const badgeClass = typeColors[w.type] || 'bg-slate-700 text-slate-300 border-slate-600';
-                    const cardPadding = count === 1 ? 'p-2.5 text-xs' : 'p-1.5 text-xs';
 
                     const workoutCard = document.createElement('div');
-                    workoutCard.className = `rounded-lg border cursor-grab active:cursor-grabbing transition ${cardPadding} ${badgeClass} ${w.completed ? 'opacity-50 line-through' : 'shadow-sm'}`;
+                    workoutCard.className = `rounded-xl border p-2.5 cursor-grab active:cursor-grabbing transition text-xs shadow-sm ${badgeClass} ${w.completed ? 'opacity-40 grayscale-[0.5]' : 'hover:scale-[1.02] hover:shadow-md'}`;
                     workoutCard.draggable = true;
                     workoutCard.setAttribute('ondragstart', `drag(event, '${w.id}')`);
                     
                     workoutCard.innerHTML = `
-                        <div class="flex items-center justify-between mb-0.5">
-                            <span class="font-bold truncate text-[11px] uppercase tracking-wider opacity-75">${w.type}</span>
-                            <div class="flex items-center space-x-1.5">
-                                <button onclick="event.stopPropagation(); toggleWorkout('${w.id}', ${!w.completed})" class="hover:text-emerald-400"><i class="fa-solid ${w.completed ? 'fa-rotate-left' : 'fa-check'} text-[11px]"></i></button>
-                                <button onclick="event.stopPropagation(); deleteWorkout('${w.id}')" class="hover:text-red-400"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="font-black text-[9px] uppercase tracking-widest opacity-80">${w.type}</span>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="event.stopPropagation(); toggleWorkout('${w.id}', ${!w.completed})" class="hover:text-emerald-400 transition"><i class="fa-solid ${w.completed ? 'fa-rotate-left' : 'fa-check'} text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); deleteWorkout('${w.id}')" class="hover:text-red-400 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
                             </div>
                         </div>
-                        <div class="font-semibold truncate leading-tight" onclick="openDetails('${w.id}')" title="${w.title}">${w.title}</div>
+                        <div class="font-bold leading-tight break-words" onclick="openDetails('${w.id}')">${w.title}</div>
                     `;
                     workoutsContainer.appendChild(workoutCard);
                 });
@@ -693,13 +832,15 @@
                 calendarGrid.appendChild(dayCell);
             }
 
-            if (totalCount === 0) {
+            // Stats globales (tout le plan)
+            const completedCountGlobal = workouts.filter(w => w.completed).length;
+            document.getElementById('stat-completed').textContent = `${completedCountGlobal} / ${workouts.length}`;
+
+            if (weeklyWorkouts.length === 0) {
                 noWorkouts.classList.remove('hidden');
             } else {
                 noWorkouts.classList.add('hidden');
             }
-
-            document.getElementById('stat-completed').textContent = `${completedCount} / ${totalCount}`;
         }
 
         // ==========================================
@@ -738,9 +879,29 @@
         }
 
         async function deleteWorkout(id) {
-            await supabaseClient.from('workouts').delete().eq('id', id);
-            closeDetailsModal();
-            fetchWorkouts();
+            const { error } = await supabaseClient.from('workouts').delete().eq('id', id);
+            if (error) {
+                alert("Erreur lors de la suppression : " + error.message);
+            } else {
+                closeDetailsModal();
+                fetchWorkouts();
+            }
+        }
+
+        async function deleteAllWorkouts() {
+            if(confirm("Es-tu sûr de vouloir supprimer TOUS tes entraînements ? Cette action est irréversible et videra tout le calendrier.")) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if(!user) return;
+                
+                const { error } = await supabaseClient.from('workouts').delete().eq('user_id', user.id);
+                if (error) {
+                    alert("Erreur lors de la suppression : " + error.message);
+                } else {
+                    alert("Calendrier réinitialisé avec succès !");
+                    closeProfileModal();
+                    fetchWorkouts();
+                }
+            }
         }
 
         function openModal() {
@@ -775,7 +936,7 @@
             badge.className = "text-xs px-2.5 py-1 rounded-full border " + (
                 w.type === 'Course' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
                 w.type === 'Vélo' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                w.type === 'Renfo' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-slate-700 text-slate-300'
+                w.type === 'Renfo' ? 'bg-purple-500/20 text-purple-300 border-purple-500/20' : 'bg-slate-700 text-slate-300'
             );
 
             const toggleBtn = document.getElementById('detail-toggle-btn');
@@ -804,37 +965,350 @@
             generatorModal.classList.add('hidden');
         }
 
-        function exportToGarminCalendar() {
+        function translateToIntervals(w) {
+            let text = `${w.title}\n\n`;
+            
+            // Warmup
+            let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
+            let wTime = wTimeMatch ? wTimeMatch[1] : 10;
+            text += `- ${wTime}m warmup\n`;
+
+            // Main
+            let main = w.main_block || "";
+            if (w.type === 'Course') {
+                if (main.includes('5x')) {
+                    let paceMatch = main.match(/allure ([\d:]+)/);
+                    let pace = paceMatch ? paceMatch[1] : '4:30';
+                    text += `- 5x\n  - 400m pace ${pace}\n  - 1m30s recover\n`;
+                } else if (main.includes('2x 8 min')) {
+                    let paceMatch = main.match(/\(([\d:]+)/);
+                    let pace = paceMatch ? paceMatch[1] : '4:15';
+                    text += `- 2x\n  - 8m pace ${pace}\n  - 2m recover\n`;
+                } else {
+                    // Base / Long run
+                    let tMatch = main.match(/(\d+)\s*min/);
+                    let t = tMatch ? tMatch[1] : 30;
+                    let paceMatch = main.match(/allure\s*([\d:]+)/);
+                    let pace = paceMatch ? paceMatch[1] : '5:30';
+                    text += `- ${t}m pace ${pace}\n`;
+                }
+            } else if (w.type === 'Vélo') {
+                if (main.includes('1h55')) {
+                    text += `- 115m Z2\n`;
+                } else {
+                    let tMatch = main.match(/(\d+)\s*min/);
+                    let t = tMatch ? tMatch[1] : 45;
+                    text += `- ${t}m Z2\n`;
+                }
+            } else {
+                // Custom/Repos
+                text += `- 30m freetext\n`;
+            }
+
+            // Cooldown
+            let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
+            let cTime = cTimeMatch ? cTimeMatch[1] : 5;
+            text += `- ${cTime}m cooldown`;
+
+            return text;
+        }
+
+        let currentExportWorkout = null;
+
+        function openExportModal() {
             if (workouts.length === 0) {
                 alert("Aucun entraînement à exporter.");
                 return;
             }
 
-            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Mon Plan Sportif//FR\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
-
-            workouts.forEach(w => {
-                let dateFormatted = w.date.replace(/-/g, '');
-                let description = `Type: ${w.type}\\nEchauffement: ${w.warmup || 'N/A'}\\nBloc Principal: ${w.main_block || 'N/A'}\\nRetour au calme: ${w.cooldown || 'N/A'}`;
+            const tabsContainer = document.getElementById('export-workout-tabs');
+            tabsContainer.innerHTML = '';
+            
+            // Show only upcoming or uncompleted workouts
+            let upcoming = workouts.filter(w => !w.completed).sort((a,b) => new Date(a.date) - new Date(b.date));
+            if (upcoming.length === 0) upcoming = workouts; // Fallback
+            
+            upcoming.forEach((w, index) => {
+                const btn = document.createElement('button');
+                btn.className = `whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition ${index === 0 ? 'bg-blue-600 text-white' : 'bg-dark-700 text-slate-400 hover:bg-slate-700'}`;
                 
-                icsContent += "BEGIN:VEVENT\n";
-                icsContent += `UID:workout-${w.id}@monplansportif\n`;
-                icsContent += `DTSTAMP:${dateFormatted}T000000Z\n`;
-                icsContent += `DTSTART;VALUE=DATE:${dateFormatted}\n`;
-                icsContent += `DTEND;VALUE=DATE:${dateFormatted}\n`;
-                icsContent += `SUMMARY:[${w.type}] ${w.title}\n`;
-                icsContent += `DESCRIPTION:${description}\n`;
-                icsContent += "END:VEVENT\n";
+                // Format small date for tab
+                const dParts = w.date.split('-');
+                btn.textContent = `${dParts[2]}/${dParts[1]} - ${w.type}`;
+                
+                btn.onclick = () => {
+                    // Update active tab styling
+                    Array.from(tabsContainer.children).forEach(c => {
+                        c.className = 'whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-dark-700 text-slate-400 hover:bg-slate-700';
+                    });
+                    btn.className = 'whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-blue-600 text-white';
+                    
+                    // Show text
+                    currentExportWorkout = w;
+                    document.getElementById('export-textarea').value = translateToIntervals(w);
+                };
+                tabsContainer.appendChild(btn);
             });
 
-            icsContent += "END:VCALENDAR";
+            // Set initial text
+            currentExportWorkout = upcoming[0];
+            document.getElementById('export-textarea').value = translateToIntervals(upcoming[0]);
+            document.getElementById('export-modal').classList.remove('hidden');
+        }
 
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.add('hidden');
+        }
+
+        function copyExportText() {
+            const textarea = document.getElementById('export-textarea');
+            textarea.select();
+            document.execCommand('copy');
+            alert('Texte copié dans le presse-papier ! Tu peux le coller dans Intervals.icu');
+        }
+
+        function generateZWO(w) {
+            let sport = w.type === 'Vélo' ? 'bike' : 'run';
+            let title = w.title.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 30);
+            
+            let xml = `<workout_file>\n`;
+            xml += `  <author>Mon Plan Sportif</author>\n`;
+            xml += `  <name>${title}</name>\n`;
+            xml += `  <description>Généré par Mon Plan d'Entraînement Intelligent</description>\n`;
+            xml += `  <sportType>${sport}</sportType>\n`;
+            xml += `  <workout>\n`;
+
+            function addWarmup(durationSecs) {
+                xml += `    <Warmup Duration="${durationSecs}" PowerLow="0.4" PowerHigh="0.6"/>\n`;
+            }
+            function addCooldown(durationSecs) {
+                xml += `    <Cooldown Duration="${durationSecs}" PowerLow="0.6" PowerHigh="0.4"/>\n`;
+            }
+            function addSteadyState(durationSecs, power) {
+                xml += `    <SteadyState Duration="${durationSecs}" Power="${power}"/>\n`;
+            }
+            function addIntervals(repeats, onDuration, offDuration) {
+                xml += `    <IntervalsT Repeat="${repeats}" OnDuration="${onDuration}" OffDuration="${offDuration}" OnPower="0.95" OffPower="0.5"/>\n`;
+            }
+
+            // Warmup
+            let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
+            let wTime = wTimeMatch ? parseInt(wTimeMatch[1]) * 60 : 600;
+            addWarmup(wTime);
+
+            // Main
+            let main = w.main_block || "";
+            if (w.type === 'Course') {
+                if (main.includes('5x')) {
+                    addIntervals(5, 90, 90); // Approximating 400m as 90s
+                } else if (main.includes('2x 8 min')) {
+                    addIntervals(2, 480, 120);
+                } else {
+                    let tMatch = main.match(/(\d+)\s*min/);
+                    let t = tMatch ? parseInt(tMatch[1]) * 60 : 1800;
+                    addSteadyState(t, 0.7); // Zone 2 approx power
+                }
+            } else if (w.type === 'Vélo') {
+                if (main.includes('1h55')) {
+                    addSteadyState(115 * 60, 0.65);
+                } else {
+                    let tMatch = main.match(/(\d+)\s*min/);
+                    let t = tMatch ? parseInt(tMatch[1]) * 60 : 2700;
+                    addSteadyState(t, 0.65);
+                }
+            } else {
+                addSteadyState(1800, 0.65);
+            }
+
+            // Cooldown
+            let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
+            let cTime = cTimeMatch ? parseInt(cTimeMatch[1]) * 60 : 300;
+            addCooldown(cTime);
+
+            xml += `  </workout>\n`;
+            xml += `</workout_file>`;
+            return xml;
+        }
+
+        function downloadZWO() {
+            if (!currentExportWorkout) return;
+            const xml = generateZWO(currentExportWorkout);
+            const blob = new Blob([xml], { type: 'application/xml' });
             const link = document.createElement('a');
             link.href = window.URL.createObjectURL(blob);
-            link.setAttribute('download', 'plan_entrainement_garmin.ics');
+            let dateFormatted = currentExportWorkout.date.replace(/-/g, '');
+            link.setAttribute('download', `workout_${dateFormatted}.zwo`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        async function downloadFIT() {
+            if (!currentExportWorkout) return;
+            
+            try {
+                // Change le curseur pour indiquer le chargement
+                document.body.style.cursor = 'wait';
+                
+                // Fetch le module FIT. Utilisation de jsDelivr standard et de l'export ESM de la librairie.
+                // Parfois jsdelivr/+esm a du mal avec certaines libs complexes, essayons l'approche unpkg ou skypack.
+                const fitSdk = await import('https://cdn.skypack.dev/@garmin/fitsdk');
+                const { Encoder, Profile } = fitSdk;
+                
+                const w = currentExportWorkout;
+                const encoder = new Encoder(Profile.types.mesgNum.workout);
+
+                // 1. Message File ID (Indique à Garmin que c'est un entraînement)
+                encoder.writeMessage(Profile.types.mesgNum.fileId, {
+                    type: Profile.types.file.workout,
+                    manufacturer: Profile.types.manufacturer.development,
+                    product: 0,
+                    timeCreated: new Date(),
+                    serialNumber: Math.floor(Math.random() * 100000)
+                });
+
+                // 2. Détermination des étapes (Echauffement, Intervalles, Récupération)
+                let steps = [];
+                let stepIndex = 0;
+
+                // Echauffement
+                let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
+                let wTime = wTimeMatch ? parseInt(wTimeMatch[1]) * 60 : 600;
+                if (wTime > 0) {
+                    steps.push({
+                        messageIndex: stepIndex++,
+                        durationTypes: Profile.types.wktStepDuration.time,
+                        durationValue: wTime * 1000,
+                        targetType: Profile.types.wktStepTarget.open,
+                        intensity: Profile.types.intensity.warmup
+                    });
+                }
+
+                // Bloc Principal
+                let main = w.main_block || "";
+                if (w.type === 'Course') {
+                    if (main.includes('5x')) {
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.repeatUntilStepsCmplt,
+                            durationValue: 5, 
+                            targetValue: 2, 
+                            intensity: Profile.types.intensity.active
+                        });
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.time,
+                            durationValue: 90 * 1000, // 1m30
+                            targetType: Profile.types.wktStepTarget.open,
+                            intensity: Profile.types.intensity.active
+                        });
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.time,
+                            durationValue: 90 * 1000, 
+                            targetType: Profile.types.wktStepTarget.open,
+                            intensity: Profile.types.intensity.rest
+                        });
+                    } else if (main.includes('2x 8 min')) {
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.repeatUntilStepsCmplt,
+                            durationValue: 2, 
+                            targetValue: 2, 
+                            intensity: Profile.types.intensity.active
+                        });
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.time,
+                            durationValue: 480 * 1000, 
+                            targetType: Profile.types.wktStepTarget.open,
+                            intensity: Profile.types.intensity.active
+                        });
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.time,
+                            durationValue: 120 * 1000, 
+                            targetType: Profile.types.wktStepTarget.open,
+                            intensity: Profile.types.intensity.rest
+                        });
+                    } else {
+                        let tMatch = main.match(/(\d+)\s*min/);
+                        let t = tMatch ? parseInt(tMatch[1]) * 60 : 1800;
+                        steps.push({
+                            messageIndex: stepIndex++,
+                            durationTypes: Profile.types.wktStepDuration.time,
+                            durationValue: t * 1000,
+                            targetType: Profile.types.wktStepTarget.open,
+                            intensity: Profile.types.intensity.active
+                        });
+                    }
+                } else if (w.type === 'Vélo') {
+                    let tMatch = main.match(/(\d+)\s*min/);
+                    let t = tMatch ? parseInt(tMatch[1]) * 60 : (main.includes('1h55') ? 115 * 60 : 2700);
+                    steps.push({
+                        messageIndex: stepIndex++,
+                        durationTypes: Profile.types.wktStepDuration.time,
+                        durationValue: t * 1000,
+                        targetType: Profile.types.wktStepTarget.open,
+                        intensity: Profile.types.intensity.active
+                    });
+                } else {
+                    steps.push({
+                        messageIndex: stepIndex++,
+                        durationTypes: Profile.types.wktStepDuration.time,
+                        durationValue: 1800 * 1000,
+                        targetType: Profile.types.wktStepTarget.open,
+                        intensity: Profile.types.intensity.active
+                    });
+                }
+
+                // Retour au calme
+                let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
+                let cTime = cTimeMatch ? parseInt(cTimeMatch[1]) * 60 : 300;
+                if (cTime > 0) {
+                    steps.push({
+                        messageIndex: stepIndex++,
+                        durationTypes: Profile.types.wktStepDuration.time,
+                        durationValue: cTime * 1000,
+                        targetType: Profile.types.wktStepTarget.open,
+                        intensity: Profile.types.intensity.cooldown
+                    });
+                }
+
+                // En-tête de l'entraînement
+                let sportType = w.type === 'Vélo' ? Profile.types.sport.cycling : Profile.types.sport.running;
+                let safeTitle = w.title.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 15); // Garmin limite souvent la longueur du titre à 15/16 caractères
+
+                encoder.writeMessage(Profile.types.mesgNum.workout, {
+                    wktName: safeTitle,
+                    sport: sportType,
+                    numValidSteps: steps.length
+                });
+
+                // Ajout des étapes encodées
+                steps.forEach((step) => {
+                    encoder.writeMessage(Profile.types.mesgNum.workoutStep, step);
+                });
+
+                // Génération du fichier binaire FIT !
+                const fitBytes = encoder.getBytes();
+                
+                // Création et téléchargement du fichier
+                const blob = new Blob([fitBytes], { type: "application/vnd.ant.fit" });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                let dateFormatted = w.date.replace(/-/g, '');
+                link.setAttribute('download', `garmin_${dateFormatted}.fit`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+            } catch (e) {
+                console.error("Erreur de génération FIT:", e);
+                alert("Erreur lors de la génération du fichier FIT. Assurez-vous d'avoir une connexion internet pour charger le SDK Garmin.");
+            } finally {
+                document.body.style.cursor = 'default';
+            }
         }
 
         document.getElementById('workout-form').addEventListener('submit', async (e) => {
@@ -865,8 +1339,10 @@
             e.preventDefault();
             const goal = document.getElementById('gen-goal').value;
             const energy = document.getElementById('gen-energy').value;
-            const targetRuns = parseInt(document.getElementById('gen-runs').value);
-            const targetBikes = parseInt(document.getElementById('gen-bikes').value);
+            const targetRunsWeek = parseInt(document.getElementById('gen-runs-week').value);
+            const targetRunsWe = parseInt(document.getElementById('gen-runs-we').value);
+            const targetBikesWeek = parseInt(document.getElementById('gen-bikes-week').value);
+            const targetBikesWe = parseInt(document.getElementById('gen-bikes-we').value);
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return;
@@ -879,10 +1355,92 @@
             let thresholdHr = userProfile.threshold_hr || '178 bpm';
             let targetPace = userProfile.p5k_pace ? ` (${userProfile.p5k_pace})` : ' (4:50 /km)';
 
-            const today = new Date();
-            const currentDayOfWeek = today.getDay() === 0 ? 7 : today.getDay();
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - currentDayOfWeek + 1);
+            // Fetch the last workout date and recent workouts to avoid repetition
+            let lastWorkoutDate = null;
+            let recentWorkouts = [];
+            
+            // August 1st of the current year
+            const augFirst = new Date(new Date().getFullYear(), 7, 1).toISOString().split('T')[0];
+
+            if (workouts && workouts.length > 0) {
+                // Find the latest workout date
+                const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
+                lastWorkoutDate = new Date(sortedWorkouts[0].date);
+                
+                // Get workouts from the last 2 weeks relative to today, but only if they are after August 1st
+                const twoWeeksAgo = new Date();
+                twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+                
+                recentWorkouts = workouts.filter(w => {
+                    const wDate = new Date(w.date);
+                    return wDate >= twoWeeksAgo && w.date >= augFirst;
+                });
+            }
+
+            // Determine the starting Monday for the new plan
+            let targetStartDate = new Date(); // Default to today
+            // To ensure local time calculations don't shift a day backward/forward
+            targetStartDate.setHours(12, 0, 0, 0);
+
+            if (lastWorkoutDate && lastWorkoutDate >= new Date(new Date().setHours(0,0,0,0))) {
+                // If there are future workouts, start the new week after the last workout
+                targetStartDate = new Date(lastWorkoutDate);
+                targetStartDate.setDate(targetStartDate.getDate() + 1); // Start at least 1 day after the last workout
+                targetStartDate.setHours(12, 0, 0, 0);
+            }
+
+            // Adjust to the nearest Monday from the targetStartDate
+            let monday = new Date(targetStartDate);
+            const currentDayOfWeek = monday.getDay() === 0 ? 7 : monday.getDay();
+            monday.setDate(monday.getDate() - currentDayOfWeek + 1);
+            monday.setHours(12, 0, 0, 0);
+
+            // Calculate easy pace (roughly 1 minute slower than 5k pace or 45s slower than 10k pace)
+            let baseEasyPace = "5:30 /km"; // Default
+            
+            // Re-fetch calculations if needed based on the latest input
+            let currentP10kPace = document.getElementById('prof-p10k-pace').value || userProfile.p10k_pace;
+            let currentP5kPace = document.getElementById('prof-p5k-pace').value || userProfile.p5k_pace;
+
+            if (currentP10kPace) {
+                 // Try to calculate from p10k pace
+                 try {
+                     const parts = currentP10kPace.split(' ')[0].split(':');
+                     const secs = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                     const easySecs = secs + 45; // 45s slower
+                     const mins = Math.floor(easySecs / 60);
+                     const remainingSecs = Math.round(easySecs % 60);
+                     baseEasyPace = `${mins}:${remainingSecs.toString().padStart(2, '0')} /km`;
+                 } catch(e) {}
+            } else if (currentP5kPace) {
+                 try {
+                     const parts = currentP5kPace.split(' ')[0].split(':');
+                     const secs = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                     const easySecs = secs + 60; // 60s slower
+                     const mins = Math.floor(easySecs / 60);
+                     const remainingSecs = Math.round(easySecs % 60);
+                     baseEasyPace = `${mins}:${remainingSecs.toString().padStart(2, '0')} /km`;
+                 } catch(e) {}
+            }
+            
+            // Base repetitive templates
+            let runBaseTemplate = {
+                isWeekend: false,
+                type: 'Course',
+                title: 'Course Endurance de Base' + intensityTag,
+                warmup: `5 min warmup`,
+                main: `30 min Zone 2 à allure ${baseEasyPace} (FC stable)`,
+                cooldown: `5 min retour au calme`
+            };
+
+            let bikeBaseTemplate = {
+                isWeekend: false,
+                type: 'Vélo',
+                title: 'Vélo Endurance de Base' + intensityTag,
+                warmup: `10 min mise en jambe`,
+                main: `45 min pédalage fluide (Zone 2)`,
+                cooldown: `5 min retour au calme`
+            };
 
             let runTemplates = [
                 {
@@ -890,24 +1448,24 @@
                     type: 'Course',
                     title: 'Fractionné Intermédiaire 5K' + intensityTag,
                     warmup: `10 min footing progressif (FC cible < 145 bpm)`,
-                    main: `5x (400m à allure ${p5kPace} / FC ${p5kHr} / 90s trot lent)`,
-                    cooldown: `5 min retour au calme & étirements légers`
+                    main: `25 min : 5x (400m à allure ${p5kPace} / 90s trot lent)`,
+                    cooldown: `5 min retour au calme`
                 },
                 {
                     isWeekend: true,
                     type: 'Course',
                     title: 'Sortie Longue Endurance Fondamentale',
                     warmup: `10 min échauffement articulaire et trot souple`,
-                    main: `40 min en Zone 2 stable à allure${targetPace} (FC stable)`,
-                    cooldown: `10 min marche et étirements post-effort`
+                    main: `40 min en Zone 2 stable à allure ${baseEasyPace} (FC stable)`,
+                    cooldown: `10 min marche et étirements`
                 },
                 {
                     isWeekend: false,
                     type: 'Course',
                     title: 'Seuil & Allure Spécifique',
                     warmup: `10 min footing progressif`,
-                    main: `2x 8 min au seuil lactique (${thresholdPace} / ${thresholdHr}) (récup 2 min)`,
-                    cooldown: `6 min retour au calme`
+                    main: `20 min : 2x 8 min au seuil lactique (${thresholdPace} / ${thresholdHr}) (récup 2 min)`,
+                    cooldown: `10 min retour au calme`
                 }
             ];
 
@@ -917,28 +1475,29 @@
                     type: 'Vélo',
                     title: 'Endurance Cycliste Semaine',
                     warmup: `10 min mise en route souple (cadence 90 rpm)`,
-                    main: `40 min en continu, allure modérée et constante`,
-                    cooldown: `10 min retour au calme en souplesse`
+                    main: `45 min en continu, allure modérée et constante`,
+                    cooldown: `5 min retour au calme`
                 },
                 {
                     isWeekend: true,
                     type: 'Vélo',
                     title: 'Sortie Longue Vélo / Gravel',
                     warmup: `20 min progressif en zone aérobie`,
-                    main: `1h55 en endurance fondamentale (gestion de l'effort et hydratation)`,
+                    main: `1h55 en endurance fondamentale (Zone 2)`,
                     cooldown: `15 min retour au calme progressif`
                 }
             ];
 
-            let totalSessions = targetRuns + targetBikes;
+            let totalSessions = targetRunsWeek + targetRunsWe + targetBikesWeek + targetBikesWe;
             if (totalSessions === 0) {
                 alert("Veuillez sélectionner au moins une activité course ou vélo.");
                 return;
             }
 
+            // Extract titles of recent workouts to avoid them
+            const recentTitles = recentWorkouts.map(w => w.title);
+
             let inserts = [];
-            let rWeekIdx = 0;
-            let bWeekIdx = 0;
 
             let runWeekTemplates = runTemplates.filter(t => !t.isWeekend);
             let runWeTemplate = runTemplates.find(t => t.isWeekend);
@@ -946,36 +1505,99 @@
             let bikeWeTemplate = bikeTemplates.find(t => t.isWeekend);
 
             let scheduledSlots = [];
-            if (targetRuns >= 1) scheduledSlots.unshift({ type: 'run', slot: 2, isWe: false });
-            if (targetRuns >= 2) scheduledSlots.push({ type: 'run', slot: 6, isWe: true });
-            if (targetRuns >= 3) scheduledSlots.push({ type: 'run', slot: 3, isWe: false });
+            
+            let neededWeekdays = targetRunsWeek + targetBikesWeek;
+            let neededWeekends = targetRunsWe + targetBikesWe;
 
-            if (targetBikes >= 1) scheduledSlots.push({ type: 'bike', slot: 1, isWe: false });
-            if (targetBikes >= 2) scheduledSlots.push({ type: 'bike', slot: 6, isWe: true });
+            let offset = 0;
+            if (targetStartDate > monday) {
+                 const diffTime = Math.abs(targetStartDate - monday);
+                 offset = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+            }
 
-            scheduledSlots.sort((a, b) => a.slot - b.slot);
+            let availableWeekdays = [0, 1, 2, 3, 4].filter(d => d >= offset);
+            let availableWeekends = [5, 6].filter(d => d >= offset);
+
+            if (availableWeekdays.length < neededWeekdays || availableWeekends.length < neededWeekends) {
+                // Not enough days left in current week, start fresh next week
+                monday.setDate(monday.getDate() + 7);
+                availableWeekdays = [0, 1, 2, 3, 4];
+                availableWeekends = [5, 6];
+            }
+
+            let preferredWeekdays = [1, 3, 0, 4, 2]; // Tue, Thu, Mon, Fri, Wed
+            let chosenWeekdays = preferredWeekdays.filter(d => availableWeekdays.includes(d)).slice(0, neededWeekdays).sort((a,b)=>a-b);
+            
+            let preferredWeekends = [5, 6]; // Sat, Sun
+            let chosenWeekends = preferredWeekends.filter(d => availableWeekends.includes(d)).slice(0, neededWeekends).sort((a,b)=>a-b);
+
+            let weekActivities = [];
+            for (let i = 0; i < targetRunsWeek; i++) weekActivities.push({ type: 'run', isWe: false });
+            for (let i = 0; i < targetBikesWeek; i++) weekActivities.push({ type: 'bike', isWe: false });
+
+            let weekendActivities = [];
+            for (let i = 0; i < targetRunsWe; i++) weekendActivities.push({ type: 'run', isWe: true });
+            for (let i = 0; i < targetBikesWe; i++) weekendActivities.push({ type: 'bike', isWe: true });
+
+            for (let i = 0; i < weekActivities.length; i++) {
+                scheduledSlots.push({ ...weekActivities[i], slotDay: chosenWeekdays[i] });
+            }
+            for (let i = 0; i < weekendActivities.length; i++) {
+                scheduledSlots.push({ ...weekendActivities[i], slotDay: chosenWeekends[i] });
+            }
+
+            scheduledSlots.sort((a, b) => a.slotDay - b.slotDay);
 
             scheduledSlots.forEach(item => {
                 let template = null;
+                
+                let targetDate = new Date(monday);
+                targetDate.setDate(monday.getDate() + item.slotDay);
+
+                // Format the output date properly in local timezone to avoid UTC shifting
+                const year = targetDate.getFullYear();
+                const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const dt = String(targetDate.getDate()).padStart(2, '0');
+                let dateString = `${year}-${month}-${dt}`;
+
                 if (item.type === 'run') {
                     if (item.isWe) {
-                        template = runWeTemplate;
+                         // Check if we did this weekend run recently
+                         if (recentTitles.includes(runWeTemplate.title)) {
+                             template = runBaseTemplate;
+                         } else {
+                             template = runWeTemplate;
+                             recentTitles.push(template.title);
+                         }
                     } else {
-                        template = runWeekTemplates[rWeekIdx % runWeekTemplates.length];
-                        rWeekIdx++;
+                        // Find an unused weekday run template, fallback to base
+                        let available = runWeekTemplates.filter(t => !recentTitles.includes(t.title));
+                        if(available.length > 0) {
+                            template = available[Math.floor(Math.random() * available.length)];
+                            // mark as used
+                            recentTitles.push(template.title); 
+                        } else {
+                            template = runBaseTemplate;
+                        }
                     }
                 } else {
                     if (item.isWe) {
-                        template = bikeWeTemplate;
+                        if (recentTitles.includes(bikeWeTemplate.title)) {
+                             template = bikeBaseTemplate;
+                         } else {
+                             template = bikeWeTemplate;
+                             recentTitles.push(template.title);
+                         }
                     } else {
-                        template = bikeWeekTemplates[bWeekIdx % bikeWeekTemplates.length];
-                        bWeekIdx++;
+                        let available = bikeWeekTemplates.filter(t => !recentTitles.includes(t.title));
+                        if(available.length > 0) {
+                            template = available[Math.floor(Math.random() * available.length)];
+                            recentTitles.push(template.title);
+                        } else {
+                            template = bikeBaseTemplate;
+                        }
                     }
                 }
-
-                let targetDate = new Date(monday);
-                targetDate.setDate(monday.getDate() + item.slot);
-                let dateString = targetDate.toISOString().split('T')[0];
 
                 inserts.push({
                     title: template.title,
@@ -994,6 +1616,10 @@
             if (!error) {
                 closeGeneratorModal();
                 fetchWorkouts();
+                
+                // Move calendar view to the newly generated week
+                currentDateView = new Date(inserts[0].date);
+                renderCalendar();
             } else {
                 alert("Erreur lors de la génération du plan : " + error.message);
             }
@@ -1004,3 +1630,4 @@
     </script>
 </body>
 </html>
+

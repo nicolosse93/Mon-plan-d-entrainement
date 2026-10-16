@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Garmin FIT</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f5;
+        }
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .btn-garmin {
+            background-color: #000000;
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn-garmin:hover {
+            background-color: #333333;
+        }
+
+        .btn-garmin svg {
+            fill: white;
+        }
+
+        .instruction {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 15px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Entraînement de Fractionné</h2>
+        <p>10 min d'échauffement<br>5x (1 min Z4 / 1 min Z1)<br>Retour au calme</p>
+
+        <button id="export-garmin-btn" class="btn-garmin">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exporter vers Garmin (.FIT)
+        </button>
+
+        <div class="instruction">
+            <strong>Comment faire ?</strong>
+            <ol>
+                <li>Cliquez sur le bouton pour télécharger le fichier.</li>
+                <li>Allez sur <a href="https://connect.garmin.com/modern/workouts" target="_blank">Garmin Connect (Entraînements)</a>.</li>
+                <li>Cliquez sur l'icône <strong>Importer</strong> et sélectionnez le fichier téléchargé.</li>
+            </ol>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
