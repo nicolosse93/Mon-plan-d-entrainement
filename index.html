@@ -230,21 +230,22 @@
         </main>
     </div>
 
-    <!-- MODAL PROFIL & MÉTRIQUES GARMIN -->
+    <!-- Fenêtres : en-tête (✕) et boutons d'action toujours visibles, seul le milieu défile ; fond / Échap ferment -->
     <div id="profile-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-surface border border-line w-full max-w-xl rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold flex items-center space-x-2">
+        <div class="bg-surface border border-line w-full max-w-xl rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
+                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-user-gear text-accent"></i>
-                    <span>Profil & Métriques Garmin</span>
+                    <span class="truncate">Profil & Métriques Garmin</span>
                 </h3>
-                <button onclick="closeProfileModal()" class="text-muted hover:text-ink">
+                <button type="button" onclick="closeProfileModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <p class="text-xs text-muted mb-4">Mets à jour tes prédictions Garmin. Le coach expert s'en servira pour calculer tes allures précises dans chaque bloc d'intervalle.</p>
 
-            <form id="profile-form" class="space-y-4">
+            <form id="profile-form" class="flex-1 min-h-0 flex flex-col">
+                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
+                <p class="text-xs text-muted">Mets à jour tes prédictions Garmin. Le coach expert s'en servira pour calculer tes allures précises dans chaque bloc d'intervalle.</p>
                 <div class="border border-line rounded-lg overflow-hidden">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
@@ -292,16 +293,18 @@
                     </table>
                 </div>
 
-                <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeProfileModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Annuler</button>
-                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm">Enregistrer le profil</button>
-                </div>
-                
-                <div class="pt-6 mt-4 border-t border-line">
+                <!-- Zone dangereuse, en bas de la partie qui défile (hors de la barre d'actions) -->
+                <div class="pt-4 border-t border-line">
                     <button type="button" onclick="deleteAllWorkouts()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Réinitialiser tout le calendrier (Supprimer)</span>
                     </button>
+                </div>
+                </div>
+
+                <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
+                    <button type="button" onclick="closeProfileModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Annuler</button>
+                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm">Enregistrer le profil</button>
                 </div>
             </form>
         </div>
@@ -309,9 +312,15 @@
 
     <!-- MODAL AJOUT / ÉDITION SÉANCE UNIQUE -->
     <div id="workout-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-surface border border-line w-full max-w-lg rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 class="text-xl font-bold mb-4">Détails de l'entraînement</h3>
-            <form id="workout-form" class="space-y-4">
+        <div class="bg-surface border border-line w-full max-w-lg rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
+                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold truncate">Détails de l'entraînement</h3>
+                <button type="button" onclick="closeModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="workout-form" class="flex-1 min-h-0 flex flex-col">
+                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Titre de la séance</label>
                     <input type="text" id="w-title" required placeholder="Ex: 10km Endurance Fondamentale" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
@@ -349,10 +358,11 @@
                         <input type="text" id="w-cooldown" placeholder="Ex: 5 min slow jog" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
                     </div>
                 </div>
+                </div>
 
-                <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-3 rounded-lg transition">Annuler</button>
-                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-lg transition ">Enregistrer</button>
+                <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Annuler</button>
+                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm">Enregistrer</button>
                 </div>
             </form>
         </div>
@@ -455,16 +465,17 @@
 
     <!-- MODAL EXPORT GARMIN (.FIT) -->
     <div id="export-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-surface border border-line w-full max-w-lg rounded-xl p-4 sm:p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-1">
-                <h3 class="text-lg sm:text-xl font-bold flex items-center gap-2">
+        <div class="bg-surface border border-line w-full max-w-lg rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
+                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-file-export text-accent"></i>
-                    <span>Exporter la semaine vers Garmin</span>
+                    <span class="truncate">Exporter la semaine vers Garmin</span>
                 </h3>
-                <button onclick="closeExportModal()" aria-label="Fermer" class="text-muted hover:text-ink">
+                <button type="button" onclick="closeExportModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4">
             <p class="text-sm text-muted mb-3">Un fichier <strong class="text-ink">.FIT</strong> par séance de la semaine choisie. Pour une seule séance, utilise le bouton <strong class="text-ink">.FIT</strong> de sa fiche.</p>
 
             <!-- Choix de la semaine à exporter + aperçu de ses séances -->
@@ -495,9 +506,10 @@
                     <li>Débranche la montre : les séances apparaissent dans le menu <strong class="text-ink">Entraînements</strong>, numérotées dans l'ordre de la semaine (1 Lun … 7 Dim).</li>
                 </ol>
             </div>
+            </div>
 
-            <div class="flex gap-2 pt-3">
-                <button onclick="closeExportModal()" class="bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
+            <div class="shrink-0 flex gap-2 sm:gap-3 px-4 sm:px-5 py-3 border-t border-line">
+                <button type="button" onclick="closeExportModal()" class="hidden sm:block bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
                 <button type="button" id="export-week-btn" onclick="downloadWeekFIT()" class="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-3 rounded-lg transition text-sm flex items-center justify-center gap-2">
                     <i class="fa-solid fa-download"></i><span id="export-week-label">Télécharger toute la semaine</span>
                 </button>
@@ -507,19 +519,20 @@
 
     <!-- MODAL GÉNÉRATEUR INTELLIGENT DE SEMAINE -->
     <div id="generator-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-surface border border-line w-full max-w-lg md:max-w-4xl rounded-xl p-4 sm:p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-lg sm:text-xl font-bold flex items-center space-x-2">
+        <div class="bg-surface border border-line w-full max-w-lg md:max-w-4xl rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
+                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-wand-magic-sparkles text-accent"></i>
-                    <span>Générateur Coach Intermédiaire</span>
+                    <span class="truncate">Générateur Coach Intermédiaire</span>
                 </h3>
-                <button onclick="closeGeneratorModal()" aria-label="Fermer" class="text-muted hover:text-ink">
+                <button type="button" onclick="closeGeneratorModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <!-- Grand écran : réglages + aperçu à gauche, sports et séances à droite -->
-            <form id="generator-form" class="grid md:grid-cols-2 gap-x-5 gap-y-4">
+            <form id="generator-form" class="flex-1 min-h-0 flex flex-col">
+                <!-- Grand écran : réglages + aperçu à gauche, sports et séances à droite -->
+                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 grid md:grid-cols-2 gap-x-5 gap-y-4 content-start">
                 <div class="space-y-4 min-w-0">
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Objectif principal</label>
@@ -577,10 +590,11 @@
                 <!-- Vérification séances / jours sélectionnés (1 séance max par jour) -->
                 <div id="gen-days-check" role="status" aria-live="polite" class="rounded-lg border px-3 py-2 text-xs"></div>
                 </div>
+                </div>
 
-                <div class="md:col-span-2 flex space-x-3">
-                    <button type="button" onclick="closeGeneratorModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-3 rounded-lg transition">Annuler</button>
-                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-lg transition ">Générer mon plan</button>
+                <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
+                    <button type="button" onclick="closeGeneratorModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Annuler</button>
+                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm">Générer mon plan</button>
                 </div>
             </form>
         </div>
@@ -1709,9 +1723,25 @@
             if (e.key === 'ArrowRight') navigateDetails(1);
         });
 
-        // Un toucher / clic sur le fond sombre (hors de la fiche) la ferme
-        detailsModal.addEventListener('click', (e) => {
-            if (e.target === detailsModal) closeDetailsModal();
+        // Toutes les fenêtres : un toucher / clic sur le fond sombre (hors de la fenêtre) ou Échap les ferment.
+        // On exige que l'appui ait aussi commencé sur le fond : une sélection de texte relâchée dehors ne ferme rien
+        const MODAL_CLOSERS = {
+            'details-modal': closeDetailsModal, 'profile-modal': closeProfileModal, 'workout-modal': closeModal,
+            'export-modal': closeExportModal, 'generator-modal': closeGeneratorModal
+        };
+        Object.entries(MODAL_CLOSERS).forEach(([id, close]) => {
+            const modal = document.getElementById(id);
+            let pressedOnBackdrop = false;
+            modal.addEventListener('pointerdown', (e) => { pressedOnBackdrop = e.target === modal; });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal && pressedOnBackdrop) close();
+            });
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            Object.entries(MODAL_CLOSERS).forEach(([id, close]) => {
+                if (id !== 'details-modal' && !document.getElementById(id).classList.contains('hidden')) close();
+            });
         });
 
         function closeDetailsModal() {
