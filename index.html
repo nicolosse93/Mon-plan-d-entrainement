@@ -54,6 +54,10 @@
         .dark .border-slate-700\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
         .dark .text-emerald-50 { color: #ecfdf5 !important; }
         .dark .hover\:bg-slate-700:hover { background-color: #475569 !important; }
+        /* Champs numériques du générateur : on masque les flèches natives au profit des boutons */
+        .gen-stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        .gen-stepper input[type=number]::-webkit-inner-spin-button,
+        .gen-stepper input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -155,7 +159,7 @@
                         <button onclick="changeWeek(-1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition">
                             <i class="fa-solid fa-chevron-left"></i>
                         </button>
-                        <button onclick="goToCurrentWeek()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition font-medium">
+                        <button onclick="goToCurrentWeek()" id="calendar-today-btn" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition font-medium">
                             Cette semaine
                         </button>
                         <button onclick="changeWeek(1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition">
@@ -279,6 +283,8 @@
                             <option value="Course">Course à pied</option>
                             <option value="Vélo">Vélo / Gravel</option>
                             <option value="Renfo">Renforcement</option>
+                            <option value="Ski de fond classique">Ski de fond classique</option>
+                            <option value="Ski de fond skate">Ski de fond skate</option>
                             <option value="Repos">Repos</option>
                         </select>
                     </div>
@@ -311,11 +317,22 @@
     <!-- MODAL DÉTAILS / VISUALISATION DE LA SÉANCE -->
     <div id="details-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-dark-800 border border-slate-700 w-full max-md rounded-2xl p-6 shadow-2xl space-y-4">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 <span id="detail-type-badge" class="text-xs px-2.5 py-1 rounded-full border"></span>
                 <span id="detail-date" class="text-xs text-slate-400"></span>
+                <span class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
+                <span id="detail-effort-wrap" class="hidden text-xs text-slate-400"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
             </div>
-            <h3 id="detail-title" class="text-xl font-bold text-slate-100"></h3>
+            <!-- Séance précédente / suivante (ordre chronologique, flèches ← → du clavier) -->
+            <div class="flex items-center gap-2">
+                <button type="button" id="detail-prev" onclick="navigateDetails(-1)" aria-label="Séance précédente" title="Séance précédente (←)" class="shrink-0 w-9 h-9 rounded-xl border border-slate-700 bg-dark-900 text-slate-300 hover:border-blue-500/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
+                    <i class="fa-solid fa-chevron-left text-sm"></i>
+                </button>
+                <h3 id="detail-title" class="flex-1 min-w-0 text-center text-xl font-bold text-slate-100"></h3>
+                <button type="button" id="detail-next" onclick="navigateDetails(1)" aria-label="Séance suivante" title="Séance suivante (→)" class="shrink-0 w-9 h-9 rounded-xl border border-slate-700 bg-dark-900 text-slate-300 hover:border-blue-500/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
+                    <i class="fa-solid fa-chevron-right text-sm"></i>
+                </button>
+            </div>
             
             <div class="space-y-3 bg-dark-900/60 border border-slate-700/60 rounded-xl p-4 text-sm">
                 <div>
@@ -330,6 +347,26 @@
                     <span class="text-xs uppercase font-semibold text-blue-400 block mb-0.5"><i class="fa-solid fa-snowflake mr-1"></i> Retour au calme</span>
                     <p id="detail-cooldown" class="text-slate-300">-</p>
                 </div>
+            </div>
+
+            <!-- Allures cibles calculées depuis les prédictions du profil (course uniquement) -->
+            <div id="detail-paces" class="hidden bg-dark-900/60 border border-slate-700/60 rounded-xl p-4 text-sm">
+                <span class="text-xs uppercase font-semibold text-purple-400 block mb-2"><i class="fa-solid fa-gauge-high mr-1"></i> Allures cibles</span>
+                <div id="detail-paces-list" class="space-y-1.5"></div>
+            </div>
+
+            <!-- Régénération depuis la banque : durée et difficulté combinables -->
+            <div id="detail-regen" class="hidden bg-dark-900/60 border border-slate-700/60 rounded-xl p-4 text-sm space-y-3">
+                <span class="text-xs uppercase font-semibold text-blue-400 block"><i class="fa-solid fa-shuffle mr-1"></i> Régénérer la séance</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" data-axis="duration" data-dir="shorter" class="regen-chip"><i class="fa-solid fa-hourglass-start mr-1"></i> Plus courte</button>
+                    <button type="button" data-axis="duration" data-dir="longer" class="regen-chip"><i class="fa-solid fa-hourglass-end mr-1"></i> Plus longue</button>
+                    <button type="button" data-axis="effort" data-dir="easier" class="regen-chip"><i class="fa-solid fa-feather mr-1"></i> Plus facile</button>
+                    <button type="button" data-axis="effort" data-dir="harder" class="regen-chip"><i class="fa-solid fa-fire-flame-curved mr-1"></i> Plus difficile</button>
+                </div>
+                <button type="button" id="regen-btn" onclick="regenerateWorkout()" class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate"></i><span id="regen-btn-label">Régénérer</span>
+                </button>
             </div>
 
             <div class="flex space-x-3 pt-2">
@@ -402,10 +439,9 @@
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Objectif principal</label>
                     <select id="gen-goal" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                        <option value="5k">Préparation 5K (Vitesse & Intervalles)</option>
-                        <option value="10k">Préparation 10K (Seuil & Endurance)</option>
-                        <option value="maintien">Maintien de la forme & Santé</option>
+                        <!-- Options générées depuis GEN_GOALS -->
                     </select>
+                    <p id="gen-goal-desc" class="mt-1.5 text-xs text-slate-400"></p>
                 </div>
 
                 <div>
@@ -417,48 +453,41 @@
                     </select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Course Semaine</label>
-                        <select id="gen-runs-week" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                            <option value="0">0 Séance</option>
-                            <option value="1">1 Séance</option>
-                            <option value="2" selected>2 Séances</option>
-                            <option value="3">3 Séances</option>
-                            <option value="4">4 Séances</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Course Weekend</label>
-                        <select id="gen-runs-we" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                            <option value="0">0 Séance</option>
-                            <option value="1" selected>1 Séance</option>
-                            <option value="2">2 Séances</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Vélo Semaine</label>
-                        <select id="gen-bikes-week" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                            <option value="0">0 Séance</option>
-                            <option value="1" selected>1 Séance</option>
-                            <option value="2">2 Séances</option>
-                            <option value="3">3 Séances</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Vélo Weekend</label>
-                        <select id="gen-bikes-we" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
-                            <option value="0">0 Séance</option>
-                            <option value="1" selected>1 Séance</option>
-                            <option value="2">2 Séances</option>
-                        </select>
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Jours disponibles</label>
+                    <div id="gen-days" class="flex justify-between gap-1.5">
+                        <button type="button" data-day="0" aria-pressed="false" title="Lundi" class="gen-day-pill">L</button>
+                        <button type="button" data-day="1" aria-pressed="true" title="Mardi" class="gen-day-pill">M</button>
+                        <button type="button" data-day="2" aria-pressed="true" title="Mercredi" class="gen-day-pill">M</button>
+                        <button type="button" data-day="3" aria-pressed="true" title="Jeudi" class="gen-day-pill">J</button>
+                        <button type="button" data-day="4" aria-pressed="false" title="Vendredi" class="gen-day-pill">V</button>
+                        <button type="button" data-day="5" aria-pressed="true" title="Samedi" class="gen-day-pill">S</button>
+                        <button type="button" data-day="6" aria-pressed="true" title="Dimanche" class="gen-day-pill">D</button>
                     </div>
                 </div>
 
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Sports de la semaine</label>
+                    <div id="gen-sports" class="flex flex-wrap gap-2">
+                        <!-- Pastilles générées dynamiquement -->
+                    </div>
+                </div>
+
+                <div>
+                    <div class="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
+                        <span class="hidden sm:block">Séances</span><span class="text-center">Semaine</span><span class="text-center">Week-end</span>
+                    </div>
+                    <div id="gen-sport-rows" class="space-y-2">
+                        <!-- Une ligne par sport sélectionné -->
+                    </div>
+                </div>
+
+                <!-- Vérification séances / jours sélectionnés (1 séance max par jour) -->
+                <div id="gen-days-check" role="status" aria-live="polite" class="rounded-xl border px-3 py-2 text-xs"></div>
+
                 <div class="bg-dark-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-400 space-y-1">
-                    <p class="font-semibold text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i> Respect des durées cibles :</p>
-                    <p>• Course semaine : 40 min | Course WE : 1h</p>
-                    <p>• Vélo semaine : 1h | Vélo WE : 2h30</p>
+                    <p class="font-semibold text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i> Séances tirées de ta banque d'entraînements :</p>
+                    <div id="gen-goal-preview" class="space-y-1"></div>
                 </div>
 
                 <div class="flex space-x-3 pt-2">
@@ -478,8 +507,8 @@
 
     <!-- SCRIPT APPLICATION -->
     <script type="module">
-        import { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity } from './fitBuilder.js';
-        window.FitModule = { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity };
+        import { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } from './fitBuilder.js';
+        window.FitModule = { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity };
     </script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
@@ -638,15 +667,19 @@
 
         // Helper to convert time string (MM:SS) to seconds
         function timeToSeconds(timeStr) {
-            const parts = timeStr.split(':');
-            if (parts.length !== 2) return 0;
-            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+            // "22:30" (mm:ss) ou "1:02:30" (h:mm:ss)
+            const parts = timeStr.split(':').map(p => parseInt(p));
+            if (parts.some(isNaN)) return 0;
+            if (parts.length === 2) return parts[0] * 60 + parts[1];
+            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            return 0;
         }
 
         // Helper to convert seconds to pace string (MM:SS /km)
         function secondsToPace(seconds) {
+            seconds = Math.round(seconds);
             const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = Math.round(seconds % 60);
+            const remainingSeconds = seconds % 60;
             return `${minutes}:${remainingSeconds.toString().padStart(2, '0')} /km`;
         }
         function calculatePaces() {
@@ -738,7 +771,12 @@
             }
         }
 
-                function changeWeek(direction) {
+        // Vue 5 semaines sur desktop (semaine active en première ligne), vue semaine sur mobile / tablette
+        const DESKTOP_WEEKS = 5;
+        const monthViewQuery = window.matchMedia('(min-width: 1024px)');
+        monthViewQuery.addEventListener('change', () => renderCalendar());
+
+        function changeWeek(direction) {
             currentDateView.setDate(currentDateView.getDate() + (direction * 7));
             renderCalendar();
         }
@@ -748,46 +786,49 @@
             renderCalendar();
         }
 
+        // Lundi de la semaine contenant la date donnée, à minuit
+        function getMonday(date) {
+            const monday = new Date(date);
+            // Fix timezone issue when getting start of day
+            monday.setHours(12, 0, 0, 0);
+            const day = monday.getDay();
+            // Ajustement pour que lundi soit le premier jour (1) et dimanche le dernier (0 -> 6)
+            monday.setDate(monday.getDate() - day + (day === 0 ? -6 : 1));
+            monday.setHours(0, 0, 0, 0);
+            return monday;
+        }
+
         function renderCalendar() {
             calendarGrid.innerHTML = '';
-            
-            const startOfWeek = new Date(currentDateView);
-            // Fix timezone issue when getting start of day
-            startOfWeek.setHours(12, 0, 0, 0); 
-            
-            const day = startOfWeek.getDay();
-            // Ajustement pour que lundi soit le premier jour (1) et dimanche le dernier (0 -> 6)
-            const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-            startOfWeek.setDate(diff);
-            startOfWeek.setHours(0, 0, 0, 0);
-
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
-            endOfWeek.setHours(23, 59, 59, 999);
+            const isMonthView = monthViewQuery.matches;
 
             const monthNames = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
             const dayNames = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
-            
-            if (startOfWeek.getMonth() === endOfWeek.getMonth()) {
-                calendarMonthTitle.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]} ${startOfWeek.getFullYear()}`;
-            } else {
-                calendarMonthTitle.textContent = `${startOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]} - ${endOfWeek.getDate()} ${monthNames[endOfWeek.getMonth()]} ${endOfWeek.getFullYear()}`;
-            }
 
-            let completedCount = 0;
-            let totalCount = 0;
-            
+            // La semaine active est toujours la première ligne
+            const startOfRange = getMonday(currentDateView);
+            const endOfRange = new Date(startOfRange);
+            endOfRange.setDate(startOfRange.getDate() + (isMonthView ? DESKTOP_WEEKS * 7 : 7) - 1);
+            if (startOfRange.getMonth() === endOfRange.getMonth()) {
+                calendarMonthTitle.textContent = `${startOfRange.getDate()} - ${endOfRange.getDate()} ${monthNames[startOfRange.getMonth()]} ${startOfRange.getFullYear()}`;
+            } else {
+                calendarMonthTitle.textContent = `${startOfRange.getDate()} ${monthNames[startOfRange.getMonth()]} - ${endOfRange.getDate()} ${monthNames[endOfRange.getMonth()]} ${endOfRange.getFullYear()}`;
+            }
+            endOfRange.setHours(23, 59, 59, 999);
+            const numDays = Math.round((endOfRange - startOfRange) / (1000 * 60 * 60 * 24));
+
             let weeklyWorkouts = workouts.filter(w => {
                 const parts = w.date.split('-');
                 const d = new Date(parts[0], parts[1] - 1, parts[2]); // local date
-                return d >= startOfWeek && d <= endOfWeek;
+                return d >= startOfRange && d <= endOfRange;
             });
 
             const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' in local timezone
 
-            for (let i = 0; i < 7; i++) {
-                const dayDate = new Date(startOfWeek);
-                dayDate.setDate(startOfWeek.getDate() + i);
+            for (let i = 0; i < numDays; i++) {
+                const dayDate = new Date(startOfRange);
+                dayDate.setDate(startOfRange.getDate() + i);
+                const isActiveWeek = isMonthView && i < 7;
                 
                 // Format safely for local timezone to prevent off-by-one errors
                 const year = dayDate.getFullYear();
@@ -796,7 +837,7 @@
                 const dateStr = `${year}-${month}-${dt}`;
                 
                 const dayCell = document.createElement('div');
-                dayCell.className = 'bg-dark-900 border border-slate-700/80 rounded-2xl p-3 min-h-[120px] sm:min-h-[160px] flex flex-col transition hover:border-emerald-500/50 relative group';
+                dayCell.className = `bg-dark-900 border border-slate-700/80 rounded-2xl p-3 ${isMonthView ? 'min-h-[130px]' : 'min-h-[120px] sm:min-h-[160px]'} flex flex-col transition hover:border-emerald-500/50 relative group ${isActiveWeek ? 'ring-1 ring-emerald-500/40' : ''}`;
                 dayCell.setAttribute('ondragover', 'allowDrop(event)');
                 dayCell.setAttribute('ondrop', `dropWorkout(event, '${dateStr}')`);
 
@@ -806,8 +847,9 @@
                 const isToday = todayStr === dateStr;
                 dayHeader.innerHTML = `
                     <div class="flex items-center space-x-2">
-                        <span class="sm:hidden font-bold text-xs uppercase tracking-wider text-slate-400">${dayNames[i]}</span>
+                        <span class="sm:hidden font-bold text-xs uppercase tracking-wider text-slate-400">${dayNames[i % 7]}</span>
                         <span class="flex items-center justify-center w-7 h-7 text-sm ${isToday ? 'bg-emerald-500 text-white font-bold rounded-full' : 'text-slate-300 font-semibold'}">${dayDate.getDate()}</span>
+                        ${isMonthView && dayDate.getDate() === 1 ? `<span class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">${monthNames[dayDate.getMonth()].slice(0, 4)}.</span>` : ''}
                     </div>
                     <button onclick="openModalForDate('${dateStr}')" class="sm:opacity-0 group-hover:opacity-100 text-slate-500 hover:text-emerald-400 transition bg-dark-800 sm:bg-transparent p-1.5 sm:p-0 rounded-lg"><i class="fa-solid fa-plus text-xs"></i></button>
                 `;
@@ -822,6 +864,8 @@
                         'Course': 'bg-blue-500/10 text-blue-300 border-blue-500/20',
                         'Vélo': 'bg-amber-500/10 text-amber-300 border-amber-500/20',
                         'Renfo': 'bg-purple-500/10 text-purple-300 border-purple-500/20',
+                        'Ski de fond classique': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
+                        'Ski de fond skate': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
                         'Repos': 'bg-slate-700/40 text-slate-400 border-slate-600/40'
                     };
                     const badgeClass = typeColors[w.type] || 'bg-slate-700 text-slate-300 border-slate-600';
@@ -936,6 +980,100 @@
             workoutModal.classList.add('hidden');
         }
 
+        // 45 -> "45 min", 90 -> "1h30", 120 -> "2h"
+        function formatDuration(minutes) {
+            if (minutes < 60) return `${minutes} min`;
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+        }
+
+        // Zones d'allure (en s/km) calculées depuis les prédictions du profil.
+        // Référence : vitesse 5K (prédiction 5K, sinon déduite du 10K par la formule de Riegel).
+        function getRunningPaceZones() {
+            const p = userProfile || {};
+            const t5 = p.p5k_time ? timeToSeconds(p.p5k_time) : 0;
+            const t10 = p.p10k_time ? timeToSeconds(p.p10k_time) : 0;
+            const pace5k = t5 > 0 ? t5 / 5 : (t10 > 0 ? t10 * Math.pow(0.5, 1.06) / 5 : 0);
+            if (!pace5k) return null;
+            const pace10k = t10 > 0 ? t10 / 10 : t5 * Math.pow(2, 1.06) / 10;
+            const thresholdSec = p.threshold_pace ? timeToSeconds(p.threshold_pace.split(' ')[0]) : 0;
+
+            // Fourchette en % de la vitesse 5K -> [allure rapide, allure lente]
+            const pct = (fast, slow) => [pace5k / fast, pace5k / slow];
+            return {
+                recup:  { label: 'Récupération (Z1)', range: pct(0.72, 0.65) },
+                ef:     { label: 'Endurance fondamentale (Z2)', range: pct(0.80, 0.72) },
+                tempo:  { label: 'Tempo (Z3)', range: pct(0.87, 0.82) },
+                seuil:  { label: 'Seuil (Z4)', range: thresholdSec ? [thresholdSec - 5, thresholdSec + 5] : pct(0.93, 0.90) },
+                '10k':  { label: 'Allure 10K', range: [pace10k - 3, pace10k + 3] },
+                '5k':   { label: 'Allure 5K', range: [pace5k - 3, pace5k + 3] },
+                vma:    { label: 'VMA / VO2max', range: pct(1.06, 1.02) },
+                sprint: { label: 'Sprint / Accélérations', range: null }
+            };
+        }
+
+        // Intensités des garmin_steps de la banque -> zones d'allure
+        const intensityToZone = {
+            zone1: 'recup', zone2: 'ef', zone3: 'tempo', zone4: 'seuil', seuil: 'seuil',
+            sweetspot: 'seuil', overunder: 'seuil', vitesse_5k: '5k', vma: 'vma', sprint: 'sprint'
+        };
+
+        function zonesFromSteps(steps) {
+            const zones = new Set();
+            (steps || []).forEach(s => {
+                if (s.type === 'repeat') zonesFromSteps(s.steps).forEach(z => zones.add(z));
+                else if (intensityToZone[s.intensity]) zones.add(intensityToZone[s.intensity]);
+            });
+            return zones;
+        }
+
+        // Séance saisie à la main : repérage des zones par mots-clés dans le bloc principal
+        function zonesFromText(text) {
+            const t = (text || '').toLowerCase();
+            const zones = new Set();
+            if (/zone\s*1|récup/.test(t)) zones.add('recup');
+            if (/zone\s*2|endurance|\bef\b|footing/.test(t)) zones.add('ef');
+            if (/zone\s*3|tempo|marathon/.test(t)) zones.add('tempo');
+            if (/seuil|zone\s*4/.test(t)) zones.add('seuil');
+            if (/10\s*k/.test(t)) zones.add('10k');
+            if (/\b5\s*k\b|allure 5/.test(t)) zones.add('5k');
+            if (/vma|vo2/.test(t)) zones.add('vma');
+            if (/sprint|accél/.test(t)) zones.add('sprint');
+            if (zones.size === 0) zones.add('ef');
+            return zones;
+        }
+
+        function renderDetailPaces(w, zoneKeys) {
+            const box = document.getElementById('detail-paces');
+            const list = document.getElementById('detail-paces-list');
+            if (w.type !== 'Course') {
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+
+            const zones = getRunningPaceZones();
+            if (!zones) {
+                list.innerHTML = `<p class="text-xs text-slate-400">Renseigne tes prédictions 5K / 10K dans ton profil pour voir tes allures cibles.</p>`;
+                return;
+            }
+
+            // Échauffement / retour au calme toujours en endurance fondamentale, puis les zones de la séance par ordre d'intensité
+            const order = ['recup', 'ef', 'tempo', 'seuil', '10k', '5k', 'vma', 'sprint'];
+            const keys = order.filter(k => zoneKeys.has(k) || k === 'ef');
+            const fmt = s => secondsToPace(s).replace(' /km', '');
+            list.innerHTML = keys.map(k => {
+                const z = zones[k];
+                const label = k === 'ef' && !zoneKeys.has('ef') ? 'Échauffement / retour au calme (Z2)' : z.label;
+                const value = z.range ? `${fmt(z.range[0])} – ${fmt(z.range[1])} /km` : 'Effort maximal';
+                return `<div class="flex items-center justify-between gap-3">
+                    <span class="text-slate-300">${label}</span>
+                    <span class="font-mono font-semibold text-purple-300 whitespace-nowrap">${value}</span>
+                </div>`;
+            }).join('');
+        }
+
         function openDetails(id) {
             const w = workouts.find(item => item.id == id);
             if (!w) return;
@@ -946,13 +1084,38 @@
             document.getElementById('detail-warmup').textContent = w.warmup || 'Non spécifié';
             document.getElementById('detail-main').textContent = w.main_block || 'Non spécifié';
             document.getElementById('detail-cooldown').textContent = w.cooldown || 'Non spécifié';
-            
+
+            // Durée estimée depuis le texte, puis remplacée par celle de la banque si la séance en vient
+            const durationEl = document.getElementById('detail-duration');
+            const estimatedSec = parseDurationSec(w.warmup, 0) + parseDurationSec(w.main_block, 0) + parseDurationSec(w.cooldown, 0);
+            durationEl.textContent = estimatedSec > 0 ? formatDuration(Math.round(estimatedSec / 60)) : 'Non spécifiée';
+            renderDetailPaces(w, zonesFromText(w.main_block));
+            document.getElementById('detail-effort-wrap').classList.add('hidden');
+            document.getElementById('detail-regen').classList.add('hidden');
+
+            // Séances du même sport dans la banque : durée, effort, allures et options de régénération
+            getBankSessionsForSport(w.type).then(sessions => {
+                if (detailsModal.dataset.currentId != id) return;
+                const current = sessions.find(s => s.title === w.title);
+                if (current) {
+                    if (current.duration_minutes) durationEl.textContent = formatDuration(current.duration_minutes);
+                    if (current.effort_score) {
+                        document.getElementById('detail-effort').textContent = current.effort_score;
+                        document.getElementById('detail-effort-wrap').classList.remove('hidden');
+                    }
+                    const bankZones = zonesFromSteps(current.garmin_steps);
+                    if (bankZones.size > 0) renderDetailPaces(w, bankZones);
+                }
+                setupRegen(w, current, sessions, estimatedSec / 60);
+            });
+
             const badge = document.getElementById('detail-type-badge');
             badge.textContent = w.type;
             badge.className = "text-xs px-2.5 py-1 rounded-full border " + (
                 w.type === 'Course' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
                 w.type === 'Vélo' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                w.type === 'Renfo' ? 'bg-purple-500/20 text-purple-300 border-purple-500/20' : 'bg-slate-700 text-slate-300'
+                w.type === 'Renfo' ? 'bg-purple-500/20 text-purple-300 border-purple-500/20' :
+                (w.type || '').startsWith('Ski') ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-slate-700 text-slate-300'
             );
 
             const toggleBtn = document.getElementById('detail-toggle-btn');
@@ -966,12 +1129,156 @@
                 toggleBtn.onclick = () => toggleWorkout(w.id, true);
             }
 
+            const sorted = getSortedWorkouts();
+            const index = sorted.findIndex(item => item.id == id);
+            document.getElementById('detail-prev').disabled = index <= 0;
+            document.getElementById('detail-next').disabled = index === -1 || index >= sorted.length - 1;
+
             detailsModal.classList.remove('hidden');
         }
+
+        // Toutes les séances par date (puis par id pour départager un même jour)
+        function getSortedWorkouts() {
+            return [...workouts].sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+        }
+
+        function navigateDetails(step) {
+            const sorted = getSortedWorkouts();
+            const index = sorted.findIndex(item => item.id == detailsModal.dataset.currentId);
+            const target = sorted[index + step];
+            if (index !== -1 && target) openDetails(target.id);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (detailsModal.classList.contains('hidden')) return;
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+            if (e.key === 'ArrowLeft') navigateDetails(-1);
+            if (e.key === 'ArrowRight') navigateDetails(1);
+        });
 
         function closeDetailsModal() {
             detailsModal.classList.add('hidden');
             delete detailsModal.dataset.currentId;
+        }
+
+        // ==========================================
+        // RÉGÉNÉRATION D'UNE SÉANCE DEPUIS LA BANQUE
+        // ==========================================
+        const bankSportCache = {};
+        async function getBankSessionsForSport(sport) {
+            if (!sport) return [];
+            if (!bankSportCache[sport]) {
+                const { data, error } = await supabaseClient
+                    .from('training_bank')
+                    .select('title, sport, category, duration_minutes, effort_score, warmup, main_block, cooldown, garmin_steps')
+                    .eq('sport', sport);
+                if (error) {
+                    console.error(`Erreur training_bank (${sport}) :`, error);
+                    return [];
+                }
+                bankSportCache[sport] = data || [];
+            }
+            return bankSportCache[sport];
+        }
+
+        // Critères choisis : un sens par axe (durée, difficulté), combinables entre eux
+        let regenState = { duration: null, effort: null, workout: null, current: null, sessions: [], refDuration: 0, refEffort: 5 };
+
+        function setupRegen(w, current, sessions, estimatedMinutes) {
+            const box = document.getElementById('detail-regen');
+            const others = sessions.filter(s => s.title !== w.title);
+            if (others.length === 0) {
+                box.classList.add('hidden');
+                return;
+            }
+            regenState = {
+                duration: null,
+                effort: null,
+                workout: w,
+                current,
+                sessions: others,
+                // Séance hors banque : durée estimée depuis le texte, effort supposé moyen
+                refDuration: current && current.duration_minutes ? current.duration_minutes : estimatedMinutes,
+                refEffort: current && current.effort_score ? current.effort_score : 5
+            };
+            box.classList.remove('hidden');
+            updateRegenUI();
+        }
+
+        function getRegenCandidates(duration, effort) {
+            const { sessions, refDuration, refEffort } = regenState;
+            return sessions.filter(s => {
+                const d = s.duration_minutes || 0;
+                const e = s.effort_score || 0;
+                if (duration === 'longer' && !(d > refDuration)) return false;
+                if (duration === 'shorter' && !(d > 0 && d < refDuration)) return false;
+                if (effort === 'harder' && !(e > refEffort)) return false;
+                if (effort === 'easier' && !(e > 0 && e < refEffort)) return false;
+                return true;
+            });
+        }
+
+        function updateRegenUI() {
+            document.querySelectorAll('#detail-regen .regen-chip').forEach(chip => {
+                const axis = chip.dataset.axis;
+                const dir = chip.dataset.dir;
+                const selected = regenState[axis] === dir;
+                // Possible seulement s'il existe une séance avec ce critère combiné à l'autre axe déjà choisi
+                const combo = { duration: regenState.duration, effort: regenState.effort, [axis]: dir };
+                const possible = getRegenCandidates(combo.duration, combo.effort).length > 0;
+                chip.disabled = !possible && !selected;
+                chip.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                chip.className = 'regen-chip px-3 py-2 rounded-xl border text-xs font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed ' + (selected
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-dark-900 border-slate-700 text-slate-300 hover:border-blue-500/60');
+                chip.title = possible ? '' : 'Aucune séance correspondante dans ta banque';
+            });
+
+            const count = getRegenCandidates(regenState.duration, regenState.effort).length;
+            document.getElementById('regen-btn').disabled = count === 0;
+            document.getElementById('regen-btn-label').textContent = count > 0
+                ? `Régénérer (${count} séance${count > 1 ? 's' : ''} possible${count > 1 ? 's' : ''})`
+                : 'Aucune séance correspondante';
+        }
+
+        document.querySelectorAll('#detail-regen .regen-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const axis = chip.dataset.axis;
+                // Re-cliquer désélectionne ; l'option opposée du même axe remplace la précédente
+                regenState[axis] = regenState[axis] === chip.dataset.dir ? null : chip.dataset.dir;
+                updateRegenUI();
+            });
+        });
+
+        async function regenerateWorkout() {
+            const { workout, refDuration, refEffort } = regenState;
+            const candidates = getRegenCandidates(regenState.duration, regenState.effort);
+            if (!workout || candidates.length === 0) return;
+
+            // Préférer un petit pas (la plus proche dans le sens demandé) plutôt qu'un saut extrême
+            const distance = s => {
+                let dist = 0;
+                if (regenState.duration) dist += Math.abs((s.duration_minutes || 0) - refDuration) / 15;
+                if (regenState.effort) dist += Math.abs((s.effort_score || 0) - refEffort);
+                return dist;
+            };
+            const closest = [...candidates].sort((a, b) => distance(a) - distance(b)).slice(0, 3);
+            const pick = closest[Math.floor(Math.random() * closest.length)];
+
+            const btn = document.getElementById('regen-btn');
+            btn.disabled = true;
+            const { error } = await supabaseClient
+                .from('workouts')
+                .update({ title: pick.title, warmup: pick.warmup, main_block: pick.main_block, cooldown: pick.cooldown })
+                .eq('id', workout.id);
+
+            if (error) {
+                alert("Erreur lors de la régénération : " + error.message);
+                btn.disabled = false;
+                return;
+            }
+            await fetchWorkouts();
+            if (detailsModal.dataset.currentId == workout.id) openDetails(workout.id);
         }
 
         function openGeneratorModal() {
@@ -980,6 +1287,279 @@
         function closeGeneratorModal() {
             generatorModal.classList.add('hidden');
         }
+
+        // Pastilles des jours disponibles (0 = lundi ... 6 = dimanche)
+        const dayPills = document.querySelectorAll('#gen-days .gen-day-pill');
+
+        function styleDayPill(pill) {
+            const on = pill.getAttribute('aria-pressed') === 'true';
+            pill.className = 'gen-day-pill flex-1 aspect-square max-w-[44px] rounded-full border text-sm font-bold transition ' + (on
+                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30'
+                : 'bg-dark-900 border-slate-700 text-slate-400 hover:border-blue-500/60 hover:text-slate-200');
+        }
+
+        function getSelectedDays() {
+            return Array.from(dayPills).filter(p => p.getAttribute('aria-pressed') === 'true').map(p => parseInt(p.dataset.day));
+        }
+
+        // Dernière sélection mémorisée dans ce navigateur
+        try {
+            const savedDays = JSON.parse(localStorage.getItem('gen-days'));
+            if (Array.isArray(savedDays)) {
+                dayPills.forEach(p => p.setAttribute('aria-pressed', savedDays.includes(parseInt(p.dataset.day)) ? 'true' : 'false'));
+            }
+        } catch (e) {}
+
+        dayPills.forEach(pill => {
+            styleDayPill(pill);
+            pill.addEventListener('click', () => {
+                pill.setAttribute('aria-pressed', pill.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+                styleDayPill(pill);
+                try { localStorage.setItem('gen-days', JSON.stringify(getSelectedDays())); } catch (e) {}
+                updateDaysCheck();
+            });
+        });
+
+        // Champs numériques avec flèches (boutons + touches haut / bas du clavier)
+        function clampStepper(input) {
+            const min = parseInt(input.min), max = parseInt(input.max);
+            let v = parseInt(input.value);
+            if (isNaN(v)) v = min;
+            input.value = Math.min(max, Math.max(min, v));
+            const [down, up] = input.parentElement.querySelectorAll('button');
+            down.disabled = input.value == min;
+            up.disabled = input.value == max;
+        }
+
+        // Sports proposés par le générateur (clé = valeur de "sport" dans training_bank)
+        const GEN_SPORTS = [
+            { key: 'Course', label: 'Course', icon: 'fa-person-running' },
+            { key: 'Vélo', label: 'Vélo', icon: 'fa-bicycle' },
+            { key: 'Renfo', label: 'Renfo', icon: 'fa-dumbbell' },
+            { key: 'Ski de fond classique', label: 'Ski classique', icon: 'fa-person-skiing-nordic' },
+            { key: 'Ski de fond skate', label: 'Ski skate', icon: 'fa-person-skiing-nordic' }
+        ];
+
+        // Objectifs communs à tous les sports -> catégories de training_bank par rôle de séance.
+        // `course` remplace les catégories de la séance clé pour la Course (catégories 5k / 10k de la banque).
+        const GEN_GOALS = {
+            vitesse:   { label: 'Vitesse / VO2max', desc: 'Intervalles courts et VO2max pour gagner en vitesse (5K, sprints, PMA).',
+                         key: ['vo2max', 'vitesse'], second: ['force', 'seuil'], course: { key: ['5k', 'vo2max'] } },
+            seuil:     { label: 'Seuil / Rythme', desc: 'Seuil et allure spécifique pour tenir un rythme soutenu (10K, FTP).',
+                         key: ['seuil'], second: ['vo2max'], course: { key: ['10k', 'seuil'] } },
+            endurance: { label: 'Endurance / Fond', desc: 'Volume aérobie et sorties longues pour les efforts de fond.',
+                         key: ['endurance'], second: ['seuil'] },
+            force:     { label: 'Force / Puissance', desc: 'Côtes, poussée, sprints et renfo pour la puissance musculaire.',
+                         key: ['force'], second: ['vitesse', 'vo2max'] },
+            maintien:  { label: 'Maintien de la forme & Santé', desc: 'Séances modérées (effort ≤ 6) pour rester en forme sans se cramer.',
+                         key: ['endurance'], second: ['technique', 'force', 'recuperation'], maxEffort: 6 }
+        };
+
+        const CATEGORY_LABELS = {
+            vo2max: 'VO2max', vitesse: 'Vitesse', seuil: 'Seuil', force: 'Force', endurance: 'Endurance',
+            recuperation: 'Récup', technique: 'Technique', '5k': '5K', '10k': '10K'
+        };
+
+        const goalSelect = document.getElementById('gen-goal');
+        goalSelect.innerHTML = Object.entries(GEN_GOALS).map(([k, g]) => `<option value="${k}">${g.label}</option>`).join('');
+        try {
+            const savedGoal = localStorage.getItem('gen-goal');
+            if (GEN_GOALS[savedGoal]) goalSelect.value = savedGoal;
+        } catch (e) {}
+
+        // Rôle de chaque séance d'un sport, dans l'ordre des jours : semaine (clé, secondaire, puis endurance),
+        // puis week-end (sortie longue d'abord, sauf pour le renfo qui n'en a pas)
+        function getSportRoles(sportKey, week, we) {
+            const quality = ['cle', 'secondaire'];
+            const weekRoles = Array.from({ length: week }, (_, i) => quality[i] || 'endurance');
+            const left = quality.slice(week);
+            const weOrder = sportKey === 'Renfo' ? left : ['longue', ...left];
+            const weRoles = Array.from({ length: we }, (_, i) => weOrder[i] || 'endurance');
+            return [...weekRoles, ...weRoles];
+        }
+
+        // Catégories et fourchette d'effort d'un rôle, selon l'objectif et le niveau d'énergie
+        function getRoleSpec(role, sportKey, goalKey, energy) {
+            const goal = GEN_GOALS[goalKey];
+            const keyCats = (sportKey === 'Course' && goal.course) ? goal.course.key : goal.key;
+            let spec;
+            if (role === 'cle') spec = { cats: keyCats, min: 6, max: 10 };
+            else if (role === 'secondaire') spec = { cats: goal.second, min: 5, max: 10 };
+            else if (role === 'longue') spec = { cats: ['endurance'], min: 0, max: 10, longest: true };
+            else spec = { cats: ['endurance', 'recuperation'], min: 0, max: 5 };
+
+            if (energy === 'fatigue') {
+                // Semaine allégée : la clé devient de l'endurance facile, la secondaire de la récup
+                if (role === 'cle') spec = { cats: ['endurance'], min: 0, max: 4 };
+                else if (role === 'secondaire') spec = { cats: ['recuperation', 'technique'], min: 0, max: 4 };
+                else spec = { ...spec, max: 4, longest: false };
+            } else if (energy === 'haute' && (role === 'cle' || role === 'secondaire')) {
+                spec.min = 7;
+            }
+            if (goal.maxEffort) {
+                spec.max = Math.min(spec.max, goal.maxEffort);
+                spec.min = Math.min(spec.min, spec.max);
+            }
+            return spec;
+        }
+
+        function describeRole(role, spec) {
+            const cats = spec.cats.map(c => CATEGORY_LABELS[c] || c).join('/');
+            if (role === 'cle') return `clé ${cats}`;
+            if (role === 'secondaire') return `secondaire ${cats}`;
+            if (role === 'longue') return spec.longest ? 'sortie longue' : 'sortie endurance';
+            return 'endurance';
+        }
+
+        // Aperçu de la semaine : ce que l'objectif va produire pour chaque sport coché
+        function updateGenPreview() {
+            const goalKey = goalSelect.value;
+            const energy = document.getElementById('gen-energy').value;
+            document.getElementById('gen-goal-desc').textContent = GEN_GOALS[goalKey].desc;
+
+            const lines = getActiveGenSports().filter(s => s.week + s.we > 0).map(s => {
+                const counts = new Map();
+                getSportRoles(s.key, s.week, s.we).forEach(role => {
+                    const label = describeRole(role, getRoleSpec(role, s.key, goalKey, energy));
+                    counts.set(label, (counts.get(label) || 0) + 1);
+                });
+                const parts = [...counts].map(([label, n]) => n > 1 ? `${n}× ${label}` : label);
+                const sport = GEN_SPORTS.find(g => g.key === s.key);
+                return `<p>• <span class="text-slate-200 font-semibold">${sport.label}</span> : ${parts.join(' · ')}</p>`;
+            });
+            if (energy === 'fatigue') lines.push('<p class="text-amber-400">• Fatigué : toutes les séances à effort ≤ 4</p>');
+            if (energy === 'haute') lines.push('<p class="text-blue-400">• Pêche d\'enfer : séances clé et secondaire à effort ≥ 7</p>');
+            document.getElementById('gen-goal-preview').innerHTML = lines.join('') || '<p>Sélectionne au moins un sport.</p>';
+        }
+
+        goalSelect.addEventListener('change', () => {
+            try { localStorage.setItem('gen-goal', goalSelect.value); } catch (e) {}
+            updateGenPreview();
+        });
+        document.getElementById('gen-energy').addEventListener('change', updateGenPreview);
+
+        // Sports cochés et nombre de séances semaine / week-end, mémorisés dans ce navigateur
+        let genSports = {
+            'Course': { on: true, week: 2, we: 1 },
+            'Vélo': { on: true, week: 1, we: 1 },
+            'Renfo': { on: false, week: 0, we: 0 },
+            'Ski de fond classique': { on: false, week: 0, we: 0 },
+            'Ski de fond skate': { on: false, week: 0, we: 0 }
+        };
+        try {
+            const saved = JSON.parse(localStorage.getItem('gen-sports'));
+            if (saved) GEN_SPORTS.forEach(s => { if (saved[s.key]) genSports[s.key] = { ...genSports[s.key], ...saved[s.key] }; });
+        } catch (e) {}
+
+        function saveGenSports() {
+            try { localStorage.setItem('gen-sports', JSON.stringify(genSports)); } catch (e) {}
+        }
+
+        function makeStepper(sportKey, slot, label) {
+            const max = slot === 'week' ? 5 : 2;
+            const btnClass = 'w-8 shrink-0 flex items-center justify-center text-slate-400 hover:text-white hover:bg-blue-600 active:bg-blue-500 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition';
+            const stepper = document.createElement('div');
+            stepper.className = 'gen-stepper flex items-stretch bg-dark-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-blue-500 transition';
+            stepper.innerHTML = `
+                <button type="button" data-step="-1" class="${btnClass}" aria-label="Moins de séances ${label}"><i class="fa-solid fa-chevron-down text-xs"></i></button>
+                <input type="number" min="0" max="${max}" value="${genSports[sportKey][slot]}" inputmode="numeric" aria-label="Séances ${label}" class="w-full min-w-0 bg-transparent text-center text-lg font-bold text-slate-100 py-2 focus:outline-none">
+                <button type="button" data-step="1" class="${btnClass}" aria-label="Plus de séances ${label}"><i class="fa-solid fa-chevron-up text-xs"></i></button>
+            `;
+            const input = stepper.querySelector('input');
+            const commit = () => {
+                clampStepper(input);
+                genSports[sportKey][slot] = parseInt(input.value);
+                saveGenSports();
+                updateDaysCheck();
+            };
+            stepper.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    input.value = (parseInt(input.value) || 0) + parseInt(btn.dataset.step);
+                    commit();
+                });
+            });
+            input.addEventListener('input', commit);
+            input.addEventListener('focus', () => input.select());
+            clampStepper(input);
+            return stepper;
+        }
+
+        function renderGenSports() {
+            const pills = document.getElementById('gen-sports');
+            const rows = document.getElementById('gen-sport-rows');
+            pills.innerHTML = '';
+            rows.innerHTML = '';
+
+            GEN_SPORTS.forEach(s => {
+                const state = genSports[s.key];
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.setAttribute('aria-pressed', state.on ? 'true' : 'false');
+                pill.className = 'px-3 py-1.5 rounded-full border text-xs font-semibold transition ' + (state.on
+                    ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30'
+                    : 'bg-dark-900 border-slate-700 text-slate-400 hover:border-blue-500/60 hover:text-slate-200');
+                pill.innerHTML = `<i class="fa-solid ${s.icon} mr-1.5"></i>${s.label}`;
+                pill.addEventListener('click', () => {
+                    state.on = !state.on;
+                    // Un sport qu'on ajoute démarre à 1 séance en semaine
+                    if (state.on && state.week + state.we === 0) state.week = 1;
+                    saveGenSports();
+                    renderGenSports();
+                });
+                pills.appendChild(pill);
+
+                if (!state.on) return;
+                const row = document.createElement('div');
+                // Mobile : nom du sport au-dessus de ses 2 compteurs ; desktop : tout sur une ligne
+                row.className = 'grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 items-center';
+                const name = document.createElement('span');
+                name.className = 'col-span-2 sm:col-span-1 text-sm font-semibold text-slate-200 truncate';
+                name.innerHTML = `<i class="fa-solid ${s.icon} mr-1.5 text-slate-400"></i>${s.label}`;
+                row.appendChild(name);
+                row.appendChild(makeStepper(s.key, 'week', `de ${s.label} en semaine`));
+                row.appendChild(makeStepper(s.key, 'we', `de ${s.label} le week-end`));
+                rows.appendChild(row);
+            });
+
+            if (!rows.children.length) {
+                rows.innerHTML = `<p class="text-xs text-slate-400">Sélectionne au moins un sport.</p>`;
+            }
+            updateDaysCheck();
+        }
+
+        // Sports cochés avec leurs nombres de séances
+        function getActiveGenSports() {
+            return GEN_SPORTS.filter(s => genSports[s.key].on).map(s => ({ key: s.key, week: genSports[s.key].week, we: genSports[s.key].we }));
+        }
+
+        // Une séance max par jour : le nombre de séances doit égaler le nombre de jours sélectionnés
+        function getDaysCheck() {
+            const active = getActiveGenSports();
+            const weekSessions = active.reduce((sum, s) => sum + s.week, 0);
+            const weSessions = active.reduce((sum, s) => sum + s.we, 0);
+            const selected = getSelectedDays();
+            const weekDays = selected.filter(d => d <= 4).length;
+            const weDays = selected.filter(d => d >= 5).length;
+            const problems = [];
+            if (weekSessions !== weekDays) problems.push(`Semaine : ${weekSessions} séance(s) pour ${weekDays} jour(s) sélectionné(s)`);
+            if (weSessions !== weDays) problems.push(`Week-end : ${weSessions} séance(s) pour ${weDays} jour(s) sélectionné(s)`);
+            return { ok: problems.length === 0, total: weekSessions + weSessions, problems };
+        }
+
+        function updateDaysCheck() {
+            const box = document.getElementById('gen-days-check');
+            const check = getDaysCheck();
+            if (check.ok) {
+                box.className = 'rounded-xl border px-3 py-2 text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
+                box.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ${check.total} séance(s) pour ${check.total} jour(s) sélectionné(s)`;
+            } else {
+                box.className = 'rounded-xl border px-3 py-2 text-xs bg-amber-500/10 border-amber-500/30 text-amber-400 space-y-0.5';
+                box.innerHTML = `<p class="font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Le nombre de séances ne correspond pas aux jours (1 séance max par jour)</p>` +
+                    check.problems.map(p => `<p>• ${p}</p>`).join('');
+            }
+            updateGenPreview();
+        }
+        renderGenSports();
 
         function translateToIntervals(w) {
             let text = `${w.title}\n\n`;
@@ -1159,6 +1739,46 @@
             document.body.removeChild(link);
         }
 
+        // Profil Garmin (sport / sous-sport FIT) pour chaque type de séance
+        function getFitSport(type, Sport, SubSport) {
+            const t = (type || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+            if (t.startsWith('ski')) {
+                return { sport: Sport.cross_country_skiing, subSport: t.includes('skate') ? SubSport.skate_skiing : SubSport.generic };
+            }
+            if (t === 'velo') return { sport: Sport.cycling, subSport: SubSport.generic };
+            if (t === 'renfo') return { sport: Sport.training, subSport: SubSport.strength_training };
+            if (t === 'course') return { sport: Sport.running, subSport: SubSport.generic };
+            return { sport: Sport.generic, subSport: SubSport.generic };
+        }
+
+        // Durée en secondes lue dans un texte libre ("1h55", "1h", "45 min")
+        function parseDurationSec(text, defaultSec) {
+            if (!text) return defaultSec;
+            const h = text.match(/(\d+)\s*h\s*(\d{1,2})?/);
+            if (h) return parseInt(h[1]) * 3600 + (h[2] ? parseInt(h[2]) * 60 : 0);
+            const m = text.match(/(\d+)\s*min/);
+            return m ? parseInt(m[1]) * 60 : defaultSec;
+        }
+
+        // Étapes au format garmin_steps de la banque, reconstruites depuis le texte d'une séance saisie à la main
+        function textToGarminSteps(w) {
+            const main = w.main_block || '';
+            const steps = [{ type: 'warmup', duration_sec: parseDurationSec(w.warmup, 600) }];
+            if (w.type === 'Course' && main.includes('5x')) {
+                steps.push({ type: 'repeat', iterations: 5, steps: [
+                    { type: 'active', duration_sec: 90 }, { type: 'rest', duration_sec: 90 }
+                ] });
+            } else if (w.type === 'Course' && main.includes('2x 8 min')) {
+                steps.push({ type: 'repeat', iterations: 2, steps: [
+                    { type: 'active', duration_sec: 480 }, { type: 'rest', duration_sec: 120 }
+                ] });
+            } else {
+                steps.push({ type: 'active', duration_sec: parseDurationSec(main, 1800) });
+            }
+            steps.push({ type: 'cooldown', duration_sec: parseDurationSec(w.cooldown, 300) });
+            return steps;
+        }
+
         async function downloadFIT() {
             if (!currentExportWorkout) return;
             
@@ -1166,10 +1786,24 @@
                 if (!window.FitModule) {
                     throw new Error("Le module FIT n'a pas été chargé correctement.");
                 }
-                const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
-                
+                const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
+
                 const w = currentExportWorkout;
                 const encoder = new FitEncoder();
+
+                // Séance structurée issue de la banque (même titre + même sport), sinon lecture du texte
+                let abstractSteps = null;
+                const { data: bankRows } = await supabaseClient
+                    .from('training_bank')
+                    .select('garmin_steps')
+                    .eq('title', w.title)
+                    .eq('sport', w.type)
+                    .limit(1);
+                if (bankRows && bankRows.length > 0 && Array.isArray(bankRows[0].garmin_steps) && bankRows[0].garmin_steps.length > 0) {
+                    abstractSteps = bankRows[0].garmin_steps;
+                } else {
+                    abstractSteps = textToGarminSteps(w);
+                }
 
                 // 1. Message File ID (Indique à Garmin que c'est un entraînement)
                 // defNum: 0=type, 1=manufacturer, 2=product, 3=serialNumber, 4=timeCreated
@@ -1181,58 +1815,55 @@
                     4: Math.floor(Date.now() / 1000) - 631065600 // Temps FIT (secondes depuis 1989)
                 });
 
-                // Détermination des étapes (Echauffement, Intervalles, Récupération)
+                // Conversion des étapes en messages FIT workout_step
+                // (defNum: 254=messageIndex, 0=nom, 1=durationType, 2=durationValue, 3=targetType, 4=targetValue, 5=intensity)
+                const stepIntensity = { warmup: Intensity.warmup, cooldown: Intensity.cooldown, rest: Intensity.recovery, active: Intensity.active };
                 let steps = [];
-                let stepIndex = 0;
 
-                let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
-                let wTime = wTimeMatch ? parseInt(wTimeMatch[1]) * 60 : 600;
-                if (wTime > 0) {
-                    steps.push({
-                        254: stepIndex++, // messageIndex
-                        1: WktStepDuration.time, // durationType
-                        2: wTime * 1000, // durationValue
-                        3: WktStepTarget.open, // targetType
-                        5: Intensity.warmup // intensity
-                    });
-                }
-
-                let main = w.main_block || "";
-                if (w.type === 'Course') {
-                    if (main.includes('5x')) {
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.repeatUntilStepsCmplt, 2: 5, 4: 2, 5: Intensity.active });
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 90000, 3: WktStepTarget.open, 5: Intensity.active });
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 90000, 3: WktStepTarget.open, 5: Intensity.rest });
-                    } else if (main.includes('2x 8 min')) {
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.repeatUntilStepsCmplt, 2: 2, 4: 2, 5: Intensity.active });
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 480000, 3: WktStepTarget.open, 5: Intensity.active });
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 120000, 3: WktStepTarget.open, 5: Intensity.rest });
+                function pushStep(s) {
+                    const durationMs = Math.max(1, Math.round(s.duration_sec || 60)) * 1000;
+                    const zoneMatch = String(s.intensity || '').match(/^zone(\d)$/);
+                    const step = {
+                        254: steps.length,
+                        1: WktStepDuration.time,
+                        2: durationMs,
+                        5: stepIntensity[s.type] !== undefined ? stepIntensity[s.type] : Intensity.active
+                    };
+                    if (s.intensity) step[0] = String(s.intensity).replace(/_/g, ' ');
+                    if (zoneMatch) {
+                        // Cible zone de fréquence cardiaque Garmin (1 à 5)
+                        step[3] = WktStepTarget.heartRate;
+                        step[4] = parseInt(zoneMatch[1]);
                     } else {
-                        let tMatch = main.match(/(\d+)\s*min/);
-                        let t = tMatch ? parseInt(tMatch[1]) * 60 : 1800;
-                        steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: t * 1000, 3: WktStepTarget.open, 5: Intensity.active });
+                        step[3] = WktStepTarget.open;
+                        step[4] = 0;
                     }
-                } else if (w.type === 'Vélo') {
-                    let tMatch = main.match(/(\d+)\s*min/);
-                    let t = tMatch ? parseInt(tMatch[1]) * 60 : (main.includes('1h55') ? 115 * 60 : 2700);
-                    steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: t * 1000, 3: WktStepTarget.open, 5: Intensity.active });
-                } else {
-                    steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: 1800000, 3: WktStepTarget.open, 5: Intensity.active });
+                    steps.push(step);
                 }
 
-                let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
-                let cTime = cTimeMatch ? parseInt(cTimeMatch[1]) * 60 : 300;
-                if (cTime > 0) {
-                    steps.push({ 254: stepIndex++, 1: WktStepDuration.time, 2: cTime * 1000, 3: WktStepTarget.open, 5: Intensity.cooldown });
-                }
+                abstractSteps.forEach(s => {
+                    if (s.type === 'repeat' && Array.isArray(s.steps) && s.steps.length > 0) {
+                        // FIT : les étapes répétées d'abord, puis l'étape "repeat" qui pointe vers la première
+                        const firstIndex = steps.length;
+                        s.steps.forEach(pushStep);
+                        steps.push({
+                            254: steps.length,
+                            1: WktStepDuration.repeatUntilStepsCmplt,
+                            2: firstIndex,
+                            4: Math.max(1, parseInt(s.iterations) || 1)
+                        });
+                    } else {
+                        pushStep(s);
+                    }
+                });
 
-                // En-tête Workout (defNum: 8=name, 4=sport, 6=numValidSteps)
-                let sportType = w.type === 'Vélo' ? Sport.cycling : Sport.running;
-                let safeTitle = w.title.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 15);
-                
+                // En-tête Workout (defNum: 8=name, 4=sport, 11=subSport, 6=numValidSteps)
+                const { sport: sportType, subSport } = getFitSport(w.type, Sport, SubSport);
+
                 encoder.addMessage(MesgNum.workout, {
-                    8: safeTitle,
+                    8: w.title || 'Seance',
                     4: sportType,
+                    11: subSport,
                     6: steps.length
                 });
 
@@ -1285,21 +1916,12 @@
             e.preventDefault();
             const goal = document.getElementById('gen-goal').value;
             const energy = document.getElementById('gen-energy').value;
-            const targetRunsWeek = parseInt(document.getElementById('gen-runs-week').value);
-            const targetRunsWe = parseInt(document.getElementById('gen-runs-we').value);
-            const targetBikesWeek = parseInt(document.getElementById('gen-bikes-week').value);
-            const targetBikesWe = parseInt(document.getElementById('gen-bikes-we').value);
+            const activeSports = getActiveGenSports();
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return;
 
             let intensityTag = energy === 'fatigue' ? ' (Allégé - Récup)' : '';
-            
-            let p5kPace = userProfile.p5k_pace || '4:30 /km';
-            let p5kHr = userProfile.p5k_hr || '175 bpm';
-            let thresholdPace = userProfile.threshold_pace || '4:15 /km';
-            let thresholdHr = userProfile.threshold_hr || '178 bpm';
-            let targetPace = userProfile.p5k_pace ? ` (${userProfile.p5k_pace})` : ' (4:50 /km)';
 
             // Fetch the last workout date and recent workouts to avoid repetition
             let lastWorkoutDate = null;
@@ -1369,9 +1991,8 @@
                  } catch(e) {}
             }
             
-            // Base repetitive templates
+            // Séances de secours si la banque ne renvoie rien pour un créneau
             let runBaseTemplate = {
-                isWeekend: false,
                 type: 'Course',
                 title: 'Course Endurance de Base' + intensityTag,
                 warmup: `5 min warmup`,
@@ -1380,7 +2001,6 @@
             };
 
             let bikeBaseTemplate = {
-                isWeekend: false,
                 type: 'Vélo',
                 title: 'Vélo Endurance de Base' + intensityTag,
                 warmup: `10 min mise en jambe`,
@@ -1388,55 +2008,58 @@
                 cooldown: `5 min retour au calme`
             };
 
-            let runTemplates = [
-                {
-                    isWeekend: false,
-                    type: 'Course',
-                    title: 'Fractionné Intermédiaire 5K' + intensityTag,
-                    warmup: `10 min footing progressif (FC cible < 145 bpm)`,
-                    main: `25 min : 5x (400m à allure ${p5kPace} / 90s trot lent)`,
+            const fallbackTemplates = {
+                'Course': runBaseTemplate,
+                'Vélo': bikeBaseTemplate,
+                'Renfo': {
+                    type: 'Renfo',
+                    title: 'Renforcement Général' + intensityTag,
+                    warmup: `5 min mobilité articulaire`,
+                    main: `30 min circuit gainage, squats, fentes, pompes`,
+                    cooldown: `5 min étirements`
+                },
+                'Ski de fond classique': {
+                    type: 'Ski de fond classique',
+                    title: 'Ski Classique Endurance' + intensityTag,
+                    warmup: `10 min pas alternatif souple`,
+                    main: `40 min endurance fondamentale (Zone 2)`,
                     cooldown: `5 min retour au calme`
                 },
-                {
-                    isWeekend: true,
-                    type: 'Course',
-                    title: 'Sortie Longue Endurance Fondamentale',
-                    warmup: `10 min échauffement articulaire et trot souple`,
-                    main: `40 min en Zone 2 stable à allure ${baseEasyPace} (FC stable)`,
-                    cooldown: `10 min marche et étirements`
-                },
-                {
-                    isWeekend: false,
-                    type: 'Course',
-                    title: 'Seuil & Allure Spécifique',
-                    warmup: `10 min footing progressif`,
-                    main: `20 min : 2x 8 min au seuil lactique (${thresholdPace} / ${thresholdHr}) (récup 2 min)`,
-                    cooldown: `10 min retour au calme`
-                }
-            ];
-
-            let bikeTemplates = [
-                {
-                    isWeekend: false,
-                    type: 'Vélo',
-                    title: 'Endurance Cycliste Semaine',
-                    warmup: `10 min mise en route souple (cadence 90 rpm)`,
-                    main: `45 min en continu, allure modérée et constante`,
+                'Ski de fond skate': {
+                    type: 'Ski de fond skate',
+                    title: 'Ski Skate Endurance' + intensityTag,
+                    warmup: `10 min skating souple`,
+                    main: `40 min endurance fondamentale (Zone 2)`,
                     cooldown: `5 min retour au calme`
-                },
-                {
-                    isWeekend: true,
-                    type: 'Vélo',
-                    title: 'Sortie Longue Vélo / Gravel',
-                    warmup: `20 min progressif en zone aérobie`,
-                    main: `1h55 en endurance fondamentale (Zone 2)`,
-                    cooldown: `15 min retour au calme progressif`
                 }
-            ];
+            };
 
-            let totalSessions = targetRunsWeek + targetRunsWe + targetBikesWeek + targetBikesWe;
+            // Séance de la banque correspondant au rôle (objectif + énergie) ; l'effort prime sur la catégorie
+            async function pickFromBank(sport, role, fallback) {
+                const sessions = await getBankSessionsForSport(sport);
+                const spec = getRoleSpec(role, sport, goal, energy);
+                const inEffort = s => (s.effort_score || 0) >= spec.min && (s.effort_score || 0) <= spec.max;
+                const inCats = s => spec.cats.includes(s.category);
+                const results = [
+                    sessions.filter(s => inCats(s) && inEffort(s)),
+                    sessions.filter(inEffort),
+                    sessions.filter(inCats)
+                ].find(list => list.length > 0);
+                if (!results) return fallback;
+
+                // Éviter les séances des 2 dernières semaines et celles déjà placées cette semaine
+                const fresh = results.filter(s => !recentTitles.includes(s.title));
+                let pool = fresh.length > 0 ? fresh : results;
+                // Sortie longue : parmi les 3 plus longues
+                if (spec.longest) pool = [...pool].sort((a, b) => (b.duration_minutes || 0) - (a.duration_minutes || 0)).slice(0, 3);
+                const s = pool[Math.floor(Math.random() * pool.length)];
+                recentTitles.push(s.title);
+                return { type: s.sport, title: s.title, warmup: s.warmup, main: s.main_block, cooldown: s.cooldown };
+            }
+
+            let totalSessions = activeSports.reduce((sum, s) => sum + s.week + s.we, 0);
             if (totalSessions === 0) {
-                alert("Veuillez sélectionner au moins une activité course ou vélo.");
+                alert("Sélectionne au moins un sport avec une séance.");
                 return;
             }
 
@@ -1445,15 +2068,10 @@
 
             let inserts = [];
 
-            let runWeekTemplates = runTemplates.filter(t => !t.isWeekend);
-            let runWeTemplate = runTemplates.find(t => t.isWeekend);
-            let bikeWeekTemplates = bikeTemplates.filter(t => !t.isWeekend);
-            let bikeWeTemplate = bikeTemplates.find(t => t.isWeekend);
-
             let scheduledSlots = [];
             
-            let neededWeekdays = targetRunsWeek + targetBikesWeek;
-            let neededWeekends = targetRunsWe + targetBikesWe;
+            let neededWeekdays = activeSports.reduce((sum, s) => sum + s.week, 0);
+            let neededWeekends = activeSports.reduce((sum, s) => sum + s.we, 0);
 
             let offset = 0;
             if (targetStartDate > monday) {
@@ -1461,14 +2079,25 @@
                  offset = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
             }
 
-            let availableWeekdays = [0, 1, 2, 3, 4].filter(d => d >= offset);
-            let availableWeekends = [5, 6].filter(d => d >= offset);
+            // Jours cochés dans les pastilles
+            const selectedDays = getSelectedDays();
+            const selectedWeekdays = [0, 1, 2, 3, 4].filter(d => selectedDays.includes(d));
+            const selectedWeekends = [5, 6].filter(d => selectedDays.includes(d));
+
+            const daysCheck = getDaysCheck();
+            if (!daysCheck.ok) {
+                alert("Le nombre de séances doit correspondre aux jours sélectionnés (1 séance max par jour) :\n\n" + daysCheck.problems.join('\n'));
+                return;
+            }
+
+            let availableWeekdays = selectedWeekdays.filter(d => d >= offset);
+            let availableWeekends = selectedWeekends.filter(d => d >= offset);
 
             if (availableWeekdays.length < neededWeekdays || availableWeekends.length < neededWeekends) {
                 // Not enough days left in current week, start fresh next week
                 monday.setDate(monday.getDate() + 7);
-                availableWeekdays = [0, 1, 2, 3, 4];
-                availableWeekends = [5, 6];
+                availableWeekdays = selectedWeekdays;
+                availableWeekends = selectedWeekends;
             }
 
             let preferredWeekdays = [1, 3, 0, 4, 2]; // Tue, Thu, Mon, Fri, Wed
@@ -1477,13 +2106,23 @@
             let preferredWeekends = [5, 6]; // Sat, Sun
             let chosenWeekends = preferredWeekends.filter(d => availableWeekends.includes(d)).slice(0, neededWeekends).sort((a,b)=>a-b);
 
-            let weekActivities = [];
-            for (let i = 0; i < targetRunsWeek; i++) weekActivities.push({ type: 'run', isWe: false });
-            for (let i = 0; i < targetBikesWeek; i++) weekActivities.push({ type: 'bike', isWe: false });
+            // Alterne les sports d'un jour à l'autre (course, vélo, course...) plutôt que de les regrouper
+            function interleaveSports(slot, isWe) {
+                const remaining = activeSports.map(s => ({ sport: s.key, count: s[slot] }));
+                const list = [];
+                while (remaining.some(r => r.count > 0)) {
+                    remaining.forEach(r => {
+                        if (r.count > 0) {
+                            list.push({ sport: r.sport, isWe });
+                            r.count--;
+                        }
+                    });
+                }
+                return list;
+            }
 
-            let weekendActivities = [];
-            for (let i = 0; i < targetRunsWe; i++) weekendActivities.push({ type: 'run', isWe: true });
-            for (let i = 0; i < targetBikesWe; i++) weekendActivities.push({ type: 'bike', isWe: true });
+            let weekActivities = interleaveSports('week', false);
+            let weekendActivities = interleaveSports('we', true);
 
             for (let i = 0; i < weekActivities.length; i++) {
                 scheduledSlots.push({ ...weekActivities[i], slotDay: chosenWeekdays[i] });
@@ -1494,9 +2133,11 @@
 
             scheduledSlots.sort((a, b) => a.slotDay - b.slotDay);
 
-            scheduledSlots.forEach(item => {
-                let template = null;
-                
+            // Rôle de chaque séance (clé, secondaire, endurance, longue) dans l'ordre des jours, par sport
+            const sportRoles = Object.fromEntries(activeSports.map(s => [s.key, getSportRoles(s.key, s.week, s.we)]));
+            scheduledSlots.forEach(item => { item.role = sportRoles[item.sport].shift() || 'endurance'; });
+
+            for (const item of scheduledSlots) {
                 let targetDate = new Date(monday);
                 targetDate.setDate(monday.getDate() + item.slotDay);
 
@@ -1506,44 +2147,7 @@
                 const dt = String(targetDate.getDate()).padStart(2, '0');
                 let dateString = `${year}-${month}-${dt}`;
 
-                if (item.type === 'run') {
-                    if (item.isWe) {
-                         // Check if we did this weekend run recently
-                         if (recentTitles.includes(runWeTemplate.title)) {
-                             template = runBaseTemplate;
-                         } else {
-                             template = runWeTemplate;
-                             recentTitles.push(template.title);
-                         }
-                    } else {
-                        // Find an unused weekday run template, fallback to base
-                        let available = runWeekTemplates.filter(t => !recentTitles.includes(t.title));
-                        if(available.length > 0) {
-                            template = available[Math.floor(Math.random() * available.length)];
-                            // mark as used
-                            recentTitles.push(template.title); 
-                        } else {
-                            template = runBaseTemplate;
-                        }
-                    }
-                } else {
-                    if (item.isWe) {
-                        if (recentTitles.includes(bikeWeTemplate.title)) {
-                             template = bikeBaseTemplate;
-                         } else {
-                             template = bikeWeTemplate;
-                             recentTitles.push(template.title);
-                         }
-                    } else {
-                        let available = bikeWeekTemplates.filter(t => !recentTitles.includes(t.title));
-                        if(available.length > 0) {
-                            template = available[Math.floor(Math.random() * available.length)];
-                            recentTitles.push(template.title);
-                        } else {
-                            template = bikeBaseTemplate;
-                        }
-                    }
-                }
+                const template = await pickFromBank(item.sport, item.role, fallbackTemplates[item.sport]);
 
                 inserts.push({
                     title: template.title,
@@ -1555,7 +2159,7 @@
                     completed: false,
                     user_id: user.id
                 });
-            });
+            }
 
             const { error } = await supabaseClient.from('workouts').insert(inserts);
 

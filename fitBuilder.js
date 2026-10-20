@@ -6,10 +6,11 @@
 const MesgNum = { fileId: 0, workout: 26, workoutStep: 27 };
 const FileType = { workout: 5 };
 const Manufacturer = { development: 255 };
-const Sport = { cycling: 2, running: 1 };
+const Sport = { generic: 0, running: 1, cycling: 2, training: 10, cross_country_skiing: 12 };
+const SubSport = { generic: 0, strength_training: 20, skate_skiing: 42 };
 const WktStepDuration = { time: 0, distance: 1, open: 5, repeatUntilStepsCmplt: 6 };
 const WktStepTarget = { open: 4, heartRate: 1, power: 2, speed: 0 };
-const Intensity = { active: 0, rest: 1, warmup: 2, cooldown: 3 };
+const Intensity = { active: 0, rest: 1, warmup: 2, cooldown: 3, recovery: 4 };
 
 class FitEncoder {
     constructor() {
@@ -46,6 +47,7 @@ class FitEncoder {
             return [
                 { defNum: 8, size: 16, type: 7 },  // wktName (string up to 16 chars)
                 { defNum: 4, size: 1, type: 0 },   // sport
+                { defNum: 11, size: 1, type: 0 },  // subSport
                 { defNum: 6, size: 2, type: 132 }  // numValidSteps
             ];
         } else if (mesgNum === MesgNum.workoutStep) {
@@ -94,7 +96,8 @@ class FitEncoder {
             }
 
             if (def.type === 7) { // String
-                let str = String(val).substring(0, def.size - 1);
+                // Les chaînes FIT sont en UTF-8 : on retire accents et caractères non ASCII
+                let str = String(val).normalize('NFD').replace(/[^\x20-\x7E]/g, '').substring(0, def.size - 1);
                 for(let i=0; i<str.length; i++) this.records.push(str.charCodeAt(i));
                 this.records.push(0); // Null terminator
                 for(let i=str.length+1; i<def.size; i++) this.records.push(0x00);
@@ -117,11 +120,27 @@ class FitEncoder {
         return map[defNum] || "unknown";
     }
 
+    static crc16(bytes, start = 0, end = bytes.length) {
+        // CRC officiel du protocole FIT (algorithme par quartets du SDK Garmin)
+        const table = [0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401,
+                       0xA001, 0x6C00, 0x7800, 0xB401, 0x5000, 0x9C01, 0x8801, 0x4400];
+        let crc = 0;
+        for (let i = start; i < end; i++) {
+            const byte = bytes[i];
+            let tmp = table[crc & 0xF];
+            crc = (crc >> 4) & 0x0FFF;
+            crc = crc ^ tmp ^ table[byte & 0xF];
+            tmp = table[crc & 0xF];
+            crc = (crc >> 4) & 0x0FFF;
+            crc = crc ^ tmp ^ table[(byte >> 4) & 0xF];
+        }
+        return crc;
+    }
+
     getBytes() {
-        // En vrai, il faut un entête FIT de 14 octets et un CRC de 2 octets à la fin.
-        // C'est un mock fonctionnel pour l'exemple
-        const header = [14, 32, 0, 0, 0, 0, 0, 0, 46, 70, 73, 84, 0, 0]; // ".FIT"
-        
+        // Entête FIT de 14 octets : taille, protocole 2.0, profil 21.32, taille des données, ".FIT", CRC entête
+        const header = [14, 32, 2132 & 0xFF, (2132 >> 8) & 0xFF, 0, 0, 0, 0, 46, 70, 73, 84, 0, 0];
+
         // Taille totale
         const dataSize = this.records.length;
         header[4] = dataSize & 0xFF;
@@ -129,16 +148,21 @@ class FitEncoder {
         header[6] = (dataSize >> 16) & 0xFF;
         header[7] = (dataSize >> 24) & 0xFF;
 
+        const headerCrc = FitEncoder.crc16(header, 0, 12);
+        header[12] = headerCrc & 0xFF;
+        header[13] = (headerCrc >> 8) & 0xFF;
+
         const fitFile = new Uint8Array(header.length + this.records.length + 2);
         fitFile.set(header, 0);
         fitFile.set(this.records, header.length);
-        
-        // Faux CRC (0x0000) pour l'instant (la plupart des lecteurs tolèrent un CRC à zéro pour les workouts locaux)
-        fitFile[fitFile.length - 2] = 0;
-        fitFile[fitFile.length - 1] = 0;
+
+        // CRC du fichier (entête + données), exigé par Garmin Connect
+        const fileCrc = FitEncoder.crc16(fitFile, 0, fitFile.length - 2);
+        fitFile[fitFile.length - 2] = fileCrc & 0xFF;
+        fitFile[fitFile.length - 1] = (fileCrc >> 8) & 0xFF;
 
         return fitFile;
     }
 }
 
-export { FitEncoder, MesgNum, FileType, Manufacturer, Sport, WktStepDuration, WktStepTarget, Intensity };
+export { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity };
