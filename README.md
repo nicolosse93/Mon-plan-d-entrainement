@@ -1,35 +1,37 @@
 # Mon Plan d'Entraînement
 
-Application web (une seule page) pour planifier ses séances de course à pied et de vélo sur un calendrier hebdomadaire. Elle génère des semaines d'entraînement adaptées à ton profil et exporte les séances vers Intervals.icu, Zwift/TrainingPeaks (.ZWO) ou Garmin (.FIT).
+Application web (une seule page) pour planifier ses séances de course à pied et de vélo sur un calendrier hebdomadaire. Elle génère des semaines d'entraînement adaptées à ton profil et exporte les séances vers Garmin (.FIT).
 
 Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supabase comme backend (authentification + base de données).
 
 ## Fonctionnalités
 
 - **Compte utilisateur** : inscription / connexion par e-mail et mot de passe (Supabase Auth).
+- **Mode démo** (bouton « Essayer la démo » sur la page de connexion) : visite complète sans compte, avec une semaine d'exemple et un profil fictif. Séances et profil restent en mémoire : rien n'est écrit en base, tout disparaît en quittant ou en rechargeant. Seule la banque d'entraînements (publique) est lue.
 - **Calendrier hebdomadaire** : navigation semaine par semaine, glisser-déposer pour déplacer une séance, case à cocher « réalisée », suppression d'une séance ou de tout le calendrier.
-- **Séances structurées** : titre, date, type (Course à pied, Vélo / Gravel, Renforcement, Repos) et trois blocs (échauffement, bloc principal, retour au calme).
+- **Séances structurées** : titre, date, type (Course à pied, Vélo / Gravel, Musculation, ski de fond, Repos) et trois blocs (échauffement, bloc principal, retour au calme).
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
-- **Export** :
-  - texte au format Intervals.icu (à copier-coller) ;
-  - fichier `.zwo` (Zwift / TrainingPeaks) ;
-  - fichier `.fit` (Garmin Connect, écrit par [fitBuilder.js](fitBuilder.js)).
-- Mode clair / sombre et mise en page adaptée au mobile.
+- **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
+  - le nom « 2 Mar - Titre » : numéro du jour (1 = lundi … 7 = dimanche) et jour abrégé, pour garder l'ordre de la semaine sur la montre ;
+  - les étapes et les répétitions, en **distance** quand le texte de la séance en donne une (« 5x 600m », pyramide « 200-400-600-400-200m ») ;
+  - des **cibles d'allure** pour la course (calculées depuis les prédictions 5K / 10K du profil : allure de l'intervalle, endurance Z2 pour l'échauffement et le retour au calme, récup libre) ;
+  - des zones cardio pour les autres sports.
+- Thème clair / sombre qui suit automatiquement le réglage de l'appareil, et mise en page adaptée au mobile.
 
 ## Structure du projet
 
 | Fichier | Rôle |
 | --- | --- |
-| [index.html](index.html) | L'application complète : interface, logique, appels Supabase, générateur et exports. |
-| [fitBuilder.js](fitBuilder.js) | Encodeur FIT minimal, sans dépendance, pour les fichiers d'entraînement Garmin. |
+| [index.html](index.html) | L'application complète : interface, logique, appels Supabase, générateur et export. |
+| [fitBuilder.js](fitBuilder.js) | Encodeur FIT minimal, sans dépendance, pour les fichiers d'entraînement Garmin (script classique qui expose `window.FitModule`). |
 | [supabase.js](supabase.js) | Client Supabase en module ES (non utilisé par `index.html`, qui crée son propre client). |
 | [test-import.js](test-import.js) | Petit test de chargement du SDK FIT officiel de Garmin depuis un CDN. |
 | [garmin-export-app/](garmin-export-app/) | Prototype autonome : un bouton qui télécharge une séance de fractionné codée en dur au format `.fit`. |
 
 ## Lancer en local
 
-`index.html` charge `fitBuilder.js` comme module ES. Les navigateurs bloquent les modules ouverts en `file://`, donc il faut passer par un petit serveur HTTP :
+Tu peux ouvrir `index.html` directement dans le navigateur. Un petit serveur HTTP reste conseillé :
 
 ```bash
 # au choix
@@ -43,7 +45,7 @@ L'extension VS Code **Live Server** fonctionne aussi.
 
 ## Configuration Supabase
 
-L'URL du projet et la clé publique (*publishable*) sont écrites en dur au début du `<script type="module">` dans [index.html](index.html) (`SUPABASE_URL`, `SUPABASE_ANON_KEY`). Pour utiliser ton propre projet Supabase, remplace ces deux valeurs et crée les tables ci-dessous.
+L'URL du projet et la clé publique (*publishable*) sont écrites en dur au début du script principal de [index.html](index.html) (`SUPABASE_URL`, `SUPABASE_ANON_KEY`). Pour utiliser ton propre projet Supabase, remplace ces deux valeurs et crée les tables ci-dessous.
 
 ### Tables attendues
 
@@ -55,7 +57,7 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 | `user_id` | `uuid` | référence `auth.users.id` |
 | `title` | `text` | |
 | `date` | `date` | |
-| `type` | `text` | `Course`, `Vélo`, `Renfo`, `Ski de fond classique`, `Ski de fond skate`, `Repos` |
+| `type` | `text` | `Course`, `Vélo`, `Renfo` (affiché « Muscu »), `Ski de fond classique`, `Ski de fond skate`, `Repos` |
 | `warmup` | `text` | |
 | `main_block` | `text` | |
 | `cooldown` | `text` | |
@@ -77,12 +79,17 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 
 ## Importer une séance sur Garmin
 
-1. Dans l'application, ouvre **Exporter** et télécharge le fichier `.fit`.
-2. Va sur [Garmin Connect › Entraînements](https://connect.garmin.com/modern/workouts).
-3. Clique sur **Importer** et choisis le fichier.
-4. Envoie la séance vers ta montre.
+Dans l'application, télécharge le fichier `.fit` : bouton **Garmin .FIT** de l'en-tête, ou **.FIT** dans le détail d'une séance. Ensuite, copie-le sur la montre par câble :
+
+1. Branche la montre à l'ordinateur avec son câble USB.
+2. Ouvre l'Explorateur › *Ce PC* › ta montre (selon le modèle : un lecteur, ou un appareil avec *Internal Storage*).
+3. Copie le fichier dans le dossier `GARMIN/NewFiles`.
+4. Débranche la montre : la séance apparaît dans le menu **Entraînements**.
+
+Pour repartir à zéro chaque semaine : supprime les anciennes séances depuis le menu Entraînements de la montre, ou leurs fichiers dans `GARMIN/Workouts` en USB (selon le modèle), puis copie les fichiers de la nouvelle semaine.
+
+> **Pas par Garmin Connect** : Garmin Connect n'a pas d'import manuel de fichiers d'entraînement. La page *Importer des données* n'accepte que des activités enregistrées et répond « Un de vos fichiers n'a pas été accepté par le système » ([forum Garmin](https://forums.garmin.com/developer/fit-sdk/f/discussion/426425/the-fit-workout-generated-by-a-tool-i-made-keeps-getting-rejected-by-the-garmin-connect-website/2005568)).
 
 ## Limites connues
 
-- Les blocs d'une séance sont du texte libre. Les exports (.zwo, .fit, Intervals.icu) les interprètent par motifs et approximations (par exemple, 400 m ≈ 90 s).
-- `.env` est suivi par Git alors qu'il est aussi listé dans `.gitignore`. Il est vide aujourd'hui ; lance `git rm --cached .env` avant d'y mettre des secrets.
+- Les séances de la banque (`training_bank.garmin_steps`) sont exportées avec leur structure exacte. Une séance saisie à la main est du texte libre : l'export l'interprète par motifs et approximations (par exemple, 400 m ≈ 90 s).

@@ -2,58 +2,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Plan d'Entraînement Intelligent</title>
+    <!-- Favicon : profil d'intervalles (couleurs des zones) sur fond graphite -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2315181d'/%3E%3Crect x='9' y='38' width='8' height='16' rx='2' fill='%239ca3af'/%3E%3Crect x='20' y='26' width='7' height='28' rx='2' fill='%233b82f6'/%3E%3Crect x='30' y='14' width='7' height='40' rx='2' fill='%23ef4444'/%3E%3Crect x='40' y='30' width='7' height='24' rx='2' fill='%2322c55e'/%3E%3Crect x='50' y='20' width='6' height='34' rx='2' fill='%23f59e0b'/%3E%3C/svg%3E">
+    <meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#15181d" media="(prefers-color-scheme: dark)">
+    <!-- Thème = réglage clair / sombre de l'appareil, appliqué avant l'affichage (pas de flash) et suivi en direct -->
+    <script>
+        (function () {
+            const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const applyTheme = () => document.documentElement.classList.toggle('dark', darkQuery.matches);
+            applyTheme();
+            darkQuery.addEventListener('change', applyTheme);
+            try { localStorage.removeItem('theme'); } catch (e) {} // ancien choix manuel, qui masquait le réglage de l'appareil
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Couleurs de l'interface = variables CSS (une valeur par thème, voir <style>)
+        const themeVar = name => `rgb(var(${name}) / <alpha-value>)`;
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
                     colors: {
-                        dark: {
-                            950: '#090d16',
-                            900: '#0f172a',
-                            800: '#1e293b',
-                            700: '#334155',
-                            600: '#475569'
-                        }
+                        page: themeVar('--page'),
+                        surface: themeVar('--surface'),
+                        inset: themeVar('--inset'),
+                        raised: { DEFAULT: themeVar('--raised'), hover: themeVar('--raised-hover') },
+                        line: themeVar('--line'),
+                        ink: themeVar('--ink'),
+                        muted: themeVar('--muted'),
+                        accent: { DEFAULT: themeVar('--accent'), hover: themeVar('--accent-hover') },
+                        success: themeVar('--success'),
+                        // Une couleur par sport (bande latérale des cartes, icônes)
+                        sport: { run: '#f97316', bike: '#22c55e', gym: '#a78bfa', skic: '#06b6d4', skis: '#14b8a6', rest: '#6b7280' },
+                        // Zones d'intensité façon Garmin : gris, bleu, vert, orange, rouge
+                        zone: { 1: '#9ca3af', 2: '#3b82f6', 3: '#22c55e', 4: '#f59e0b', 5: '#ef4444' }
                     }
                 }
             }
         }
     </script>
         <style>
-        /* Base styles (Light Mode by default) */
-        body { background-color: #f8fafc !important; color: #1e293b !important; transition: background-color 0.3s, color 0.3s; }
-        body .bg-dark-950 { background-color: #f8fafc !important; }
-        body .bg-dark-900 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
-        body .bg-dark-800 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
-        body .bg-dark-800\/95 { background-color: rgba(255, 255, 255, 0.95) !important; }
-        body .bg-dark-700 { background-color: #f1f5f9 !important; }
-        body .text-slate-100, body .text-slate-200, body .text-slate-300 { color: #1e293b !important; }
-        body .text-slate-400 { color: #64748b !important; }
-        body .bg-dark-900\/80 { background-color: rgba(255, 255, 255, 0.8) !important; border-color: rgba(226, 232, 240, 0.8) !important; }
-        body .border-slate-700\/80 { border-color: rgba(226, 232, 240, 0.8) !important; }
-        body .bg-dark-900\/60 { background-color: rgba(255, 255, 255, 0.6) !important; border-color: rgba(226, 232, 240, 0.6) !important; }
-        body .border-slate-700\/60 { border-color: rgba(226, 232, 240, 0.6) !important; }
-        body .text-emerald-50 { color: #0f172a !important; }
-        body .hover\:bg-slate-700:hover { background-color: #e2e8f0 !important; }
-
-        /* Dark mode overrides */
-        .dark body { background-color: #090d16 !important; color: #f1f5f9 !important; }
-        .dark .bg-dark-950 { background-color: #090d16 !important; }
-        .dark .bg-dark-900 { background-color: #0f172a !important; border-color: #1e293b !important; }
-        .dark .bg-dark-800 { background-color: #1e293b !important; border-color: #334155 !important; }
-        .dark .bg-dark-800\/95 { background-color: rgba(30, 41, 59, 0.95) !important; }
-        .dark .bg-dark-700 { background-color: #334155 !important; }
-        .dark .text-slate-100, .dark .text-slate-200, .dark .text-slate-300 { color: #f1f5f9 !important; }
-        .dark .text-slate-400 { color: #94a3b8 !important; }
-        .dark .bg-dark-900\/80 { background-color: rgba(15, 23, 42, 0.8) !important; border-color: rgba(30, 41, 59, 0.8) !important; }
-        .dark .border-slate-700\/80 { border-color: rgba(51, 65, 85, 0.8) !important; }
-        .dark .bg-dark-900\/60 { background-color: rgba(15, 23, 42, 0.6) !important; border-color: rgba(30, 41, 59, 0.6) !important; }
-        .dark .border-slate-700\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
-        .dark .text-emerald-50 { color: #ecfdf5 !important; }
-        .dark .hover\:bg-slate-700:hover { background-color: #475569 !important; }
+        /* Palette (canaux RGB) : clair par défaut, sombre avec .dark — bleu Garmin en accent */
+        :root {
+            --page: 243 244 246; --surface: 255 255 255; --inset: 248 249 251;
+            --raised: 238 240 243; --raised-hover: 226 230 235; --line: 225 229 234;
+            --ink: 22 25 29; --muted: 95 103 115;
+            --accent: 0 124 195; --accent-hover: 0 106 168; --success: 22 163 74;
+            color-scheme: light;
+        }
+        .dark {
+            --page: 10 12 15; --surface: 21 24 29; --inset: 15 18 22;
+            --raised: 33 38 45; --raised-hover: 44 50 59; --line: 40 46 54;
+            --ink: 233 236 240; --muted: 140 149 162;
+            --accent: 17 169 237; --accent-hover: 58 184 242; --success: 52 199 89;
+            color-scheme: dark;
+        }
+        body { transition: background-color 0.2s, color 0.2s; font-feature-settings: 'cv11', 'ss01'; }
+        /* Chiffres de largeur fixe : durées, allures et compteurs restent alignés */
+        .tabular-nums, input, #calendar-grid, #week-summary, #detail-intervals { font-variant-numeric: tabular-nums; }
         /* Champs numériques du générateur : on masque les flèches natives au profit des boutons */
         .gen-stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         .gen-stepper input[type=number]::-webkit-inner-spin-button,
@@ -64,184 +77,173 @@
     <!-- FontAwesome pour les icônes -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="min-h-screen flex flex-col font-sans bg-dark-950 text-slate-100">
+<body class="min-h-screen flex flex-col font-sans bg-page text-ink">
 
     <!-- AUTH SCREEN -->
-    <div id="auth-screen" class="fixed inset-0 bg-dark-950 z-50 flex items-center justify-center p-4">
-        <div class="bg-dark-800 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
+    <div id="auth-screen" class="fixed inset-0 bg-page z-50 flex items-center justify-center p-4">
+        <div class="bg-surface border border-line w-full max-w-md rounded-xl p-6 shadow-2xl">
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <div class="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
                     <i class="fa-solid fa-person-running"></i>
                 </div>
-                <h2 id="auth-title" class="text-2xl font-bold text-slate-100">Connexion à ton Plan</h2>
+                <h2 id="auth-title" class="text-2xl font-bold text-ink">Connexion à ton Plan</h2>
             </div>
             <form id="auth-form" class="space-y-4">
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Email</label>
-                    <input type="email" id="email" required class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Email</label>
+                    <input type="email" id="email" required class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                 </div>
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Mot de passe</label>
-                    <input type="password" id="password" required class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Mot de passe</label>
+                    <input type="password" id="password" required class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                 </div>
-                <div id="auth-error" class="hidden text-red-400 text-xs bg-red-900/20 p-3 rounded-xl border border-red-900/50"></div>
-                <button type="submit" id="auth-submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-900/30">
+                <div id="auth-error" class="hidden text-red-400 text-xs bg-red-900/20 p-3 rounded-lg border border-red-900/50"></div>
+                <button type="submit" id="auth-submit-btn" class="w-full bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-lg transition ">
                     Se connecter
                 </button>
-                <button type="button" id="auth-toggle-mode" class="w-full text-slate-400 hover:text-emerald-400 text-sm py-2 transition">
+                <button type="button" id="auth-toggle-mode" class="w-full text-muted hover:text-accent text-sm py-2 transition">
                     Pas encore de compte ? S'inscrire
                 </button>
             </form>
+
+            <!-- Mode démo : visite de l'appli sans compte, rien n'est enregistré -->
+            <div class="flex items-center gap-3 my-4 text-xs text-muted">
+                <span class="flex-1 h-px bg-line"></span>ou<span class="flex-1 h-px bg-line"></span>
+            </div>
+            <button type="button" onclick="enterDemo()" class="w-full bg-raised hover:bg-raised-hover border border-line text-ink font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-eye text-accent"></i> Essayer la démo
+            </button>
+            <p class="text-xs text-muted text-center mt-2">Sans compte · rien n'est enregistré</p>
         </div>
     </div>
 
     <!-- APPLICATION PRINCIPALE -->
-    <div id="app-content" class="hidden flex-1 flex flex-col">
-        <!-- HEADER -->
-        <header class="bg-dark-800 border-b border-slate-700 sticky top-0 z-30 px-4 py-3 flex items-center justify-between shadow-md">
-            <div class="flex items-center space-x-3">
-                <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                    <button id="theme-toggle" class="p-2 rounded-lg bg-dark-700 text-emerald-400">
-                        <i class="fa-solid fa-moon"></i>
-                </button>
+    <!-- Mobile : la page défile ; à partir de sm, l'application occupe exactement l'écran et le calendrier remplit la hauteur -->
+    <div id="app-content" class="hidden flex-1 flex flex-col sm:h-screen sm:overflow-hidden">
+        <!-- HEADER : titre + toutes les actions -->
+        <header class="bg-surface border-b border-line sticky top-0 z-30 h-12 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-2 shadow-md shrink-0">
+            <div class="flex items-center gap-2 min-w-0 mr-auto">
+                <div class="w-8 h-8 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-person-running"></i>
+                </div>
+                <h1 class="font-bold text-base sm:text-lg tracking-tight truncate">Mon Plan Sportif</h1>
+                <span id="demo-badge" title="Mode démo : rien n'est enregistré" class="hidden shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-400">Démo</span>
             </div>
-                <div class="flex items-baseline">
-                    <h1 class="font-bold text-lg tracking-tight">Mon Plan Sportif</h1>
-                </div>
-    </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="openProfileModal()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-sm transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-user-gear text-emerald-400"></i>
-                    <span class="hidden sm:inline">Profil & Garmin</span>
-                </button>
-                <button onclick="openExportModal()" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-file-export"></i>
-                    <span class="hidden sm:inline">Exporter (Intervals.icu)</span>
-                </button>
-                <button id="logout-btn" class="text-slate-400 hover:text-red-400 transition">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                </button>
-                <span id="user-email-display" class="text-xs text-slate-400 hidden md:inline"></span>
-                </div>
+            <button onclick="openGeneratorModal()" title="Générer un plan" class="bg-accent hover:bg-accent-hover text-white h-8 px-2.5 sm:px-3 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span class="hidden md:inline">Générer un plan</span>
+            </button>
+            <button onclick="openProfileModal()" title="Profil & Garmin" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-user-gear text-accent"></i>
+                <span class="hidden lg:inline">Profil</span>
+            </button>
+            <button onclick="openExportModal()" title="Exporter vers Garmin (.FIT)" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-export"></i>
+                <span class="hidden lg:inline">Garmin .FIT</span>
+            </button>
+            <span id="user-email-display" class="text-xs text-muted hidden xl:inline truncate max-w-[14rem]"></span>
+            <button id="logout-btn" title="Se déconnecter" class="h-8 w-7 text-muted hover:text-red-400 transition shrink-0">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
         </header>
 
-        <!-- CONTENU PRINCIPAL -->
-        <main class="max-w-6xl w-full mx-auto p-4 sm:p-6 flex-1 space-y-6">
-            <!-- stats summary placeholder -->
+        <!-- CONTENU PRINCIPAL : calendrier + résumé de la semaine (colonne à droite sur grand écran, bandeau au-dessus sinon) -->
+        <main class="w-full max-w-[1920px] mx-auto p-2 sm:p-3 flex-1 flex flex-col xl:flex-row gap-2 sm:gap-3 sm:min-h-0">
             <div id="stat-completed" class="hidden"></div>
 
-            <div class="bg-dark-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div class="flex-1">
-                        <h4 class="font-semibold text-slate-200">Coach Expert Intermédiaire</h4>
-                        <p class="text-xs text-slate-400 mt-0.5">Planification intelligente basée sur tes allures Garmin (40 min / 1h course, 1h / 2h30 vélo).</p>
-                </div>
-                <div class="flex items-center space-x-3 w-full md:w-auto">
-                        <button onclick="openGeneratorModal()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-900/30 whitespace-nowrap">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            <span class="hidden sm:inline">Générer un plan</span>
-                            <span class="sm:hidden">Générer</span>
-                        </button>
-                        <button onclick="openModal()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/30 whitespace-nowrap">
-                            <i class="fa-solid fa-plus"></i>
-                            <span class="hidden sm:inline">Séance unique</span>
-                            <span class="sm:hidden">Séance</span>
-                        </button>
-                    </div>
-            </div>
-
-            <!-- VUE CALENDRIER HEBDOMADAIRE -->
-            <div class="bg-dark-800 border border-slate-700 rounded-2xl p-4 sm:p-6 shadow-xl">
-                <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 sticky top-[60px] sm:relative sm:top-0 bg-dark-800/95 backdrop-blur-sm z-20 py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 border-b border-slate-700/50 sm:border-none">
-                    <div class="flex items-center space-x-3">
-                        <h3 id="calendar-month-title" class="font-bold text-lg sm:text-xl capitalize text-emerald-50">Semaine</h3>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button onclick="changeWeek(-1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition">
-                            <i class="fa-solid fa-chevron-left"></i>
-                        </button>
-                        <button onclick="goToCurrentWeek()" id="calendar-today-btn" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition font-medium">
-                            Cette semaine
-                        </button>
-                        <button onclick="changeWeek(1)" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm transition">
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </button>
-                    </div>
+            <!-- VUE CALENDRIER -->
+            <section class="flex-1 min-w-0 sm:min-h-0 flex flex-col bg-surface border border-line rounded-xl p-2 sm:p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2 sticky top-12 sm:static bg-surface/95 backdrop-blur-sm z-20 -mx-2 px-2 py-1.5 sm:mx-0 sm:px-0 sm:py-0">
+                    <h3 id="calendar-month-title" class="font-bold text-base sm:text-lg capitalize text-ink mr-auto truncate">Semaine</h3>
+                    <button onclick="changeWeek(-1)" aria-label="Semaine précédente" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <button onclick="goToCurrentWeek()" id="calendar-today-btn" class="bg-raised hover:bg-raised-hover text-ink h-8 px-3 rounded-lg text-sm transition font-medium whitespace-nowrap">
+                        Aujourd'hui
+                    </button>
+                    <button onclick="changeWeek(1)" aria-label="Semaine suivante" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
                 </div>
 
-                <!-- En-têtes des jours de la semaine (Desktop uniquement) -->
-                <div class="hidden sm:grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-400 mb-3">
+                <!-- En-têtes des jours (grille sm+) -->
+                <div class="hidden sm:grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-muted mb-1.5">
                     <div>Lun</div><div>Mar</div><div>Mer</div><div>Jeu</div><div>Ven</div><div>Sam</div><div>Dim</div>
                 </div>
 
-                <!-- Grille du calendrier (Adaptative mobile) -->
-                <div id="calendar-grid" class="grid grid-cols-1 sm:grid-cols-7 gap-3">
+                <!-- Mobile : liste de la semaine ; sm+ : grille de N semaines qui remplit la hauteur disponible -->
+                <div id="calendar-grid" class="grid grid-cols-1 sm:grid-cols-7 gap-1.5 sm:flex-1 sm:min-h-0 sm:overflow-y-auto">
                     <!-- Généré dynamiquement -->
                 </div>
 
-                <div id="no-workouts" class="text-center py-12 text-slate-500 hidden">
-                    <i class="fa-solid fa-calendar-xmark text-3xl mb-2"></i>
-                    <p>Aucun entraînement planifié pour le moment.</p>
+                <div id="no-workouts" class="sm:hidden text-center py-3 text-xs text-muted hidden">
+                    <i class="fa-solid fa-calendar-xmark mr-1"></i> Aucune séance cette semaine : utilise « Générer » pour en créer.
                 </div>
-            </div>
+            </section>
+
+            <!-- RÉSUMÉ DE LA SEMAINE ACTIVE -->
+            <aside id="week-summary" class="order-first xl:order-none grid grid-cols-2 md:grid-cols-4 xl:grid-cols-1 xl:auto-rows-min gap-2 xl:w-72 shrink-0 xl:overflow-y-auto">
+                <!-- Généré dynamiquement -->
+            </aside>
         </main>
     </div>
 
     <!-- MODAL PROFIL & MÉTRIQUES GARMIN -->
-    <div id="profile-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-dark-800 border border-slate-700 w-full max-w-xl rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div id="profile-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-surface border border-line w-full max-w-xl rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-xl font-bold flex items-center space-x-2">
-                    <i class="fa-solid fa-user-gear text-emerald-400"></i>
+                    <i class="fa-solid fa-user-gear text-accent"></i>
                     <span>Profil & Métriques Garmin</span>
                 </h3>
-                <button onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-200">
+                <button onclick="closeProfileModal()" class="text-muted hover:text-ink">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <p class="text-xs text-slate-400 mb-4">Mets à jour tes prédictions Garmin. Le coach expert s'en servira pour calculer tes allures précises dans chaque bloc d'intervalle.</p>
+            <p class="text-xs text-muted mb-4">Mets à jour tes prédictions Garmin. Le coach expert s'en servira pour calculer tes allures précises dans chaque bloc d'intervalle.</p>
 
             <form id="profile-form" class="space-y-4">
-                <div class="border border-slate-700 rounded-xl overflow-hidden">
+                <div class="border border-line rounded-lg overflow-hidden">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
-                            <tr class="bg-dark-900 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
+                            <tr class="bg-inset text-muted text-xs uppercase tracking-wider border-b border-line">
                                 <th class="p-3 font-semibold">Métrique</th>
                                 <th class="p-3 font-semibold">Temps</th>
                                 <th class="p-3 font-semibold">Allure (Calculée)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-700/60">
+                        <tbody class="divide-y divide-line">
                             <tr>
-                                <td class="p-3 font-medium text-slate-300">Prédiction 5K</td>
+                                <td class="p-3 font-medium text-ink">Prédiction 5K</td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-p5k-time" placeholder="22:30" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="prof-p5k-time" placeholder="22:30" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
                                 </td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-p5k-pace" readonly class="w-full bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-emerald-400 font-mono italic">
+                                    <input type="text" id="prof-p5k-pace" readonly class="w-full bg-page border border-line rounded-lg px-2 py-1.5 text-xs text-accent font-mono italic">
                                 </td>
                             </tr>
                             <tr>
-                                <td class="p-3 font-medium text-slate-300">Prédiction 10K</td>
+                                <td class="p-3 font-medium text-ink">Prédiction 10K</td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-p10k-time" placeholder="47:00" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="prof-p10k-time" placeholder="47:00" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
                                 </td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-p10k-pace" readonly class="w-full bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-emerald-400 font-mono italic">
+                                    <input type="text" id="prof-p10k-pace" readonly class="w-full bg-page border border-line rounded-lg px-2 py-1.5 text-xs text-accent font-mono italic">
                                 </td>
                             </tr>
                             <tr>
-                                <td class="p-3 font-medium text-slate-300">VO2 Max</td>
+                                <td class="p-3 font-medium text-ink">VO2 Max</td>
                                 <td colspan="2" class="p-3">
-                                    <input type="number" step="0.1" id="prof-vo2max" placeholder="ex: 52.5" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="number" step="0.1" id="prof-vo2max" placeholder="ex: 52.5" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
                                 </td>
                             </tr>
                             <tr>
-                                <td class="p-3 font-medium text-slate-300">Seuil Lactique</td>
+                                <td class="p-3 font-medium text-ink">Seuil Lactique</td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-threshold-pace" placeholder="4:15 /km" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="prof-threshold-pace" placeholder="4:15 /km" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
                                 </td>
                                 <td class="p-3">
-                                    <input type="text" id="prof-threshold-hr" placeholder="178 bpm" class="w-full bg-dark-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                                    <input type="text" id="prof-threshold-hr" placeholder="178 bpm" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
                                 </td>
                             </tr>
                         </tbody>
@@ -249,12 +251,12 @@
                 </div>
 
                 <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeProfileModal()" class="flex-1 bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl transition text-sm">Annuler</button>
-                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg shadow-emerald-900/30 text-sm">Enregistrer le profil</button>
+                    <button type="button" onclick="closeProfileModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Annuler</button>
+                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm">Enregistrer le profil</button>
                 </div>
                 
-                <div class="pt-6 mt-4 border-t border-slate-700/60">
-                    <button type="button" onclick="deleteAllWorkouts()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center space-x-2">
+                <div class="pt-6 mt-4 border-t border-line">
+                    <button type="button" onclick="deleteAllWorkouts()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Réinitialiser tout le calendrier (Supprimer)</span>
                     </button>
@@ -264,25 +266,25 @@
     </div>
 
     <!-- MODAL AJOUT / ÉDITION SÉANCE UNIQUE -->
-    <div id="workout-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-dark-800 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div id="workout-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-surface border border-line w-full max-w-lg rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 class="text-xl font-bold mb-4">Détails de l'entraînement</h3>
             <form id="workout-form" class="space-y-4">
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Titre de la séance</label>
-                    <input type="text" id="w-title" required placeholder="Ex: 10km Endurance Fondamentale" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Titre de la séance</label>
+                    <input type="text" id="w-title" required placeholder="Ex: 10km Endurance Fondamentale" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Date</label>
-                        <input type="date" id="w-date" required class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
+                        <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Date</label>
+                        <input type="date" id="w-date" required class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                     </div>
                     <div>
-                        <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Type</label>
-                        <select id="w-type" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-emerald-500">
+                        <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Type</label>
+                        <select id="w-type" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                             <option value="Course">Course à pied</option>
                             <option value="Vélo">Vélo / Gravel</option>
-                            <option value="Renfo">Renforcement</option>
+                            <option value="Renfo">Musculation</option>
                             <option value="Ski de fond classique">Ski de fond classique</option>
                             <option value="Ski de fond skate">Ski de fond skate</option>
                             <option value="Repos">Repos</option>
@@ -290,163 +292,194 @@
                     </div>
                 </div>
 
-                <div class="space-y-3 pt-2 border-t border-slate-700">
-                    <h4 class="text-sm font-semibold text-emerald-400"><i class="fa-solid fa-list-check mr-1"></i> Blocs de la séance</h4>
+                <div class="space-y-3 pt-2 border-t border-line">
+                    <h4 class="text-sm font-semibold text-accent"><i class="fa-solid fa-list-check mr-1"></i> Blocs de la séance</h4>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1">Échauffement (Warmup)</label>
-                        <input type="text" id="w-warmup" placeholder="Ex: 10 min trot" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                        <label class="block text-xs text-muted mb-1">Échauffement (Warmup)</label>
+                        <input type="text" id="w-warmup" placeholder="Ex: 10 min trot" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
                     </div>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1">Bloc Principal / Intervalles</label>
-                        <textarea id="w-main" rows="2" placeholder="Ex: 5x (400m vite)" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"></textarea>
+                        <label class="block text-xs text-muted mb-1">Bloc Principal / Intervalles</label>
+                        <textarea id="w-main" rows="2" placeholder="Ex: 5x (400m vite)" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent"></textarea>
                     </div>
                     <div>
-                        <label class="block text-xs text-slate-400 mb-1">Retour au calme (Cooldown)</label>
-                        <input type="text" id="w-cooldown" placeholder="Ex: 5 min slow jog" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                        <label class="block text-xs text-muted mb-1">Retour au calme (Cooldown)</label>
+                        <input type="text" id="w-cooldown" placeholder="Ex: 5 min slow jog" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
                     </div>
                 </div>
 
                 <div class="flex space-x-3 pt-4">
-                    <button type="button" onclick="closeModal()" class="flex-1 bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-3 rounded-xl transition">Annuler</button>
-                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-emerald-900/30">Enregistrer</button>
+                    <button type="button" onclick="closeModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-3 rounded-lg transition">Annuler</button>
+                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-lg transition ">Enregistrer</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- MODAL DÉTAILS / VISUALISATION DE LA SÉANCE -->
-    <div id="details-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-dark-800 border border-slate-700 w-full max-md rounded-2xl p-6 shadow-2xl space-y-4">
+    <div id="details-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div id="details-box" class="bg-surface border border-line w-full max-w-xl rounded-xl p-4 sm:p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto transition-[max-width]">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <span id="detail-type-badge" class="text-xs px-2.5 py-1 rounded-full border"></span>
-                <span id="detail-date" class="text-xs text-slate-400"></span>
-                <span class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
-                <span id="detail-effort-wrap" class="hidden text-xs text-slate-400"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
+                <span id="detail-date" class="text-xs text-muted"></span>
+                <span class="text-xs text-muted"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
+                <span id="detail-effort-wrap" class="hidden text-xs text-muted"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
             </div>
             <!-- Séance précédente / suivante (ordre chronologique, flèches ← → du clavier) -->
             <div class="flex items-center gap-2">
-                <button type="button" id="detail-prev" onclick="navigateDetails(-1)" aria-label="Séance précédente" title="Séance précédente (←)" class="shrink-0 w-9 h-9 rounded-xl border border-slate-700 bg-dark-900 text-slate-300 hover:border-blue-500/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
+                <button type="button" id="detail-prev" onclick="navigateDetails(-1)" aria-label="Séance précédente" title="Séance précédente (←)" class="shrink-0 w-9 h-9 rounded-lg border border-line bg-inset text-ink hover:border-accent/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
                     <i class="fa-solid fa-chevron-left text-sm"></i>
                 </button>
-                <h3 id="detail-title" class="flex-1 min-w-0 text-center text-xl font-bold text-slate-100"></h3>
-                <button type="button" id="detail-next" onclick="navigateDetails(1)" aria-label="Séance suivante" title="Séance suivante (→)" class="shrink-0 w-9 h-9 rounded-xl border border-slate-700 bg-dark-900 text-slate-300 hover:border-blue-500/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
+                <h3 id="detail-title" class="flex-1 min-w-0 text-center text-xl font-bold text-ink"></h3>
+                <button type="button" id="detail-next" onclick="navigateDetails(1)" aria-label="Séance suivante" title="Séance suivante (→)" class="shrink-0 w-9 h-9 rounded-lg border border-line bg-inset text-ink hover:border-accent/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
                     <i class="fa-solid fa-chevron-right text-sm"></i>
                 </button>
             </div>
-            
-            <div class="space-y-3 bg-dark-900/60 border border-slate-700/60 rounded-xl p-4 text-sm">
+
+            <!-- Deux colonnes sur grand écran quand la séance a des intervalles / options (sinon une seule, plus étroite) -->
+            <div id="details-grid" class="grid gap-3 items-start">
+            <div class="space-y-3 min-w-0">
+            <div class="space-y-3 bg-inset border border-line rounded-lg p-4 text-sm">
                 <div>
-                    <span class="text-xs uppercase font-semibold text-amber-400 block mb-0.5"><i class="fa-solid fa-fire mr-1"></i> Échauffement</span>
-                    <p id="detail-warmup" class="text-slate-300">-</p>
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-0.5"><i class="fa-solid fa-fire mr-1.5 text-zone-4"></i> Échauffement</span>
+                    <p id="detail-warmup" class="text-ink">-</p>
                 </div>
                 <div>
-                    <span class="text-xs uppercase font-semibold text-emerald-400 block mb-0.5"><i class="fa-solid fa-bolt mr-1"></i> Bloc Principal / Intervalles</span>
-                    <p id="detail-main" class="text-slate-300">-</p>
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-0.5"><i class="fa-solid fa-bolt mr-1.5 text-zone-5"></i> Bloc Principal / Intervalles</span>
+                    <p id="detail-main" class="text-ink">-</p>
                 </div>
                 <div>
-                    <span class="text-xs uppercase font-semibold text-blue-400 block mb-0.5"><i class="fa-solid fa-snowflake mr-1"></i> Retour au calme</span>
-                    <p id="detail-cooldown" class="text-slate-300">-</p>
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-0.5"><i class="fa-solid fa-spa mr-1.5 text-zone-3"></i> Retour au calme</span>
+                    <p id="detail-cooldown" class="text-ink">-</p>
                 </div>
             </div>
 
             <!-- Allures cibles calculées depuis les prédictions du profil (course uniquement) -->
-            <div id="detail-paces" class="hidden bg-dark-900/60 border border-slate-700/60 rounded-xl p-4 text-sm">
-                <span class="text-xs uppercase font-semibold text-purple-400 block mb-2"><i class="fa-solid fa-gauge-high mr-1"></i> Allures cibles</span>
+            <div id="detail-paces" class="hidden bg-inset border border-line rounded-lg p-4 text-sm">
+                <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-2"><i class="fa-solid fa-gauge-high mr-1.5 text-accent"></i> Allures cibles</span>
                 <div id="detail-paces-list" class="space-y-1.5"></div>
+            </div>
+            </div>
+
+            <div id="details-side" class="space-y-3 min-w-0">
+            <!-- Intervalles structurés de la séance (garmin_steps de la banque) -->
+            <div id="detail-intervals" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted"><i class="fa-solid fa-chart-simple mr-1.5 text-accent"></i> Intervalles</span>
+                    <span id="detail-intervals-total" class="text-xs text-muted"></span>
+                </div>
+                <div id="detail-intervals-chart" class="flex items-end gap-px h-20 rounded-lg overflow-hidden bg-inset" aria-hidden="true"></div>
+                <ol id="detail-intervals-list" class="space-y-1.5"></ol>
             </div>
 
             <!-- Régénération depuis la banque : durée et difficulté combinables -->
-            <div id="detail-regen" class="hidden bg-dark-900/60 border border-slate-700/60 rounded-xl p-4 text-sm space-y-3">
-                <span class="text-xs uppercase font-semibold text-blue-400 block"><i class="fa-solid fa-shuffle mr-1"></i> Régénérer la séance</span>
+            <div id="detail-regen" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+                <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block"><i class="fa-solid fa-shuffle mr-1.5 text-accent"></i> Régénérer la séance</span>
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" data-axis="duration" data-dir="shorter" class="regen-chip"><i class="fa-solid fa-hourglass-start mr-1"></i> Plus courte</button>
                     <button type="button" data-axis="duration" data-dir="longer" class="regen-chip"><i class="fa-solid fa-hourglass-end mr-1"></i> Plus longue</button>
                     <button type="button" data-axis="effort" data-dir="easier" class="regen-chip"><i class="fa-solid fa-feather mr-1"></i> Plus facile</button>
                     <button type="button" data-axis="effort" data-dir="harder" class="regen-chip"><i class="fa-solid fa-fire-flame-curved mr-1"></i> Plus difficile</button>
                 </div>
-                <button type="button" id="regen-btn" onclick="regenerateWorkout()" class="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center gap-2">
+                <button type="button" id="regen-btn" onclick="regenerateWorkout()" class="w-full bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center gap-2">
                     <i class="fa-solid fa-rotate"></i><span id="regen-btn-label">Régénérer</span>
                 </button>
             </div>
+            </div>
+            </div>
 
             <div class="flex space-x-3 pt-2">
-                <button id="detail-toggle-btn" onclick="" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/30">
+                <button id="detail-toggle-btn" onclick="" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2 ">
                     <i class="fa-solid fa-check"></i>
                     <span>Marquer comme terminé</span>
                 </button>
-                <button onclick="closeDetailsModal()" class="bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold px-4 py-2.5 rounded-xl transition text-sm">Fermer</button>
+                <button id="detail-fit-btn" type="button" title="Télécharger pour Garmin (.FIT)" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 font-semibold px-3 py-2.5 rounded-lg transition text-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i><span>.FIT</span>
+                </button>
+                <button onclick="closeDetailsModal()" class="bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL EXPORT INTERVALS.ICU -->
-    <div id="export-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-dark-800 border border-slate-700 w-full max-w-2xl rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold flex items-center space-x-2">
-                    <i class="fa-solid fa-file-export text-blue-400"></i>
-                    <span>Exporter vers Intervals.icu / Garmin</span>
+    <!-- MODAL EXPORT GARMIN (.FIT) -->
+    <div id="export-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-surface border border-line w-full max-w-lg rounded-xl p-4 sm:p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-1">
+                <h3 class="text-lg sm:text-xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-file-export text-accent"></i>
+                    <span>Exporter la semaine vers Garmin</span>
                 </h3>
-                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-200">
+                <button onclick="closeExportModal()" aria-label="Fermer" class="text-muted hover:text-ink">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            
-            <p class="text-sm text-slate-400 mb-4">Copie le texte ci-dessous pour <a href="https://intervals.icu" target="_blank" class="text-emerald-400 hover:underline font-semibold">Intervals.icu</a> ou télécharge un fichier <strong>.ZWO</strong> (format Zwift/TrainingPeaks).</p>
+            <p class="text-sm text-muted mb-3">Un fichier <strong class="text-ink">.FIT</strong> par séance de la semaine choisie. Pour une seule séance, utilise le bouton <strong class="text-ink">.FIT</strong> de sa fiche.</p>
 
-            <div class="flex space-x-2 mb-4 overflow-x-auto pb-2 scrollbar-hide" id="export-workout-tabs">
-                <!-- Onglets générés ici -->
-            </div>
-
-            <div class="relative flex-1 mt-2">
-                <textarea id="export-textarea" class="w-full h-64 bg-dark-950 border border-slate-700 rounded-xl p-4 pt-14 text-sm font-mono text-emerald-400 focus:outline-none focus:border-blue-500" readonly></textarea>
-                <div class="absolute top-3 right-3 flex space-x-2">
-                    <button onclick="copyExportText()" class="bg-dark-700 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1.5 shadow">
-                        <i class="fa-regular fa-copy"></i>
-                        <span class="hidden sm:inline">Copier le texte</span>
-                    </button>
-                    <button onclick="downloadZWO()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1.5 shadow">
-                        <i class="fa-solid fa-file-arrow-down"></i>
-                        <span>Fichier .ZWO</span>
-                    </button>
-                    <button onclick="downloadFIT()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs transition flex items-center space-x-1.5 shadow">
-                        <i class="fa-solid fa-download"></i>
-                        <span>Garmin (.FIT)</span>
-                    </button>
+            <!-- Choix de la semaine à exporter + aperçu de ses séances -->
+            <div class="bg-inset border border-line rounded-lg p-2 mb-3">
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="shiftExportWeek(-1)" aria-label="Semaine précédente" class="h-9 w-9 shrink-0 rounded-lg bg-raised hover:bg-raised-hover text-ink transition"><i class="fa-solid fa-chevron-left"></i></button>
+                    <div class="flex-1 min-w-0 text-center">
+                        <p id="export-week-title" class="text-sm font-semibold text-ink truncate"></p>
+                        <p id="export-week-count" class="text-xs text-muted"></p>
+                    </div>
+                    <button type="button" onclick="shiftExportWeek(1)" aria-label="Semaine suivante" class="h-9 w-9 shrink-0 rounded-lg bg-raised hover:bg-raised-hover text-ink transition"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
+                <ul id="export-week-list" class="mt-2 space-y-1 text-xs"></ul>
             </div>
-            
-            <div class="pt-4 mt-2">
-                <button onclick="closeExportModal()" class="w-full bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl transition text-sm">Fermer</button>
+
+            <!-- Garmin Connect n'importe pas les fichiers d'entraînement : seule la copie sur la montre fonctionne -->
+            <p class="text-xs rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-2">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                Garmin Connect n'accepte pas les fichiers d'entraînement (la page <em>Importer des données</em> est réservée aux activités) : copie les fichiers sur ta montre par câble.
+            </p>
+            <div class="mt-2 text-xs text-muted bg-inset border border-line rounded-lg px-3 py-2">
+                <p class="font-semibold text-ink mb-1.5">Chaque semaine</p>
+                <ol class="list-decimal ml-4 space-y-1">
+                    <li>Télécharge les fichiers avec le bouton ci-dessous (le navigateur peut demander d'autoriser plusieurs téléchargements).</li>
+                    <li>Branche la montre et ouvre l'Explorateur › <em>Ce PC</em> › ta montre (un lecteur, ou un appareil avec <em>Internal Storage</em>).</li>
+                    <li>Supprime les séances de la semaine précédente : fichiers du dossier <code class="text-ink">GARMIN/Workouts</code> (selon le modèle), ou depuis le menu Entraînements de la montre.</li>
+                    <li>Copie tous les nouveaux fichiers <code class="text-ink">.fit</code> dans <code class="text-ink">GARMIN/NewFiles</code>.</li>
+                    <li>Débranche la montre : les séances apparaissent dans le menu <strong class="text-ink">Entraînements</strong>, numérotées dans l'ordre de la semaine (1 Lun … 7 Dim).</li>
+                </ol>
+            </div>
+
+            <div class="flex gap-2 pt-3">
+                <button onclick="closeExportModal()" class="bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
+                <button type="button" id="export-week-btn" onclick="downloadWeekFIT()" class="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-3 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i><span id="export-week-label">Télécharger toute la semaine</span>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- MODAL GÉNÉRATEUR INTELLIGENT DE SEMAINE -->
-    <div id="generator-modal" class="fixed inset-0 bg-dark-950/80 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-dark-800 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xl font-bold flex items-center space-x-2">
-                    <i class="fa-solid fa-wand-magic-sparkles text-blue-400"></i>
+    <div id="generator-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-surface border border-line w-full max-w-lg md:max-w-4xl rounded-xl p-4 sm:p-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg sm:text-xl font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-accent"></i>
                     <span>Générateur Coach Intermédiaire</span>
                 </h3>
-                <button onclick="closeGeneratorModal()" class="text-slate-400 hover:text-slate-200">
+                <button onclick="closeGeneratorModal()" aria-label="Fermer" class="text-muted hover:text-ink">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <form id="generator-form" class="space-y-4">
+            <!-- Grand écran : réglages + aperçu à gauche, sports et séances à droite -->
+            <form id="generator-form" class="grid md:grid-cols-2 gap-x-5 gap-y-4">
+                <div class="space-y-4 min-w-0">
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Objectif principal</label>
-                    <select id="gen-goal" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Objectif principal</label>
+                    <select id="gen-goal" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                         <!-- Options générées depuis GEN_GOALS -->
                     </select>
-                    <p id="gen-goal-desc" class="mt-1.5 text-xs text-slate-400"></p>
+                    <p id="gen-goal-desc" class="mt-1.5 text-xs text-muted"></p>
                 </div>
 
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Niveau d'énergie</label>
-                    <select id="gen-energy" class="w-full bg-dark-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-blue-500">
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Niveau d'énergie</label>
+                    <select id="gen-energy" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
                         <option value="haute">Pêche d'enfer</option>
                         <option value="normale" selected>Normal / Stable</option>
                         <option value="fatigue">Fatigué (Besoin de récup)</option>
@@ -454,7 +487,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Jours disponibles</label>
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Jours disponibles</label>
                     <div id="gen-days" class="flex justify-between gap-1.5">
                         <button type="button" data-day="0" aria-pressed="false" title="Lundi" class="gen-day-pill">L</button>
                         <button type="button" data-day="1" aria-pressed="true" title="Mardi" class="gen-day-pill">M</button>
@@ -466,15 +499,22 @@
                     </div>
                 </div>
 
+                <div class="bg-inset border border-line rounded-lg p-3 text-xs text-muted space-y-1">
+                    <p class="font-semibold text-accent"><i class="fa-solid fa-circle-check mr-1"></i> Séances tirées de ta banque d'entraînements :</p>
+                    <div id="gen-goal-preview" class="space-y-1"></div>
+                </div>
+                </div>
+
+                <div class="space-y-4 min-w-0">
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Sports de la semaine</label>
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Sports de la semaine</label>
                     <div id="gen-sports" class="flex flex-wrap gap-2">
                         <!-- Pastilles générées dynamiquement -->
                     </div>
                 </div>
 
                 <div>
-                    <div class="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
+                    <div class="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 text-xs uppercase tracking-wider text-muted font-semibold mb-1">
                         <span class="hidden sm:block">Séances</span><span class="text-center">Semaine</span><span class="text-center">Week-end</span>
                     </div>
                     <div id="gen-sport-rows" class="space-y-2">
@@ -483,38 +523,105 @@
                 </div>
 
                 <!-- Vérification séances / jours sélectionnés (1 séance max par jour) -->
-                <div id="gen-days-check" role="status" aria-live="polite" class="rounded-xl border px-3 py-2 text-xs"></div>
-
-                <div class="bg-dark-900/80 border border-slate-700/80 rounded-xl p-3 text-xs text-slate-400 space-y-1">
-                    <p class="font-semibold text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i> Séances tirées de ta banque d'entraînements :</p>
-                    <div id="gen-goal-preview" class="space-y-1"></div>
+                <div id="gen-days-check" role="status" aria-live="polite" class="rounded-lg border px-3 py-2 text-xs"></div>
                 </div>
 
-                <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeGeneratorModal()" class="flex-1 bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-3 rounded-xl transition">Annuler</button>
-                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition shadow-lg shadow-blue-900/30">Générer mon plan</button>
+                <div class="md:col-span-2 flex space-x-3">
+                    <button type="button" onclick="closeGeneratorModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-3 rounded-lg transition">Annuler</button>
+                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-3 rounded-lg transition ">Générer mon plan</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="supabase-status" role="status" aria-live="polite" class="fixed bottom-4 right-4 z-[60] hidden items-center gap-3 rounded-xl border border-slate-700 bg-dark-800 px-4 py-3 text-sm shadow-xl">
-        <span id="supabase-status-message" class="text-slate-300">Vérification de Supabase...</span>
-        <button id="supabase-check-btn" type="button" class="text-emerald-400 hover:text-emerald-300 disabled:cursor-wait disabled:opacity-50" aria-label="Vérifier la connexion à Supabase" title="Vérifier la connexion">
+    <!-- Notification éphémère (ex. : rappel après un téléchargement .FIT) -->
+    <div id="toast" role="status" aria-live="polite" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] hidden w-[calc(100%-2rem)] max-w-md items-start gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink shadow-2xl">
+        <i class="fa-solid fa-circle-check text-success mt-0.5"></i>
+        <p id="toast-message" class="flex-1"></p>
+        <button type="button" onclick="hideToast()" aria-label="Fermer" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div id="supabase-status" role="status" aria-live="polite" class="fixed bottom-4 right-4 z-[60] hidden items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm shadow-sm">
+        <span id="supabase-status-message" class="text-ink">Vérification de Supabase...</span>
+        <button id="supabase-check-btn" type="button" class="text-accent hover:text-accent disabled:cursor-wait disabled:opacity-50" aria-label="Vérifier la connexion à Supabase" title="Vérifier la connexion">
             <i id="supabase-status-icon" class="fa-solid fa-spinner animate-spin"></i>
         </button>
     </div>
 
     <!-- SCRIPT APPLICATION -->
-    <script type="module">
-        import { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } from './fitBuilder.js';
-        window.FitModule = { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity };
-    </script>
+    <!-- Encodeur FIT (expose window.FitModule) -->
+    <script src="fitBuilder.js"></script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5GrtRyqg1LV-wDZpFUxEnw_FHTDWbux';
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const realSupabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ==========================================
+        // MODE DÉMO : séances et profil gardés en mémoire (rien n'est écrit en base, tout disparaît en quittant
+        // ou en rechargeant). La banque d'entraînements, publique, reste lue en direct.
+        // ==========================================
+        let demoMode = false;
+        const DEMO_USER = { id: 'demo', email: 'Mode démo' };
+        const DEMO_TABLES = ['workouts', 'user_profiles'];
+        const demoStore = { workouts: [], user_profiles: [] };
+        let demoSeq = 0;
+
+        // Mini constructeur de requêtes en mémoire : couvre les appels de l'app (select, order, eq, single,
+        // insert, update, upsert, delete) avec la même forme de réponse { data, error } que Supabase
+        function demoQuery(table) {
+            const store = demoStore[table];
+            let op = 'select', payload = null, single = false, orderBy = null;
+            const filters = [];
+            const ok = data => ({ data, error: null });
+            const run = () => {
+                const match = row => filters.every(f => f(row));
+                if (op === 'insert') {
+                    (Array.isArray(payload) ? payload : [payload]).forEach(row => store.push({ id: `demo-${++demoSeq}`, ...row }));
+                    return ok(null);
+                }
+                if (op === 'update') { store.filter(match).forEach(row => Object.assign(row, payload)); return ok(null); }
+                if (op === 'delete') {
+                    for (let i = store.length - 1; i >= 0; i--) if (match(store[i])) store.splice(i, 1);
+                    return ok(null);
+                }
+                if (op === 'upsert') {
+                    const existing = store.find(row => row.user_id === payload.user_id);
+                    if (existing) Object.assign(existing, payload); else store.push({ ...payload });
+                    return ok(null);
+                }
+                const rows = store.filter(match).map(row => ({ ...row }));
+                if (orderBy) rows.sort((a, b) => String(a[orderBy.col]).localeCompare(String(b[orderBy.col])) * (orderBy.asc ? 1 : -1));
+                if (single) return rows.length ? ok(rows[0]) : { data: null, error: { message: 'Aucune ligne' } };
+                return ok(rows);
+            };
+            const query = {
+                select() { return query; },
+                insert(rows) { op = 'insert'; payload = rows; return query; },
+                update(values) { op = 'update'; payload = values; return query; },
+                upsert(values) { op = 'upsert'; payload = values; return query; },
+                delete() { op = 'delete'; return query; },
+                eq(col, value) { filters.push(row => String(row[col]) === String(value)); return query; },
+                order(col, opts = {}) { orderBy = { col, asc: opts.ascending !== false }; return query; },
+                single() { single = true; return query; },
+                then(resolve, reject) { return Promise.resolve().then(run).then(resolve, reject); }
+            };
+            return query;
+        }
+
+        // Point d'accès unique à Supabase : en démo, séances / profil / utilisateur sont simulés
+        const supabaseClient = {
+            from: table => (demoMode && DEMO_TABLES.includes(table)) ? demoQuery(table) : realSupabase.from(table),
+            auth: {
+                getSession: () => realSupabase.auth.getSession(),
+                onAuthStateChange: callback => realSupabase.auth.onAuthStateChange(callback),
+                signUp: credentials => realSupabase.auth.signUp(credentials),
+                signInWithPassword: credentials => realSupabase.auth.signInWithPassword(credentials),
+                getUser: () => demoMode ? Promise.resolve({ data: { user: DEMO_USER } }) : realSupabase.auth.getUser(),
+                signOut: () => demoMode ? Promise.resolve(exitDemo()) : realSupabase.auth.signOut()
+            }
+        };
+
         const supabaseStatusDiv = document.getElementById('supabase-status');
         const supabaseStatusMessage = document.getElementById('supabase-status-message');
         const supabaseStatusIcon = document.getElementById('supabase-status-icon');
@@ -531,7 +638,7 @@
             // supabaseStatusDiv.classList.add('flex');
             
             supabaseStatusMessage.textContent = 'Vérification...';
-            supabaseStatusMessage.className = 'text-slate-300';
+            supabaseStatusMessage.className = 'text-ink';
             supabaseStatusIcon.className = 'fa-solid fa-spinner animate-spin';
             supabaseCheckButton.disabled = true;
 
@@ -573,21 +680,6 @@
 
         // Éléments DOM
         const authScreen = document.getElementById('auth-screen');
-        const themeToggle = document.getElementById('theme-toggle');
-
-        document.addEventListener('DOMContentLoaded', () => {
-             // Let's set the icon to moon because clicking it will switch to dark
-            const icon = themeToggle.querySelector('i');
-            icon.classList.remove('fa-sun');
-            icon.classList.add('fa-moon');
-        });
-
-        themeToggle.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            const icon = themeToggle.querySelector('i');
-            icon.classList.toggle('fa-moon');
-            icon.classList.toggle('fa-sun');
-        });
 
         const appContent = document.getElementById('app-content');
         const authForm = document.getElementById('auth-form');
@@ -614,7 +706,66 @@
             });
         }
 
+        // Semaine d'exemple de la démo : vraies séances de la banque (détails, intervalles et allures complets)
+        const DEMO_WEEK = [
+            { day: 0, sport: 'Course', title: 'Footing Récupération EF 30m' },
+            { day: 1, sport: 'Course', title: 'Fractionné Long 5x 600m Allure 5K' },
+            { day: 2, sport: 'Vélo', title: 'Sweetspot - 2x 15 min' },
+            { day: 3, sport: 'Renfo', title: 'Gainage Spécifique Coureur 35m' },
+            { day: 5, sport: 'Course', title: 'Sortie Longue 75m - Aérobie & Cadence' },
+            { day: 6, sport: 'Vélo', title: 'Endurance Aérobie 75m' }
+        ];
+
+        async function enterDemo() {
+            demoMode = true;
+            demoSeq = 0;
+            demoStore.user_profiles = [{
+                user_id: DEMO_USER.id, p5k_time: '22:30', p5k_pace: '4:30 /km', p10k_time: '47:00', p10k_pace: '4:42 /km',
+                vo2max: 52, threshold_pace: '4:15 /km', threshold_hr: '178 bpm'
+            }];
+            const monday = getMonday(new Date());
+            const todayStr = toDateStr(new Date());
+            const rows = [];
+            for (const item of DEMO_WEEK) {
+                const session = (await getBankSessionsForSport(item.sport)).find(s => s.title === item.title);
+                if (!session) continue;
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + item.day);
+                const dateStr = toDateStr(date);
+                rows.push({
+                    id: `demo-${++demoSeq}`, user_id: DEMO_USER.id, title: session.title, type: item.sport, date: dateStr,
+                    warmup: session.warmup, main_block: session.main_block, cooldown: session.cooldown,
+                    completed: dateStr < todayStr // jours passés : déjà réalisés
+                });
+            }
+            demoStore.workouts = rows;
+
+            currentDateView = new Date();
+            authScreen.classList.add('hidden');
+            appContent.classList.remove('hidden');
+            userEmailDisplay.textContent = DEMO_USER.email;
+            document.getElementById('demo-badge').classList.remove('hidden');
+            fetchWorkouts();
+            fetchProfile();
+            showToast("<strong>Mode démo</strong> : essaie tout librement (générer, déplacer, exporter…). Rien n'est enregistré : tout disparaît en quittant ou en rechargeant la page.", 10000);
+        }
+
+        function exitDemo() {
+            demoMode = false;
+            demoStore.workouts = [];
+            demoStore.user_profiles = [];
+            workouts = [];
+            userProfile = {};
+            document.getElementById('profile-form').reset();
+            document.getElementById('demo-badge').classList.add('hidden');
+            hideToast();
+            authScreen.classList.remove('hidden');
+            appContent.classList.add('hidden');
+            return { error: null };
+        }
+
         function handleSession(session) {
+            if (demoMode) return; // la démo ne dépend d'aucune session Supabase
             if (session) {
                 authScreen.classList.add('hidden');
                 appContent.classList.remove('hidden');
@@ -768,13 +919,67 @@
             if (!error) {
                 workouts = data || [];
                 renderCalendar();
+                // Durées et efforts de la banque pour les cartes du calendrier et le résumé
+                const types = [...new Set(workouts.map(w => w.type).filter(t => t && t !== 'Repos'))];
+                Promise.all(types.map(getBankSessionsForSport)).then(renderCalendar);
             }
         }
 
-        // Vue 5 semaines sur desktop (semaine active en première ligne), vue semaine sur mobile / tablette
-        const DESKTOP_WEEKS = 5;
-        const monthViewQuery = window.matchMedia('(min-width: 1024px)');
-        monthViewQuery.addEventListener('change', () => renderCalendar());
+        // Mobile : liste de la semaine. sm+ : grille d'autant de semaines que la hauteur d'écran le permet
+        // (semaine active en première ligne), pour ne pas laisser de vide sous le calendrier
+        const gridViewQuery = window.matchMedia('(min-width: 640px)');
+        const MIN_WEEK_ROW_PX = 120;
+        gridViewQuery.addEventListener('change', () => renderCalendar());
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { if (getVisibleWeeks() !== lastVisibleWeeks) renderCalendar(); }, 150);
+        });
+
+        let lastVisibleWeeks = 1;
+        function getVisibleWeeks() {
+            if (!gridViewQuery.matches) return 1;
+            const top = calendarGrid.getBoundingClientRect().top;
+            const available = window.innerHeight - top - 24; // marges basses du panneau et de la page
+            return Math.max(1, Math.min(6, Math.floor(available / MIN_WEEK_ROW_PX)));
+        }
+
+        // Libellé affiché d'un type de séance (la valeur stockée en base, ex. "Renfo", ne change pas)
+        const SPORT_LABELS = { 'Renfo': 'Muscu' };
+        const sportLabel = type => SPORT_LABELS[type] || type || '';
+
+        const SPORT_ICONS = {
+            'Course': 'fa-person-running', 'Vélo': 'fa-bicycle', 'Renfo': 'fa-dumbbell',
+            'Ski de fond classique': 'fa-person-skiing-nordic', 'Ski de fond skate': 'fa-person-skiing-nordic', 'Repos': 'fa-bed'
+        };
+        // Couleur de chaque sport : bande latérale des cartes (card), pastille d'icône / badge (chip)
+        const SPORT_STYLES = {
+            'Course':                { card: 'border-l-sport-run', icon: 'text-sport-run',  chip: 'bg-sport-run/15 text-sport-run border-sport-run/30' },
+            'Vélo':                  { card: 'border-l-sport-bike', icon: 'text-sport-bike', chip: 'bg-sport-bike/15 text-sport-bike border-sport-bike/30' },
+            'Renfo':                 { card: 'border-l-sport-gym', icon: 'text-sport-gym',  chip: 'bg-sport-gym/15 text-sport-gym border-sport-gym/30' },
+            'Ski de fond classique': { card: 'border-l-sport-skic', icon: 'text-sport-skic', chip: 'bg-sport-skic/15 text-sport-skic border-sport-skic/30' },
+            'Ski de fond skate':     { card: 'border-l-sport-skis', icon: 'text-sport-skis', chip: 'bg-sport-skis/15 text-sport-skis border-sport-skis/30' },
+            'Repos':                 { card: 'border-l-sport-rest', icon: 'text-sport-rest', chip: 'bg-sport-rest/15 text-sport-rest border-sport-rest/30' }
+        };
+        const sportStyle = type => SPORT_STYLES[type] || SPORT_STYLES['Repos'];
+
+        // Séance de la banque correspondante (si déjà chargée), pour la durée et l'effort
+        function getBankMatch(w) {
+            const sessions = bankSportCache[w.type];
+            return sessions ? sessions.find(s => s.title === w.title) : null;
+        }
+
+        // Durée en minutes : celle de la banque, sinon estimée depuis le texte (0 si inconnue)
+        function getWorkoutMinutes(w) {
+            const bank = getBankMatch(w);
+            if (bank && bank.duration_minutes) return bank.duration_minutes;
+            const sec = parseDurationSec(w.warmup, 0) + parseDurationSec(w.main_block, 0) + parseDurationSec(w.cooldown, 0);
+            return Math.round(sec / 60);
+        }
+
+        function toDateStr(d) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
 
         function changeWeek(direction) {
             currentDateView.setDate(currentDateView.getDate() + (direction * 7));
@@ -800,7 +1005,11 @@
 
         function renderCalendar() {
             calendarGrid.innerHTML = '';
-            const isMonthView = monthViewQuery.matches;
+            const isGridView = gridViewQuery.matches;
+            const weeks = getVisibleWeeks();
+            lastVisibleWeeks = weeks;
+            // Lignes de hauteur égale qui se partagent toute la hauteur disponible
+            calendarGrid.style.gridTemplateRows = isGridView ? `repeat(${weeks}, minmax(${MIN_WEEK_ROW_PX}px, 1fr))` : '';
 
             const monthNames = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
             const dayNames = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
@@ -808,7 +1017,7 @@
             // La semaine active est toujours la première ligne
             const startOfRange = getMonday(currentDateView);
             const endOfRange = new Date(startOfRange);
-            endOfRange.setDate(startOfRange.getDate() + (isMonthView ? DESKTOP_WEEKS * 7 : 7) - 1);
+            endOfRange.setDate(startOfRange.getDate() + weeks * 7 - 1);
             if (startOfRange.getMonth() === endOfRange.getMonth()) {
                 calendarMonthTitle.textContent = `${startOfRange.getDate()} - ${endOfRange.getDate()} ${monthNames[startOfRange.getMonth()]} ${startOfRange.getFullYear()}`;
             } else {
@@ -828,63 +1037,72 @@
             for (let i = 0; i < numDays; i++) {
                 const dayDate = new Date(startOfRange);
                 dayDate.setDate(startOfRange.getDate() + i);
-                const isActiveWeek = isMonthView && i < 7;
-                
-                // Format safely for local timezone to prevent off-by-one errors
-                const year = dayDate.getFullYear();
-                const month = String(dayDate.getMonth() + 1).padStart(2, '0');
-                const dt = String(dayDate.getDate()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${dt}`;
-                
+                const isActiveWeek = isGridView && weeks > 1 && i < 7;
+                const dateStr = toDateStr(dayDate);
+                const isToday = todayStr === dateStr;
+                const isPast = dateStr < todayStr;
+                const dayWorkouts = weeklyWorkouts.filter(w => w.date === dateStr);
+                // Mobile : un jour sans séance tient sur une seule ligne
+                const compactEmpty = !isGridView && dayWorkouts.length === 0;
+
                 const dayCell = document.createElement('div');
-                dayCell.className = `bg-dark-900 border border-slate-700/80 rounded-2xl p-3 ${isMonthView ? 'min-h-[130px]' : 'min-h-[120px] sm:min-h-[160px]'} flex flex-col transition hover:border-emerald-500/50 relative group ${isActiveWeek ? 'ring-1 ring-emerald-500/40' : ''}`;
+                dayCell.className = `bg-inset border border-line rounded-lg ${compactEmpty ? 'px-3 py-1.5 flex-row items-center' : 'p-2 flex-col'} ${isGridView ? 'min-h-0 overflow-y-auto' : ''} flex transition hover:border-accent/60 relative group ${isActiveWeek ? 'ring-1 ring-accent/40' : ''} ${isToday ? 'border-accent/60' : ''} ${isPast && !isToday ? 'opacity-80' : ''}`;
                 dayCell.setAttribute('ondragover', 'allowDrop(event)');
                 dayCell.setAttribute('ondrop', `dropWorkout(event, '${dateStr}')`);
 
                 const dayHeader = document.createElement('div');
-                dayHeader.className = 'flex items-center justify-between mb-3';
-                
-                const isToday = todayStr === dateStr;
+                dayHeader.className = `flex items-center justify-between ${compactEmpty ? 'flex-1' : 'mb-1.5'}`;
                 dayHeader.innerHTML = `
-                    <div class="flex items-center space-x-2">
-                        <span class="sm:hidden font-bold text-xs uppercase tracking-wider text-slate-400">${dayNames[i % 7]}</span>
-                        <span class="flex items-center justify-center w-7 h-7 text-sm ${isToday ? 'bg-emerald-500 text-white font-bold rounded-full' : 'text-slate-300 font-semibold'}">${dayDate.getDate()}</span>
-                        ${isMonthView && dayDate.getDate() === 1 ? `<span class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">${monthNames[dayDate.getMonth()].slice(0, 4)}.</span>` : ''}
+                    <div class="flex items-center gap-1.5">
+                        <span class="sm:hidden font-bold text-xs uppercase tracking-wider text-muted w-16">${dayNames[i % 7]}</span>
+                        <span class="flex items-center justify-center w-6 h-6 text-xs ${isToday ? 'bg-accent text-white font-bold rounded-full' : 'text-ink font-semibold'}">${dayDate.getDate()}</span>
+                        ${(isGridView && (dayDate.getDate() === 1 || i === 0)) || !isGridView ? `<span class="text-[10px] font-semibold uppercase tracking-wider ${dayDate.getDate() === 1 ? 'text-accent' : 'text-muted'}">${monthNames[dayDate.getMonth()].slice(0, 4)}.</span>` : ''}
+                        ${compactEmpty ? '<span class="text-xs text-muted ml-2">Repos</span>' : ''}
                     </div>
-                    <button onclick="openModalForDate('${dateStr}')" class="sm:opacity-0 group-hover:opacity-100 text-slate-500 hover:text-emerald-400 transition bg-dark-800 sm:bg-transparent p-1.5 sm:p-0 rounded-lg"><i class="fa-solid fa-plus text-xs"></i></button>
+                    <button onclick="openModalForDate('${dateStr}')" aria-label="Ajouter une séance le ${dateStr}" class="sm:[@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus:opacity-100 text-muted hover:text-accent transition p-1 rounded-lg"><i class="fa-solid fa-plus text-xs"></i></button>
                 `;
                 dayCell.appendChild(dayHeader);
 
-                const dayWorkouts = weeklyWorkouts.filter(w => w.date === dateStr);
                 const workoutsContainer = document.createElement('div');
-                workoutsContainer.className = 'space-y-2 flex-1';
+                workoutsContainer.className = compactEmpty ? 'hidden' : 'space-y-1.5 flex-1';
 
                 dayWorkouts.forEach(w => {
-                    const typeColors = {
-                        'Course': 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-                        'Vélo': 'bg-amber-500/10 text-amber-300 border-amber-500/20',
-                        'Renfo': 'bg-purple-500/10 text-purple-300 border-purple-500/20',
-                        'Ski de fond classique': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
-                        'Ski de fond skate': 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
-                        'Repos': 'bg-slate-700/40 text-slate-400 border-slate-600/40'
-                    };
-                    const badgeClass = typeColors[w.type] || 'bg-slate-700 text-slate-300 border-slate-600';
+                    const style = sportStyle(w.type);
+                    const minutes = getWorkoutMinutes(w);
+                    const bank = getBankMatch(w);
 
+                    // Carte neutre + bande de couleur du sport à gauche ; séance réalisée = coche verte, carte atténuée
                     const workoutCard = document.createElement('div');
-                    workoutCard.className = `rounded-xl border p-2.5 cursor-grab active:cursor-grabbing transition text-xs shadow-sm ${badgeClass} ${w.completed ? 'opacity-40 grayscale-[0.5]' : 'hover:scale-[1.02] hover:shadow-md'}`;
+                    workoutCard.className = `rounded-md border border-line border-l-[3px] ${style.card} bg-surface hover:bg-raised p-2 cursor-grab active:cursor-grabbing transition text-xs ${w.completed ? 'opacity-60' : ''}`;
                     workoutCard.draggable = true;
-                    workoutCard.setAttribute('ondragstart', `drag(event, '${w.id}')`);
-                    
+                    workoutCard.addEventListener('dragstart', (event) => drag(event, w.id));
+
+                    // Titre et type viennent de la base : insérés en texte (jamais en HTML) pour éviter toute injection
                     workoutCard.innerHTML = `
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="font-black text-[9px] uppercase tracking-widest opacity-80">${w.type}</span>
-                            <div class="flex items-center space-x-2">
-                                <button onclick="event.stopPropagation(); toggleWorkout('${w.id}', ${!w.completed})" class="hover:text-emerald-400 transition"><i class="fa-solid ${w.completed ? 'fa-rotate-left' : 'fa-check'} text-[10px]"></i></button>
-                                <button onclick="event.stopPropagation(); deleteWorkout('${w.id}')" class="hover:text-red-400 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                            </div>
+                        <div class="flex items-center gap-1.5 mb-1 text-muted">
+                            <i class="fa-solid ${SPORT_ICONS[w.type] || 'fa-circle'} text-[11px] ${style.icon}"></i>
+                            <span data-field="type" class="sm:hidden font-semibold text-[10px] uppercase tracking-wider truncate"></span>
+                            <span class="ml-auto flex items-center gap-1.5 shrink-0">
+                                ${minutes > 0 ? `<span class="text-[11px] font-medium">${formatDuration(minutes)}</span>` : ''}
+                                ${bank && bank.effort_score ? `<span class="hidden lg:inline text-[11px] font-medium" title="Effort ${bank.effort_score}/10"><i class="fa-solid fa-gauge text-[9px] mr-0.5"></i>${bank.effort_score}</span>` : ''}
+                                <button type="button" data-action="toggle" aria-label="${w.completed ? 'Marquer comme non terminée' : 'Marquer comme terminée'}" class="${w.completed ? 'text-success' : 'hover:text-success'} transition"><i class="fa-solid ${w.completed ? 'fa-circle-check' : 'fa-check'} text-[11px]"></i></button>
+                                <button type="button" data-action="delete" aria-label="Supprimer la séance" class="hover:text-red-500 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                            </span>
                         </div>
-                        <div class="font-bold leading-tight break-words" onclick="openDetails('${w.id}')">${w.title}</div>
+                        <div data-field="title" class="font-semibold text-ink leading-tight break-words cursor-pointer ${w.completed ? 'line-through decoration-muted/60' : ''}"></div>
                     `;
+                    workoutCard.querySelector('[data-field="type"]').textContent = sportLabel(w.type);
+                    const titleEl = workoutCard.querySelector('[data-field="title"]');
+                    titleEl.textContent = w.title || '';
+                    titleEl.addEventListener('click', () => openDetails(w.id));
+                    workoutCard.querySelector('[data-action="toggle"]').addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        toggleWorkout(String(w.id), !w.completed); // toggleWorkout compare avec dataset.currentId (texte)
+                    });
+                    workoutCard.querySelector('[data-action="delete"]').addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        deleteWorkout(w.id);
+                    });
                     workoutsContainer.appendChild(workoutCard);
                 });
 
@@ -901,6 +1119,82 @@
             } else {
                 noWorkouts.classList.add('hidden');
             }
+            renderWeekSummary(startOfRange, todayStr);
+
+            // Le résumé peut avoir déplacé la grille : on recalcule une fois le nombre de semaines qui tiennent
+            if (isGridView && !renderCalendar.reflowing && getVisibleWeeks() !== weeks) {
+                renderCalendar.reflowing = true;
+                renderCalendar();
+                renderCalendar.reflowing = false;
+            }
+        }
+
+        // Résumé de la semaine active (première ligne du calendrier) : progression, volume, sports, prochaine séance
+        function renderWeekSummary(monday, todayStr) {
+            const box = document.getElementById('week-summary');
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            const from = toDateStr(monday), to = toDateStr(sunday);
+            const week = workouts.filter(w => w.date >= from && w.date <= to && w.type !== 'Repos');
+            const done = week.filter(w => w.completed);
+            const totalMin = week.reduce((sum, w) => sum + getWorkoutMinutes(w), 0);
+            const doneMin = done.reduce((sum, w) => sum + getWorkoutMinutes(w), 0);
+            const pct = week.length ? Math.round(done.length / week.length * 100) : 0;
+            const tile = 'bg-surface border border-line rounded-xl p-2.5 sm:p-3 shadow-sm min-w-0';
+            const heading = (icon, label) => `<p class="text-[10px] uppercase tracking-wider font-semibold text-muted mb-1"><i class="fa-solid ${icon} mr-1"></i>${label}</p>`;
+
+            // Répartition par sport
+            const bySport = {};
+            week.forEach(w => {
+                bySport[w.type] = bySport[w.type] || { count: 0, min: 0 };
+                bySport[w.type].count++;
+                bySport[w.type].min += getWorkoutMinutes(w);
+            });
+            const sportRows = Object.entries(bySport).map(([type, s]) => `
+                <div class="flex items-center gap-2 text-xs">
+                    <span class="w-6 h-6 rounded-md border flex items-center justify-center shrink-0 ${sportStyle(type).chip}"><i class="fa-solid ${SPORT_ICONS[type] || 'fa-circle'} text-[10px]"></i></span>
+                    <span class="text-ink font-semibold">${s.count}×</span>
+                    <span class="text-muted ml-auto">${s.min > 0 ? formatDuration(s.min) : ''}</span>
+                </div>`).join('');
+
+            box.innerHTML = `
+                <div class="${tile}">
+                    ${heading('fa-list-check', 'Semaine')}
+                    <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${done.length}<span class="text-sm text-muted font-semibold"> / ${week.length} séances</span></p>
+                    <div class="mt-1.5 h-1.5 rounded-full bg-raised overflow-hidden"><div class="h-full bg-success rounded-full transition-all" style="width:${pct}%"></div></div>
+                </div>
+                <div class="${tile}">
+                    ${heading('fa-clock', 'Volume')}
+                    <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${totalMin > 0 ? formatDuration(totalMin) : '–'}</p>
+                    <p class="text-xs text-muted mt-0.5">${doneMin > 0 ? `${formatDuration(doneMin)} réalisées` : 'Rien de réalisé encore'}</p>
+                </div>
+                <div class="${tile}">
+                    ${heading('fa-chart-pie', 'Sports')}
+                    <div class="space-y-1">${sportRows || '<p class="text-xs text-muted">Aucune séance</p>'}</div>
+                </div>
+                <div class="${tile}" id="week-summary-next">
+                    ${heading('fa-forward', 'Prochaine séance')}
+                </div>`;
+
+            // Prochaine séance non réalisée à partir d'aujourd'hui (toutes semaines confondues)
+            const next = getSortedWorkouts().find(w => !w.completed && w.date >= todayStr && w.type !== 'Repos');
+            const nextBox = document.getElementById('week-summary-next');
+            if (!next) {
+                nextBox.insertAdjacentHTML('beforeend', '<p class="text-xs text-muted">Rien de prévu : génère un plan.</p>');
+                return;
+            }
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'w-full text-left group';
+            const [y, m, d] = next.date.split('-');
+            const label = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+            const minutes = getWorkoutMinutes(next);
+            btn.innerHTML = `
+                <p data-field="title" class="text-sm font-bold text-ink leading-tight group-hover:text-accent transition line-clamp-2"></p>
+                <p class="text-xs text-muted mt-0.5"><i class="fa-solid ${SPORT_ICONS[next.type] || 'fa-circle'} mr-1"></i>${next.date === todayStr ? "Aujourd'hui" : label}${minutes > 0 ? ` · ${formatDuration(minutes)}` : ''}</p>`;
+            btn.querySelector('[data-field="title"]').textContent = next.title || '';
+            btn.addEventListener('click', () => openDetails(next.id));
+            nextBox.appendChild(btn);
         }
 
         // ==========================================
@@ -1005,9 +1299,10 @@
                 recup:  { label: 'Récupération (Z1)', range: pct(0.72, 0.65) },
                 ef:     { label: 'Endurance fondamentale (Z2)', range: pct(0.80, 0.72) },
                 tempo:  { label: 'Tempo (Z3)', range: pct(0.87, 0.82) },
-                seuil:  { label: 'Seuil (Z4)', range: thresholdSec ? [thresholdSec - 5, thresholdSec + 5] : pct(0.93, 0.90) },
-                '10k':  { label: 'Allure 10K', range: [pace10k - 3, pace10k + 3] },
-                '5k':   { label: 'Allure 5K', range: [pace5k - 3, pace5k + 3] },
+                // Allures spécifiques : ±8 s/km, assez large pour ne pas biper sans cesse à cause du décalage GPS
+                seuil:  { label: 'Seuil (Z4)', range: thresholdSec ? [thresholdSec - 8, thresholdSec + 8] : pct(0.93, 0.90) },
+                '10k':  { label: 'Allure 10K', range: [pace10k - 8, pace10k + 8] },
+                '5k':   { label: 'Allure 5K', range: [pace5k - 8, pace5k + 8] },
                 vma:    { label: 'VMA / VO2max', range: pct(1.06, 1.02) },
                 sprint: { label: 'Sprint / Accélérations', range: null }
             };
@@ -1016,8 +1311,120 @@
         // Intensités des garmin_steps de la banque -> zones d'allure
         const intensityToZone = {
             zone1: 'recup', zone2: 'ef', zone3: 'tempo', zone4: 'seuil', seuil: 'seuil',
-            sweetspot: 'seuil', overunder: 'seuil', vitesse_5k: '5k', vma: 'vma', sprint: 'sprint'
+            sweetspot: 'seuil', overunder: 'seuil', vitesse_5k: '5k', vma: 'vma', sprint: 'sprint',
+            zone5: 'vma', vitesse_10k: '10k', ftp: 'seuil', pma: 'vma'
         };
+
+        // Intensités des garmin_steps -> libellé et niveau (hauteur / couleur dans le graphique, de 1 à 6)
+        const STEP_INTENSITY = {
+            zone1: { label: 'Récup Z1', level: 1 }, zone2: { label: 'Endurance Z2', level: 2 }, zone3: { label: 'Tempo Z3', level: 3 },
+            zone4: { label: 'Seuil Z4', level: 4 }, zone5: { label: 'VO2max Z5', level: 5 }, seuil: { label: 'Seuil', level: 4 },
+            sweetspot: { label: 'Sweetspot', level: 3.5 }, ftp: { label: 'FTP', level: 4 }, overunder: { label: 'Over-under', level: 4.5 },
+            vitesse_10k: { label: 'Allure 10K', level: 4.5 }, vitesse_5k: { label: 'Allure 5K', level: 5 }, vma: { label: 'VMA', level: 5.5 },
+            pma: { label: 'PMA', level: 5.5 }, sprint: { label: 'Sprint', level: 6 }, force: { label: 'Force', level: 4.5 }, renfo: { label: 'Muscu', level: 3 }
+        };
+
+        function stepInfo(s) {
+            // Couleurs des zones façon Garmin : Z1 gris, Z2 bleu, Z3 vert, Z4 orange, Z5 rouge
+            if (s.type === 'warmup') return { label: 'Échauffement', level: 1.5, color: 'bg-zone-1' };
+            if (s.type === 'cooldown') return { label: 'Retour au calme', level: 1.5, color: 'bg-zone-1' };
+            if (s.type === 'rest') return { label: 'Récup', level: 1, color: 'bg-zone-1/60' };
+            const known = STEP_INTENSITY[s.intensity] || { label: s.intensity || 'Effort', level: 3 };
+            const color = known.level <= 2 ? 'bg-zone-2' : known.level <= 3.5 ? 'bg-zone-3' : known.level <= 4.5 ? 'bg-zone-4' : 'bg-zone-5';
+            return { ...known, color };
+        }
+
+        // 45 -> "45 s", 270 -> "4:30", 600 -> "10 min", 5400 -> "1h30"
+        function formatStepDuration(sec) {
+            sec = Math.round(sec || 0);
+            if (sec < 60) return `${sec} s`;
+            if (sec % 60 === 0) return formatDuration(sec / 60);
+            return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+        }
+
+        // Zone d'allure ciblée par une étape de course (profil requis) : effort -> sa zone,
+        // échauffement / retour au calme -> endurance (Z2), récup -> aucune. Partagé par le détail et l'export .FIT
+        function stepPaceZone(w, s, zones) {
+            if (w.type !== 'Course' || !zones) return null;
+            const key = s.type === 'active' ? intensityToZone[s.intensity]
+                : (s.type === 'warmup' || s.type === 'cooldown') ? 'ef' : null;
+            const z = key ? zones[key] : null;
+            return z && z.range ? z : null;
+        }
+
+        // Fourchette d'allure d'une étape de course, depuis les zones du profil
+        function stepPace(w, s, zones) {
+            const z = stepPaceZone(w, s, zones);
+            if (!z) return '';
+            const fmt = v => secondsToPace(v).replace(' /km', '');
+            return `${fmt(z.range[0])}–${fmt(z.range[1])} /km`;
+        }
+
+        function renderDetailIntervals(w, steps) {
+            const box = document.getElementById('detail-intervals');
+            const chart = document.getElementById('detail-intervals-chart');
+            const list = document.getElementById('detail-intervals-list');
+            chart.innerHTML = '';
+            list.innerHTML = '';
+            const zones = getRunningPaceZones();
+
+            // Graphique : chaque étape (répétitions dépliées) en largeur proportionnelle à sa durée
+            let totalSec = 0;
+            const addBar = s => {
+                const info = stepInfo(s);
+                const bar = document.createElement('div');
+                bar.className = `${info.color} rounded-t-sm`;
+                bar.style.flex = `${Math.max(1, s.duration_sec || 0)} 1 0`;
+                bar.style.height = `${Math.round(info.level / 6 * 100)}%`;
+                bar.title = `${info.label} · ${s.distance_m ? `${s.distance_m} m` : formatStepDuration(s.duration_sec)}`;
+                chart.appendChild(bar);
+                totalSec += s.duration_sec || 0;
+            };
+
+            // Liste : une ligne par étape, les répétitions regroupées "5 × (…)"
+            const stepChip = s => {
+                const info = stepInfo(s);
+                const chip = document.createElement('span');
+                chip.className = 'inline-flex items-center gap-1.5';
+                const dot = document.createElement('span');
+                dot.className = `w-2 h-2 rounded-full shrink-0 ${info.color}`;
+                const text = document.createElement('span');
+                text.className = 'text-ink';
+                const pace = stepPace(w, s, zones);
+                text.textContent = `${s.distance_m ? `${s.distance_m} m` : formatStepDuration(s.duration_sec)} ${info.label}` + (pace ? ` · ${pace}` : '');
+                chip.append(dot, text);
+                return chip;
+            };
+
+            steps.forEach(s => {
+                const li = document.createElement('li');
+                li.className = 'flex flex-wrap items-center gap-x-2 gap-y-1';
+                if (s.type === 'repeat' && Array.isArray(s.steps)) {
+                    const n = s.iterations || 1;
+                    for (let i = 0; i < n; i++) s.steps.forEach(addBar);
+                    const count = document.createElement('span');
+                    count.className = 'font-bold text-ink';
+                    count.textContent = `${n} ×`;
+                    li.appendChild(count);
+                    s.steps.forEach((sub, i) => {
+                        if (i > 0) {
+                            const sep = document.createElement('span');
+                            sep.className = 'text-muted';
+                            sep.textContent = '/';
+                            li.appendChild(sep);
+                        }
+                        li.appendChild(stepChip(sub));
+                    });
+                } else {
+                    addBar(s);
+                    li.appendChild(stepChip(s));
+                }
+                list.appendChild(li);
+            });
+
+            document.getElementById('detail-intervals-total').textContent = totalSec > 0 ? `Total ${formatStepDuration(totalSec)}` : '';
+            box.classList.remove('hidden');
+        }
 
         function zonesFromSteps(steps) {
             const zones = new Set();
@@ -1055,7 +1462,7 @@
 
             const zones = getRunningPaceZones();
             if (!zones) {
-                list.innerHTML = `<p class="text-xs text-slate-400">Renseigne tes prédictions 5K / 10K dans ton profil pour voir tes allures cibles.</p>`;
+                list.innerHTML = `<p class="text-xs text-muted">Renseigne tes prédictions 5K / 10K dans ton profil pour voir tes allures cibles.</p>`;
                 return;
             }
 
@@ -1068,8 +1475,8 @@
                 const label = k === 'ef' && !zoneKeys.has('ef') ? 'Échauffement / retour au calme (Z2)' : z.label;
                 const value = z.range ? `${fmt(z.range[0])} – ${fmt(z.range[1])} /km` : 'Effort maximal';
                 return `<div class="flex items-center justify-between gap-3">
-                    <span class="text-slate-300">${label}</span>
-                    <span class="font-mono font-semibold text-purple-300 whitespace-nowrap">${value}</span>
+                    <span class="text-ink">${label}</span>
+                    <span class="font-semibold text-ink tabular-nums whitespace-nowrap">${value}</span>
                 </div>`;
             }).join('');
         }
@@ -1092,6 +1499,7 @@
             renderDetailPaces(w, zonesFromText(w.main_block));
             document.getElementById('detail-effort-wrap').classList.add('hidden');
             document.getElementById('detail-regen').classList.add('hidden');
+            document.getElementById('detail-intervals').classList.add('hidden');
 
             // Séances du même sport dans la banque : durée, effort, allures et options de régénération
             getBankSessionsForSport(w.type).then(sessions => {
@@ -1105,26 +1513,27 @@
                     }
                     const bankZones = zonesFromSteps(current.garmin_steps);
                     if (bankZones.size > 0) renderDetailPaces(w, bankZones);
+                    if (Array.isArray(current.garmin_steps) && current.garmin_steps.length > 0) renderDetailIntervals(w, prepareSteps(w, current.garmin_steps));
                 }
                 setupRegen(w, current, sessions, estimatedSec / 60);
+                updateDetailLayout();
             });
 
             const badge = document.getElementById('detail-type-badge');
-            badge.textContent = w.type;
-            badge.className = "text-xs px-2.5 py-1 rounded-full border " + (
-                w.type === 'Course' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
-                w.type === 'Vélo' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
-                w.type === 'Renfo' ? 'bg-purple-500/20 text-purple-300 border-purple-500/20' :
-                (w.type || '').startsWith('Ski') ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-slate-700 text-slate-300'
-            );
+            badge.textContent = sportLabel(w.type);
+            badge.className = "text-xs font-semibold px-2.5 py-1 rounded-md border " + sportStyle(w.type).chip;
+
+            const fitBtn = document.getElementById('detail-fit-btn');
+            fitBtn.classList.toggle('hidden', w.type === 'Repos');
+            fitBtn.onclick = () => downloadFIT(w);
 
             const toggleBtn = document.getElementById('detail-toggle-btn');
             if (w.completed) {
-                toggleBtn.className = "flex-1 bg-dark-700 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center space-x-2";
+                toggleBtn.className = "flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2";
                 toggleBtn.innerHTML = `<i class="fa-solid fa-rotate-left"></i><span>Marquer comme non terminé</span>`;
                 toggleBtn.onclick = () => toggleWorkout(w.id, false);
             } else {
-                toggleBtn.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl transition text-sm flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/30";
+                toggleBtn.className = "flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2 ";
                 toggleBtn.innerHTML = `<i class="fa-solid fa-check"></i><span>Marquer comme terminé</span>`;
                 toggleBtn.onclick = () => toggleWorkout(w.id, true);
             }
@@ -1134,7 +1543,17 @@
             document.getElementById('detail-prev').disabled = index <= 0;
             document.getElementById('detail-next').disabled = index === -1 || index >= sorted.length - 1;
 
+            updateDetailLayout();
             detailsModal.classList.remove('hidden');
+        }
+
+        // Fenêtre large en 2 colonnes seulement si la colonne de droite (intervalles, régénération) a du contenu
+        function updateDetailLayout() {
+            const hasSide = [...document.getElementById('details-side').children].some(c => !c.classList.contains('hidden'));
+            document.getElementById('details-grid').classList.toggle('md:grid-cols-2', hasSide);
+            const box = document.getElementById('details-box');
+            box.classList.toggle('max-w-4xl', hasSide);
+            box.classList.toggle('max-w-xl', !hasSide);
         }
 
         // Toutes les séances par date (puis par id pour départager un même jour)
@@ -1228,9 +1647,9 @@
                 const possible = getRegenCandidates(combo.duration, combo.effort).length > 0;
                 chip.disabled = !possible && !selected;
                 chip.setAttribute('aria-pressed', selected ? 'true' : 'false');
-                chip.className = 'regen-chip px-3 py-2 rounded-xl border text-xs font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed ' + (selected
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-dark-900 border-slate-700 text-slate-300 hover:border-blue-500/60');
+                chip.className = 'regen-chip px-3 py-2 rounded-lg border text-xs font-semibold transition disabled:opacity-30 disabled:cursor-not-allowed ' + (selected
+                    ? 'bg-accent border-accent text-white'
+                    : 'bg-inset border-line text-ink hover:border-accent/60');
                 chip.title = possible ? '' : 'Aucune séance correspondante dans ta banque';
             });
 
@@ -1294,8 +1713,8 @@
         function styleDayPill(pill) {
             const on = pill.getAttribute('aria-pressed') === 'true';
             pill.className = 'gen-day-pill flex-1 aspect-square max-w-[44px] rounded-full border text-sm font-bold transition ' + (on
-                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30'
-                : 'bg-dark-900 border-slate-700 text-slate-400 hover:border-blue-500/60 hover:text-slate-200');
+                ? 'bg-accent border-accent text-white '
+                : 'bg-inset border-line text-muted hover:border-accent/60 hover:text-ink');
         }
 
         function getSelectedDays() {
@@ -1335,7 +1754,7 @@
         const GEN_SPORTS = [
             { key: 'Course', label: 'Course', icon: 'fa-person-running' },
             { key: 'Vélo', label: 'Vélo', icon: 'fa-bicycle' },
-            { key: 'Renfo', label: 'Renfo', icon: 'fa-dumbbell' },
+            { key: 'Renfo', label: 'Muscu', icon: 'fa-dumbbell' },
             { key: 'Ski de fond classique', label: 'Ski classique', icon: 'fa-person-skiing-nordic' },
             { key: 'Ski de fond skate', label: 'Ski skate', icon: 'fa-person-skiing-nordic' }
         ];
@@ -1425,10 +1844,10 @@
                 });
                 const parts = [...counts].map(([label, n]) => n > 1 ? `${n}× ${label}` : label);
                 const sport = GEN_SPORTS.find(g => g.key === s.key);
-                return `<p>• <span class="text-slate-200 font-semibold">${sport.label}</span> : ${parts.join(' · ')}</p>`;
+                return `<p>• <span class="text-ink font-semibold">${sport.label}</span> : ${parts.join(' · ')}</p>`;
             });
-            if (energy === 'fatigue') lines.push('<p class="text-amber-400">• Fatigué : toutes les séances à effort ≤ 4</p>');
-            if (energy === 'haute') lines.push('<p class="text-blue-400">• Pêche d\'enfer : séances clé et secondaire à effort ≥ 7</p>');
+            if (energy === 'fatigue') lines.push('<p class="text-amber-600 dark:text-amber-400">• Fatigué : toutes les séances à effort ≤ 4</p>');
+            if (energy === 'haute') lines.push('<p class="text-accent">• Pêche d\'enfer : séances clé et secondaire à effort ≥ 7</p>');
             document.getElementById('gen-goal-preview').innerHTML = lines.join('') || '<p>Sélectionne au moins un sport.</p>';
         }
 
@@ -1457,12 +1876,12 @@
 
         function makeStepper(sportKey, slot, label) {
             const max = slot === 'week' ? 5 : 2;
-            const btnClass = 'w-8 shrink-0 flex items-center justify-center text-slate-400 hover:text-white hover:bg-blue-600 active:bg-blue-500 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition';
+            const btnClass = 'w-8 shrink-0 flex items-center justify-center text-muted hover:text-white hover:bg-accent-hover active:bg-accent disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted transition';
             const stepper = document.createElement('div');
-            stepper.className = 'gen-stepper flex items-stretch bg-dark-900 border border-slate-700 rounded-xl overflow-hidden focus-within:border-blue-500 transition';
+            stepper.className = 'gen-stepper flex items-stretch bg-inset border border-line rounded-lg overflow-hidden focus-within:border-accent transition';
             stepper.innerHTML = `
                 <button type="button" data-step="-1" class="${btnClass}" aria-label="Moins de séances ${label}"><i class="fa-solid fa-chevron-down text-xs"></i></button>
-                <input type="number" min="0" max="${max}" value="${genSports[sportKey][slot]}" inputmode="numeric" aria-label="Séances ${label}" class="w-full min-w-0 bg-transparent text-center text-lg font-bold text-slate-100 py-2 focus:outline-none">
+                <input type="number" min="0" max="${max}" value="${genSports[sportKey][slot]}" inputmode="numeric" aria-label="Séances ${label}" class="w-full min-w-0 bg-transparent text-center text-lg font-bold text-ink py-2 focus:outline-none">
                 <button type="button" data-step="1" class="${btnClass}" aria-label="Plus de séances ${label}"><i class="fa-solid fa-chevron-up text-xs"></i></button>
             `;
             const input = stepper.querySelector('input');
@@ -1496,8 +1915,8 @@
                 pill.type = 'button';
                 pill.setAttribute('aria-pressed', state.on ? 'true' : 'false');
                 pill.className = 'px-3 py-1.5 rounded-full border text-xs font-semibold transition ' + (state.on
-                    ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30'
-                    : 'bg-dark-900 border-slate-700 text-slate-400 hover:border-blue-500/60 hover:text-slate-200');
+                    ? 'bg-accent border-accent text-white '
+                    : 'bg-inset border-line text-muted hover:border-accent/60 hover:text-ink');
                 pill.innerHTML = `<i class="fa-solid ${s.icon} mr-1.5"></i>${s.label}`;
                 pill.addEventListener('click', () => {
                     state.on = !state.on;
@@ -1513,8 +1932,8 @@
                 // Mobile : nom du sport au-dessus de ses 2 compteurs ; desktop : tout sur une ligne
                 row.className = 'grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 items-center';
                 const name = document.createElement('span');
-                name.className = 'col-span-2 sm:col-span-1 text-sm font-semibold text-slate-200 truncate';
-                name.innerHTML = `<i class="fa-solid ${s.icon} mr-1.5 text-slate-400"></i>${s.label}`;
+                name.className = 'col-span-2 sm:col-span-1 text-sm font-semibold text-ink truncate';
+                name.innerHTML = `<i class="fa-solid ${s.icon} mr-1.5 text-muted"></i>${s.label}`;
                 row.appendChild(name);
                 row.appendChild(makeStepper(s.key, 'week', `de ${s.label} en semaine`));
                 row.appendChild(makeStepper(s.key, 'we', `de ${s.label} le week-end`));
@@ -1522,7 +1941,7 @@
             });
 
             if (!rows.children.length) {
-                rows.innerHTML = `<p class="text-xs text-slate-400">Sélectionne au moins un sport.</p>`;
+                rows.innerHTML = `<p class="text-xs text-muted">Sélectionne au moins un sport.</p>`;
             }
             updateDaysCheck();
         }
@@ -1550,10 +1969,10 @@
             const box = document.getElementById('gen-days-check');
             const check = getDaysCheck();
             if (check.ok) {
-                box.className = 'rounded-xl border px-3 py-2 text-xs bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
+                box.className = 'rounded-lg border px-3 py-2 text-xs bg-success/10 border-success/30 text-success';
                 box.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> ${check.total} séance(s) pour ${check.total} jour(s) sélectionné(s)`;
             } else {
-                box.className = 'rounded-xl border px-3 py-2 text-xs bg-amber-500/10 border-amber-500/30 text-amber-400 space-y-0.5';
+                box.className = 'rounded-lg border px-3 py-2 text-xs bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 space-y-0.5';
                 box.innerHTML = `<p class="font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Le nombre de séances ne correspond pas aux jours (1 séance max par jour)</p>` +
                     check.problems.map(p => `<p>• ${p}</p>`).join('');
             }
@@ -1561,182 +1980,53 @@
         }
         renderGenSports();
 
-        function translateToIntervals(w) {
-            let text = `${w.title}\n\n`;
-            
-            // Warmup
-            let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
-            let wTime = wTimeMatch ? wTimeMatch[1] : 10;
-            text += `- ${wTime}m warmup\n`;
-
-            // Main
-            let main = w.main_block || "";
-            if (w.type === 'Course') {
-                if (main.includes('5x')) {
-                    let paceMatch = main.match(/allure ([\d:]+)/);
-                    let pace = paceMatch ? paceMatch[1] : '4:30';
-                    text += `- 5x\n  - 400m pace ${pace}\n  - 1m30s recover\n`;
-                } else if (main.includes('2x 8 min')) {
-                    let paceMatch = main.match(/\(([\d:]+)/);
-                    let pace = paceMatch ? paceMatch[1] : '4:15';
-                    text += `- 2x\n  - 8m pace ${pace}\n  - 2m recover\n`;
-                } else {
-                    // Base / Long run
-                    let tMatch = main.match(/(\d+)\s*min/);
-                    let t = tMatch ? tMatch[1] : 30;
-                    let paceMatch = main.match(/allure\s*([\d:]+)/);
-                    let pace = paceMatch ? paceMatch[1] : '5:30';
-                    text += `- ${t}m pace ${pace}\n`;
-                }
-            } else if (w.type === 'Vélo') {
-                if (main.includes('1h55')) {
-                    text += `- 115m Z2\n`;
-                } else {
-                    let tMatch = main.match(/(\d+)\s*min/);
-                    let t = tMatch ? tMatch[1] : 45;
-                    text += `- ${t}m Z2\n`;
-                }
-            } else {
-                // Custom/Repos
-                text += `- 30m freetext\n`;
-            }
-
-            // Cooldown
-            let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
-            let cTime = cTimeMatch ? cTimeMatch[1] : 5;
-            text += `- ${cTime}m cooldown`;
-
-            return text;
-        }
-
-        let currentExportWorkout = null;
+        // Fenêtre d'export : téléchargement d'une semaine au choix (une séance seule s'exporte depuis sa fiche)
+        let exportWeekMonday = null;
 
         function openExportModal() {
-            if (workouts.length === 0) {
-                alert("Aucun entraînement à exporter.");
-                return;
-            }
-
-            const tabsContainer = document.getElementById('export-workout-tabs');
-            tabsContainer.innerHTML = '';
-            
-            // Show only upcoming or uncompleted workouts
-            let upcoming = workouts.filter(w => !w.completed).sort((a,b) => new Date(a.date) - new Date(b.date));
-            if (upcoming.length === 0) upcoming = workouts; // Fallback
-            
-            upcoming.forEach((w, index) => {
-                const btn = document.createElement('button');
-                btn.className = `whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition ${index === 0 ? 'bg-blue-600 text-white' : 'bg-dark-700 text-slate-400 hover:bg-slate-700'}`;
-                
-                // Format small date for tab
-                const dParts = w.date.split('-');
-                btn.textContent = `${dParts[2]}/${dParts[1]} - ${w.type}`;
-                
-                btn.onclick = () => {
-                    // Update active tab styling
-                    Array.from(tabsContainer.children).forEach(c => {
-                        c.className = 'whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-dark-700 text-slate-400 hover:bg-slate-700';
-                    });
-                    btn.className = 'whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-blue-600 text-white';
-                    
-                    // Show text
-                    currentExportWorkout = w;
-                    document.getElementById('export-textarea').value = translateToIntervals(w);
-                };
-                tabsContainer.appendChild(btn);
-            });
-
-            // Set initial text
-            currentExportWorkout = upcoming[0];
-            document.getElementById('export-textarea').value = translateToIntervals(upcoming[0]);
+            exportWeekMonday = getDefaultExportMonday();
+            renderExportWeek();
             document.getElementById('export-modal').classList.remove('hidden');
         }
 
+        function shiftExportWeek(step) {
+            exportWeekMonday = new Date(exportWeekMonday);
+            exportWeekMonday.setDate(exportWeekMonday.getDate() + step * 7);
+            renderExportWeek();
+        }
+
+        // Titre, nombre et liste des séances de la semaine choisie ; bouton désactivé si elle est vide
+        function renderExportWeek() {
+            const weekWorkouts = getWeekWorkouts(exportWeekMonday);
+            const n = weekWorkouts.length;
+            const sunday = new Date(exportWeekMonday);
+            sunday.setDate(exportWeekMonday.getDate() + 6);
+            const fmt = d => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+            const isCurrent = toDateStr(exportWeekMonday) === toDateStr(getMonday(new Date()));
+            document.getElementById('export-week-title').textContent = `Semaine du ${fmt(exportWeekMonday)} au ${fmt(sunday)}${isCurrent ? ' (en cours)' : ''}`;
+            document.getElementById('export-week-count').textContent = n > 0 ? `${n} séance${n > 1 ? 's' : ''}` : 'Aucune séance cette semaine';
+
+            const list = document.getElementById('export-week-list');
+            list.innerHTML = '';
+            weekWorkouts.forEach(w => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-2 min-w-0';
+                li.innerHTML = `
+                    <span class="w-12 shrink-0 font-semibold text-muted">${workoutDayPrefix(w.date)}</span>
+                    <i class="fa-solid ${SPORT_ICONS[w.type] || 'fa-circle'} ${sportStyle(w.type).icon} w-4 text-center shrink-0"></i>
+                    <span data-field="title" class="text-ink truncate"></span>`;
+                li.querySelector('[data-field="title"]').textContent = w.title || '';
+                list.appendChild(li);
+            });
+            list.classList.toggle('hidden', n === 0);
+
+            document.getElementById('export-week-btn').disabled = n === 0;
+            document.getElementById('export-week-label').textContent = n > 0
+                ? `Télécharger ${n} fichier${n > 1 ? 's' : ''}`
+                : 'Aucune séance à exporter';
+        }
         function closeExportModal() {
             document.getElementById('export-modal').classList.add('hidden');
-        }
-
-        function copyExportText() {
-            const textarea = document.getElementById('export-textarea');
-            textarea.select();
-            document.execCommand('copy');
-            alert('Texte copié dans le presse-papier ! Tu peux le coller dans Intervals.icu');
-        }
-
-        function generateZWO(w) {
-            let sport = w.type === 'Vélo' ? 'bike' : 'run';
-            let title = w.title.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 30);
-            
-            let xml = `<workout_file>\n`;
-            xml += `  <author>Mon Plan Sportif</author>\n`;
-            xml += `  <name>${title}</name>\n`;
-            xml += `  <description>Généré par Mon Plan d'Entraînement Intelligent</description>\n`;
-            xml += `  <sportType>${sport}</sportType>\n`;
-            xml += `  <workout>\n`;
-
-            function addWarmup(durationSecs) {
-                xml += `    <Warmup Duration="${durationSecs}" PowerLow="0.4" PowerHigh="0.6"/>\n`;
-            }
-            function addCooldown(durationSecs) {
-                xml += `    <Cooldown Duration="${durationSecs}" PowerLow="0.6" PowerHigh="0.4"/>\n`;
-            }
-            function addSteadyState(durationSecs, power) {
-                xml += `    <SteadyState Duration="${durationSecs}" Power="${power}"/>\n`;
-            }
-            function addIntervals(repeats, onDuration, offDuration) {
-                xml += `    <IntervalsT Repeat="${repeats}" OnDuration="${onDuration}" OffDuration="${offDuration}" OnPower="0.95" OffPower="0.5"/>\n`;
-            }
-
-            // Warmup
-            let wTimeMatch = w.warmup ? w.warmup.match(/(\d+)\s*min/) : null;
-            let wTime = wTimeMatch ? parseInt(wTimeMatch[1]) * 60 : 600;
-            addWarmup(wTime);
-
-            // Main
-            let main = w.main_block || "";
-            if (w.type === 'Course') {
-                if (main.includes('5x')) {
-                    addIntervals(5, 90, 90); // Approximating 400m as 90s
-                } else if (main.includes('2x 8 min')) {
-                    addIntervals(2, 480, 120);
-                } else {
-                    let tMatch = main.match(/(\d+)\s*min/);
-                    let t = tMatch ? parseInt(tMatch[1]) * 60 : 1800;
-                    addSteadyState(t, 0.7); // Zone 2 approx power
-                }
-            } else if (w.type === 'Vélo') {
-                if (main.includes('1h55')) {
-                    addSteadyState(115 * 60, 0.65);
-                } else {
-                    let tMatch = main.match(/(\d+)\s*min/);
-                    let t = tMatch ? parseInt(tMatch[1]) * 60 : 2700;
-                    addSteadyState(t, 0.65);
-                }
-            } else {
-                addSteadyState(1800, 0.65);
-            }
-
-            // Cooldown
-            let cTimeMatch = w.cooldown ? w.cooldown.match(/(\d+)\s*min/) : null;
-            let cTime = cTimeMatch ? parseInt(cTimeMatch[1]) * 60 : 300;
-            addCooldown(cTime);
-
-            xml += `  </workout>\n`;
-            xml += `</workout_file>`;
-            return xml;
-        }
-
-        function downloadZWO() {
-            if (!currentExportWorkout) return;
-            const xml = generateZWO(currentExportWorkout);
-            const blob = new Blob([xml], { type: 'application/xml' });
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            let dateFormatted = currentExportWorkout.date.replace(/-/g, '');
-            link.setAttribute('download', `workout_${dateFormatted}.zwo`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
 
         // Profil Garmin (sport / sous-sport FIT) pour chaque type de séance
@@ -1779,112 +2069,237 @@
             return steps;
         }
 
-        async function downloadFIT() {
-            if (!currentExportWorkout) return;
-            
-            try {
-                if (!window.FitModule) {
-                    throw new Error("Le module FIT n'a pas été chargé correctement.");
+        // Distances lues dans le texte de la séance (la banque ne stocke que des durées), course uniquement :
+        // "5x 600m" -> l'effort de la répétition devient 600 m ; pyramide "200-400-600-400-200m" -> efforts et récups en distance
+        function prepareSteps(w, steps) {
+            const out = JSON.parse(JSON.stringify(steps || []));
+            if (w.type !== 'Course') return out;
+            const text = `${w.main_block || ''} ${w.title || ''}`;
+            const repeats = out.filter(s => s.type === 'repeat' && Array.isArray(s.steps));
+
+            const reps = text.match(/(\d+)\s*x\s*(\d{2,4})\s*m\b/i);
+            if (reps && repeats.length === 1) {
+                const actives = repeats[0].steps.filter(s => s.type === 'active');
+                if (actives.length === 1 && parseInt(repeats[0].iterations) === parseInt(reps[1])) {
+                    actives[0].distance_m = parseInt(reps[2]);
                 }
-                const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
+                return out;
+            }
 
-                const w = currentExportWorkout;
-                const encoder = new FitEncoder();
+            const pyramid = text.match(/(\d{2,4}(?:\s*-\s*\d{2,4})+)\s*m\b/);
+            const actives = out.filter(s => s.type === 'active');
+            if (pyramid && repeats.length === 0 && actives.length === 1) {
+                // Récup égale à l'effort ; la durée d'origine est répartie au prorata des distances
+                const distances = pyramid[1].split('-').map(d => parseInt(d));
+                const block = actives[0];
+                const totalDist = distances.reduce((a, b) => a + b, 0) * 2 - distances[distances.length - 1];
+                const secPerMeter = (block.duration_sec || 0) / totalDist;
+                const sequence = [];
+                distances.forEach((d, i) => {
+                    sequence.push({ type: 'active', intensity: block.intensity, distance_m: d, duration_sec: Math.round(d * secPerMeter) });
+                    if (i < distances.length - 1) sequence.push({ type: 'rest', distance_m: d, duration_sec: Math.round(d * secPerMeter) });
+                });
+                out.splice(out.indexOf(block), 1, ...sequence);
+            }
+            return out;
+        }
 
-                // Séance structurée issue de la banque (même titre + même sport), sinon lecture du texte
-                let abstractSteps = null;
-                const { data: bankRows } = await supabaseClient
-                    .from('training_bank')
-                    .select('garmin_steps')
-                    .eq('title', w.title)
-                    .eq('sport', w.type)
-                    .limit(1);
-                if (bankRows && bankRows.length > 0 && Array.isArray(bankRows[0].garmin_steps) && bankRows[0].garmin_steps.length > 0) {
-                    abstractSteps = bankRows[0].garmin_steps;
+        // Notification éphémère en bas de l'écran (html : texte construit par l'app, pas de données utilisateur brutes)
+        let toastTimer;
+        function showToast(html, durationMs = 9000) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerHTML = html;
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(hideToast, durationMs);
+        }
+        function hideToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('hidden');
+            toast.classList.remove('flex');
+        }
+
+        const DAY_ABBR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        function dayAbbr(dateStr) {
+            const [y, m, d] = dateStr.split('-');
+            return DAY_ABBR[new Date(y, m - 1, d).getDay()];
+        }
+        // Préfixe du nom sur la montre : numéro du jour (1 = lundi ... 7 = dimanche) + jour abrégé,
+        // pour que les séances restent dans l'ordre de la semaine si la montre trie par nom
+        function workoutDayPrefix(dateStr) {
+            const [y, m, d] = dateStr.split('-');
+            const day = new Date(y, m - 1, d).getDay();
+            return `${(day + 6) % 7 + 1} ${DAY_ABBR[day]}`;
+        }
+
+        // Étapes d'une séance : celles de la banque (même titre + même sport), sinon reconstruites depuis le texte
+        async function getWorkoutSteps(w) {
+            const sessions = await getBankSessionsForSport(w.type);
+            const bank = sessions.find(s => s.title === w.title);
+            const steps = bank && Array.isArray(bank.garmin_steps) && bank.garmin_steps.length > 0 ? bank.garmin_steps : textToGarminSteps(w);
+            return prepareSteps(w, steps);
+        }
+
+        // Octets du fichier .FIT d'une séance
+        async function buildFitBytes(w) {
+            if (!window.FitModule) {
+                throw new Error("Le module FIT n'a pas été chargé correctement.");
+            }
+            const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
+
+            const encoder = new FitEncoder();
+            const abstractSteps = await getWorkoutSteps(w);
+            const zones = w.type === 'Course' ? getRunningPaceZones() : null;
+
+            // 1. Message File ID (Indique à Garmin que c'est un entraînement)
+            // defNum: 0=type, 1=manufacturer, 2=product, 3=serialNumber, 4=timeCreated
+            encoder.addMessage(MesgNum.fileId, {
+                0: FileType.workout,
+                1: Manufacturer.development,
+                2: 0,
+                3: Math.floor(Math.random() * 100000),
+                4: Math.floor(Date.now() / 1000) - 631065600 // Temps FIT (secondes depuis 1989)
+            });
+
+            // Conversion des étapes en messages FIT workout_step
+            // (defNum: 254=messageIndex, 0=nom, 1=durationType, 2=durationValue, 3=targetType, 4=targetValue,
+            //  5/6=cible personnalisée basse/haute, 7=intensity)
+            const stepIntensity = { warmup: Intensity.warmup, cooldown: Intensity.cooldown, rest: Intensity.recovery, active: Intensity.active };
+            let steps = [];
+
+            function pushStep(s) {
+                const step = {
+                    254: steps.length,
+                    7: stepIntensity[s.type] !== undefined ? stepIntensity[s.type] : Intensity.active
+                };
+                step[0] = stepInfo(s).label; // nom affiché sur la montre (mêmes libellés que le détail)
+                if (s.distance_m) {
+                    // Durée en distance (échelle FIT : centimètres)
+                    step[1] = WktStepDuration.distance;
+                    step[2] = Math.round(s.distance_m * 100);
                 } else {
-                    abstractSteps = textToGarminSteps(w);
+                    step[1] = WktStepDuration.time;
+                    step[2] = Math.max(1, Math.round(s.duration_sec || 60)) * 1000;
                 }
 
-                // 1. Message File ID (Indique à Garmin que c'est un entraînement)
-                // defNum: 0=type, 1=manufacturer, 2=product, 3=serialNumber, 4=timeCreated
-                encoder.addMessage(MesgNum.fileId, {
-                    0: FileType.workout,
-                    1: Manufacturer.development,
-                    2: 0,
-                    3: Math.floor(Math.random() * 100000),
-                    4: Math.floor(Date.now() / 1000) - 631065600 // Temps FIT (secondes depuis 1989)
-                });
+                const paceZone = stepPaceZone(w, s, zones);
+                const zoneMatch = String(s.intensity || '').match(/^zone(\d)$/);
+                if (paceZone) {
+                    // Cible d'allure : fourchette de vitesse en mm/s (basse = allure la plus lente)
+                    const [fastPace, slowPace] = paceZone.range;
+                    step[3] = WktStepTarget.speed;
+                    step[4] = 0;
+                    step[5] = Math.round(1000 / slowPace * 1000);
+                    step[6] = Math.round(1000 / fastPace * 1000);
+                } else if (zoneMatch) {
+                    // Cible zone de fréquence cardiaque Garmin (1 à 5)
+                    step[3] = WktStepTarget.heartRate;
+                    step[4] = parseInt(zoneMatch[1]);
+                } else {
+                    step[3] = WktStepTarget.open;
+                    step[4] = 0;
+                }
+                steps.push(step);
+            }
 
-                // Conversion des étapes en messages FIT workout_step
-                // (defNum: 254=messageIndex, 0=nom, 1=durationType, 2=durationValue, 3=targetType, 4=targetValue, 5=intensity)
-                const stepIntensity = { warmup: Intensity.warmup, cooldown: Intensity.cooldown, rest: Intensity.recovery, active: Intensity.active };
-                let steps = [];
-
-                function pushStep(s) {
-                    const durationMs = Math.max(1, Math.round(s.duration_sec || 60)) * 1000;
-                    const zoneMatch = String(s.intensity || '').match(/^zone(\d)$/);
-                    const step = {
+            abstractSteps.forEach(s => {
+                if (s.type === 'repeat' && Array.isArray(s.steps) && s.steps.length > 0) {
+                    // FIT : les étapes répétées d'abord, puis l'étape "repeat" qui pointe vers la première
+                    const firstIndex = steps.length;
+                    s.steps.forEach(pushStep);
+                    steps.push({
                         254: steps.length,
-                        1: WktStepDuration.time,
-                        2: durationMs,
-                        5: stepIntensity[s.type] !== undefined ? stepIntensity[s.type] : Intensity.active
-                    };
-                    if (s.intensity) step[0] = String(s.intensity).replace(/_/g, ' ');
-                    if (zoneMatch) {
-                        // Cible zone de fréquence cardiaque Garmin (1 à 5)
-                        step[3] = WktStepTarget.heartRate;
-                        step[4] = parseInt(zoneMatch[1]);
-                    } else {
-                        step[3] = WktStepTarget.open;
-                        step[4] = 0;
-                    }
-                    steps.push(step);
+                        1: WktStepDuration.repeatUntilStepsCmplt,
+                        2: firstIndex,
+                        4: Math.max(1, parseInt(s.iterations) || 1)
+                    });
+                } else {
+                    pushStep(s);
                 }
+            });
 
-                abstractSteps.forEach(s => {
-                    if (s.type === 'repeat' && Array.isArray(s.steps) && s.steps.length > 0) {
-                        // FIT : les étapes répétées d'abord, puis l'étape "repeat" qui pointe vers la première
-                        const firstIndex = steps.length;
-                        s.steps.forEach(pushStep);
-                        steps.push({
-                            254: steps.length,
-                            1: WktStepDuration.repeatUntilStepsCmplt,
-                            2: firstIndex,
-                            4: Math.max(1, parseInt(s.iterations) || 1)
-                        });
-                    } else {
-                        pushStep(s);
-                    }
-                });
+            // En-tête Workout (defNum: 8=name, 4=sport, 11=subSport, 6=numValidSteps) ; nom = "2 Mar - Titre"
+            const { sport: sportType, subSport } = getFitSport(w.type, Sport, SubSport);
+            encoder.addMessage(MesgNum.workout, {
+                8: `${workoutDayPrefix(w.date)} - ${w.title || 'Seance'}`,
+                4: sportType,
+                11: subSport,
+                6: steps.length
+            });
 
-                // En-tête Workout (defNum: 8=name, 4=sport, 11=subSport, 6=numValidSteps)
-                const { sport: sportType, subSport } = getFitSport(w.type, Sport, SubSport);
+            steps.forEach((step) => {
+                encoder.addMessage(MesgNum.workoutStep, step);
+            });
 
-                encoder.addMessage(MesgNum.workout, {
-                    8: w.title || 'Seance',
-                    4: sportType,
-                    11: subSport,
-                    6: steps.length
-                });
+            return encoder.getBytes();
+        }
 
-                steps.forEach((step) => {
-                    encoder.addMessage(MesgNum.workoutStep, step);
-                });
+        // Enregistre le fichier (date + titre sans accents ni caractères spéciaux) et renvoie son nom
+        function saveFitFile(bytes, w) {
+            const blob = new Blob([bytes], { type: "application/vnd.ant.fit" });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const slug = (w.title || 'seance').normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).toLowerCase();
+            link.setAttribute('download', `${w.date}_${dayAbbr(w.date).toLowerCase()}_${slug || 'seance'}.fit`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+            return link.download;
+        }
 
-                // Génération du fichier
-                const fitBytes = encoder.getBytes();
-                const blob = new Blob([fitBytes], { type: "application/vnd.ant.fit" });
-                const link = document.createElement('a');
-                link.href = window.URL.createObjectURL(blob);
-                let dateFormatted = w.date.replace(/-/g, '');
-                link.setAttribute('download', `garmin_${dateFormatted}.fit`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
+        // Télécharge une séance (bouton .FIT de sa fiche)
+        async function downloadFIT(w) {
+            if (!w) return;
+            try {
+                const name = saveFitFile(await buildFitBytes(w), w);
+                showToast(`<strong>${name}</strong> téléchargé. Copie-le dans <strong>GARMIN/NewFiles</strong> de ta montre (USB) : Garmin Connect n'importe pas les entraînements.`);
             } catch (e) {
                 console.error("Erreur FIT local:", e);
                 alert("Erreur locale lors de la génération du fichier FIT : " + e.message);
+            }
+        }
+
+        // Séances exportables (hors Repos) de la semaine commençant au lundi donné
+        function getWeekWorkouts(monday) {
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            const from = toDateStr(monday), to = toDateStr(sunday);
+            return getSortedWorkouts().filter(w => w.type !== 'Repos' && w.date >= from && w.date <= to);
+        }
+
+        // Semaine proposée à l'ouverture : celle affichée dans le calendrier, sinon celle de la prochaine séance à venir
+        function getDefaultExportMonday() {
+            const monday = getMonday(currentDateView);
+            if (getWeekWorkouts(monday).length > 0) return monday;
+            const next = getSortedWorkouts().find(w => w.type !== 'Repos' && w.date >= toDateStr(new Date()));
+            if (!next) return monday;
+            const [y, m, d] = next.date.split('-');
+            return getMonday(new Date(y, m - 1, d));
+        }
+
+        // Un fichier par séance de la semaine choisie, espacés (les navigateurs bloquent les téléchargements trop rapprochés)
+        async function downloadWeekFIT() {
+            const monday = exportWeekMonday;
+            const weekWorkouts = monday ? getWeekWorkouts(monday) : [];
+            if (weekWorkouts.length === 0) return;
+            const btn = document.getElementById('export-week-btn');
+            btn.disabled = true;
+            try {
+                for (const w of weekWorkouts) {
+                    saveFitFile(await buildFitBytes(w), w);
+                    await new Promise(resolve => setTimeout(resolve, 400));
+                }
+                const label = monday.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+                showToast(`<strong>${weekWorkouts.length} fichiers</strong> téléchargés (semaine du ${label}). Copie-les tous dans <strong>GARMIN/NewFiles</strong> de ta montre (USB).`, 12000);
+            } catch (e) {
+                console.error("Erreur FIT local:", e);
+                alert("Erreur locale lors de la génération des fichiers FIT : " + e.message);
+            } finally {
+                btn.disabled = false;
             }
         }
 
@@ -2013,7 +2428,7 @@
                 'Vélo': bikeBaseTemplate,
                 'Renfo': {
                     type: 'Renfo',
-                    title: 'Renforcement Général' + intensityTag,
+                    title: 'Musculation Générale' + intensityTag,
                     warmup: `5 min mobilité articulaire`,
                     main: `30 min circuit gainage, squats, fentes, pompes`,
                     cooldown: `5 min étirements`

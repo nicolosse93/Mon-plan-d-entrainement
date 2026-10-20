@@ -9,7 +9,8 @@ const Manufacturer = { development: 255 };
 const Sport = { generic: 0, running: 1, cycling: 2, training: 10, cross_country_skiing: 12 };
 const SubSport = { generic: 0, strength_training: 20, skate_skiing: 42 };
 const WktStepDuration = { time: 0, distance: 1, open: 5, repeatUntilStepsCmplt: 6 };
-const WktStepTarget = { open: 4, heartRate: 1, power: 2, speed: 0 };
+// Valeurs de l'énumération wkt_step_target du profil FIT (open = sans cible)
+const WktStepTarget = { speed: 0, heartRate: 1, open: 2, cadence: 3, power: 4 };
 const Intensity = { active: 0, rest: 1, warmup: 2, cooldown: 3, recovery: 4 };
 
 class FitEncoder {
@@ -45,12 +46,13 @@ class FitEncoder {
             ];
         } else if (mesgNum === MesgNum.workout) {
             return [
-                { defNum: 8, size: 16, type: 7 },  // wktName (string up to 16 chars)
+                { defNum: 8, size: 48, type: 7 },  // wktName (string up to 47 chars, "2 Mar - Titre")
                 { defNum: 4, size: 1, type: 0 },   // sport
                 { defNum: 11, size: 1, type: 0 },  // subSport
                 { defNum: 6, size: 2, type: 132 }  // numValidSteps
             ];
         } else if (mesgNum === MesgNum.workoutStep) {
+            // Numéros de champs du profil FIT officiel (message workout_step = 27)
             return [
                 { defNum: 254, size: 2, type: 132 }, // messageIndex
                 { defNum: 0, size: 16, type: 7 },  // wktStepName
@@ -58,9 +60,9 @@ class FitEncoder {
                 { defNum: 2, size: 4, type: 134 }, // durationValue
                 { defNum: 3, size: 1, type: 0 },   // targetType
                 { defNum: 4, size: 4, type: 134 }, // targetValue
-                { defNum: 5, size: 1, type: 0 },   // intensity
-                { defNum: 9, size: 4, type: 134 }, // customTargetLow
-                { defNum: 10, size: 4, type: 134 } // customTargetHigh
+                { defNum: 5, size: 4, type: 134 }, // customTargetValueLow
+                { defNum: 6, size: 4, type: 134 }, // customTargetValueHigh
+                { defNum: 7, size: 1, type: 0 }    // intensity
             ];
         }
         return [];
@@ -90,8 +92,9 @@ class FitEncoder {
                       data[this._getFieldName(def.defNum)]; // Fallback
                       
             if (val === undefined || val === null) {
-                // Ecrire des "invalid values" (0xFF)
-                for(let i=0; i<def.size; i++) this.records.push(0xFF);
+                // Valeur invalide du protocole : 0x00 pour une chaîne (vide), 0xFF sinon
+                const invalid = def.type === 7 ? 0x00 : 0xFF;
+                for(let i=0; i<def.size; i++) this.records.push(invalid);
                 return;
             }
 
@@ -165,4 +168,5 @@ class FitEncoder {
     }
 }
 
-export { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity };
+// Script classique (pas un module ES) : fonctionne aussi quand la page est ouverte en file://
+window.FitModule = { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity };
