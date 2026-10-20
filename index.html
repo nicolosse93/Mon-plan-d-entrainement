@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html lang="fr">
     <meta charset="UTF-8">
     <!-- viewport-fit=cover : sur iPad / iPhone (webapp), la page connaît la zone de la barre d'état (env(safe-area-inset-*))
          et l'en-tête s'agrandit d'autant ; sur ordinateur ces marges valent 0 -->
@@ -89,6 +90,10 @@
         }
         .workout-new { animation: workout-pop .5s cubic-bezier(.2, .8, .2, 1) both, workout-glow 1.1s ease-in-out .5s 1; }
         .today-flash { animation: workout-glow 1.1s ease-in-out 1; }
+        /* Pastille de séance : la durée disparaît quand la pastille est trop étroite (iPad portrait), pour garder
+           icône + ✓ + poubelle sur une seule ligne. Requête de conteneur = largeur de la pastille elle-même */
+        .workout-card { container-type: inline-size; }
+        @container (max-width: 84px) { .card-duration { display: none; } }
         /* Semaine sélectionnée : cadre posé sur les bords de toute la 1re ligne de la grille (au-dessus des jours,
            sans bloquer les clics ni prendre de place : aucun débordement, aucun défilement) */
         .active-week-band {
@@ -1225,7 +1230,7 @@
 
                     // Carte neutre + bande de couleur du sport à gauche ; séance réalisée = coche verte, carte atténuée
                     const workoutCard = document.createElement('div');
-                    workoutCard.className = `rounded-md border border-line border-l-[3px] ${style.card} bg-surface hover:bg-raised p-2 cursor-grab active:cursor-grabbing transition text-xs ${w.completed ? 'opacity-60' : ''}`;
+                    workoutCard.className = `workout-card rounded-md border border-line border-l-[3px] ${style.card} bg-surface hover:bg-raised p-2 cursor-grab active:cursor-grabbing transition text-xs ${w.completed ? 'opacity-60' : ''}`;
                     workoutCard.draggable = true;
                     workoutCard.addEventListener('dragstart', (event) => drag(event, w.id));
                     if (newWorkoutIds.has(String(w.id))) {
@@ -1237,17 +1242,20 @@
 
                     // Titre et type viennent de la base : insérés en texte (jamais en HTML) pour éviter toute injection
                     workoutCard.innerHTML = `
+                        <!-- Une seule ligne ; dans une pastille étroite (iPad portrait), la durée se masque (.card-duration) pour laisser la place à ✓ / poubelle -->
                         <div class="flex items-center gap-1.5 mb-1 text-muted">
-                            <i class="fa-solid ${SPORT_ICONS[w.type] || 'fa-circle'} text-[11px] ${style.icon}"></i>
-                            <span data-field="type" class="sm:hidden font-semibold text-[10px] uppercase tracking-wider truncate"></span>
+                            <span class="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                                <i class="fa-solid ${SPORT_ICONS[w.type] || 'fa-circle'} text-[11px] ${style.icon}"></i>
+                                <span data-field="type" class="sm:hidden font-semibold text-[10px] uppercase tracking-wider truncate"></span>
+                                ${minutes > 0 ? `<span class="card-duration text-[11px] font-medium whitespace-nowrap">${formatDuration(minutes)}</span>` : ''}
+                                ${bank && bank.effort_score ? `<span class="hidden lg:inline text-[11px] font-medium whitespace-nowrap" title="Effort ${bank.effort_score}/10"><i class="fa-solid fa-gauge text-[9px] mr-0.5"></i>${bank.effort_score}</span>` : ''}
+                            </span>
                             <span class="ml-auto flex items-center gap-1.5 shrink-0">
-                                ${minutes > 0 ? `<span class="text-[11px] font-medium">${formatDuration(minutes)}</span>` : ''}
-                                ${bank && bank.effort_score ? `<span class="hidden lg:inline text-[11px] font-medium" title="Effort ${bank.effort_score}/10"><i class="fa-solid fa-gauge text-[9px] mr-0.5"></i>${bank.effort_score}</span>` : ''}
                                 <button type="button" data-action="toggle" aria-label="${w.completed ? 'Marquer comme non terminée' : 'Marquer comme terminée'}" class="${w.completed ? 'text-success' : 'hover:text-success'} transition"><i class="fa-solid ${w.completed ? 'fa-circle-check' : 'fa-check'} text-[11px]"></i></button>
                                 <button type="button" data-action="delete" aria-label="Supprimer la séance" class="hover:text-red-500 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
                             </span>
                         </div>
-                        <div data-field="title" class="font-semibold text-ink leading-tight break-words cursor-pointer ${w.completed ? 'line-through decoration-muted/60' : ''}"></div>
+                        <div data-field="title" class="font-semibold text-ink leading-tight break-words hyphens-auto cursor-pointer ${w.completed ? 'line-through decoration-muted/60' : ''}"></div>
                     `;
                     workoutCard.querySelector('[data-field="type"]').textContent = sportLabel(w.type);
                     const titleEl = workoutCard.querySelector('[data-field="title"]');
