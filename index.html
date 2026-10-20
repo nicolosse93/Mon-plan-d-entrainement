@@ -1744,6 +1744,25 @@
             });
         });
 
+        // Fenêtre ouverte : la page derrière est figée (sur iPhone, quand la fenêtre tient à l'écran, le doigt faisait
+        // défiler l'arrière-plan). Body en position fixe, puis retour à la même position à la fermeture.
+        // Un observateur suit l'ouverture / fermeture des fenêtres, quelle que soit la fonction qui les déclenche
+        let lockedScrollY = null;
+        function syncScrollLock() {
+            const anyOpen = Object.keys(MODAL_CLOSERS).some(id => !document.getElementById(id).classList.contains('hidden'));
+            const style = document.body.style;
+            if (anyOpen && lockedScrollY === null) {
+                lockedScrollY = window.scrollY;
+                Object.assign(style, { position: 'fixed', top: `-${lockedScrollY}px`, left: '0', right: '0', overflow: 'hidden' });
+            } else if (!anyOpen && lockedScrollY !== null) {
+                Object.assign(style, { position: '', top: '', left: '', right: '', overflow: '' });
+                window.scrollTo(0, lockedScrollY);
+                lockedScrollY = null;
+            }
+        }
+        const modalObserver = new MutationObserver(syncScrollLock);
+        Object.keys(MODAL_CLOSERS).forEach(id => modalObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['class'] }));
+
         function closeDetailsModal() {
             detailsModal.classList.add('hidden');
             delete detailsModal.dataset.currentId;
