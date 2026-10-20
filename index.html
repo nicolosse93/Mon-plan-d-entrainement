@@ -360,12 +360,19 @@
 
     <!-- MODAL DÉTAILS / VISUALISATION DE LA SÉANCE -->
     <div id="details-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div id="details-box" class="bg-surface border border-line w-full max-w-xl rounded-xl p-4 sm:p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto transition-[max-width]">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <span id="detail-type-badge" class="text-xs px-2.5 py-1 rounded-full border"></span>
-                <span id="detail-date" class="text-xs text-muted"></span>
-                <span class="text-xs text-muted"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
-                <span id="detail-effort-wrap" class="hidden text-xs text-muted"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
+        <!-- En-tête (✕) et barre d'actions toujours visibles ; seul le milieu défile (iPhone : fiche plus haute que l'écran) -->
+        <div id="details-box" class="bg-surface border border-line w-full max-w-xl rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden transition-[max-width]">
+            <div class="shrink-0 px-4 sm:px-5 pt-4 pb-3 space-y-3 border-b border-line">
+            <div class="flex items-start gap-2">
+                <div class="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-2 pt-1">
+                    <span id="detail-type-badge" class="text-xs px-2.5 py-1 rounded-full border"></span>
+                    <span id="detail-date" class="text-xs text-muted"></span>
+                    <span class="text-xs text-muted"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
+                    <span id="detail-effort-wrap" class="hidden text-xs text-muted"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
+                </div>
+                <button type="button" onclick="closeDetailsModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
             <!-- Séance précédente / suivante (ordre chronologique, flèches ← → du clavier) -->
             <div class="flex items-center gap-2">
@@ -377,7 +384,9 @@
                     <i class="fa-solid fa-chevron-right text-sm"></i>
                 </button>
             </div>
+            </div>
 
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-3">
             <!-- Deux colonnes sur grand écran quand la séance a des intervalles / options (sinon une seule, plus étroite) -->
             <div id="details-grid" class="grid gap-3 items-start">
             <div class="space-y-3 min-w-0">
@@ -429,8 +438,9 @@
             </div>
             </div>
             </div>
+            </div>
 
-            <div class="flex space-x-3 pt-2">
+            <div class="shrink-0 flex gap-2 sm:gap-3 px-4 sm:px-5 py-3 border-t border-line">
                 <button id="detail-toggle-btn" onclick="" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2 ">
                     <i class="fa-solid fa-check"></i>
                     <span>Marquer comme terminé</span>
@@ -438,7 +448,7 @@
                 <button id="detail-fit-btn" type="button" title="Télécharger pour Garmin (.FIT)" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 font-semibold px-3 py-2.5 rounded-lg transition text-sm flex items-center gap-1.5">
                     <i class="fa-solid fa-download"></i><span>.FIT</span>
                 </button>
-                <button onclick="closeDetailsModal()" class="bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
+                <button onclick="closeDetailsModal()" class="hidden sm:block bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
             </div>
         </div>
     </div>
@@ -1693,9 +1703,15 @@
 
         document.addEventListener('keydown', (e) => {
             if (detailsModal.classList.contains('hidden')) return;
+            if (e.key === 'Escape') { closeDetailsModal(); return; }
             if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
             if (e.key === 'ArrowLeft') navigateDetails(-1);
             if (e.key === 'ArrowRight') navigateDetails(1);
+        });
+
+        // Un toucher / clic sur le fond sombre (hors de la fiche) la ferme
+        detailsModal.addEventListener('click', (e) => {
+            if (e.target === detailsModal) closeDetailsModal();
         });
 
         function closeDetailsModal() {
