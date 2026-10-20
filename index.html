@@ -89,6 +89,14 @@
         }
         .workout-new { animation: workout-pop .5s cubic-bezier(.2, .8, .2, 1) both, workout-glow 1.1s ease-in-out .5s 1; }
         .today-flash { animation: workout-glow 1.1s ease-in-out 1; }
+        /* Semaine sélectionnée : cadre posé sur les bords de toute la 1re ligne de la grille (au-dessus des jours,
+           sans bloquer les clics ni prendre de place : aucun débordement, aucun défilement) */
+        .active-week-band {
+            /* grid-row: 1 / 2 explicite : en position absolue, une fin « auto » irait jusqu'au bord de la grille */
+            position: absolute; grid-row: 1 / 2; grid-column: 1 / -1; inset: 0;
+            border: 2px solid rgb(var(--accent) / .8); border-radius: .5rem;
+            pointer-events: none; z-index: 5;
+        }
         @keyframes chip-in {
             0%   { opacity: 0; transform: translateX(-6px) scale(.9); }
             100% { opacity: 1; transform: none; }
@@ -192,18 +200,20 @@
             <!-- VUE CALENDRIER -->
             <section class="flex-1 min-w-0 sm:min-h-0 flex flex-col bg-surface border border-line rounded-xl p-2 sm:p-3 shadow-sm">
                 <div class="flex items-center gap-2 mb-2 sticky below-header sm:static bg-surface/95 backdrop-blur-sm z-20 -mx-2 px-2 py-1.5 sm:mx-0 sm:px-0 sm:py-0">
-                    <h3 id="calendar-month-title" class="font-bold text-base sm:text-lg capitalize text-ink truncate">Semaine</h3>
+                    <!-- Titre = semaine sélectionnée (encadrée en bleu dans la grille) ; les flèches avancent d'une semaine -->
+                    <h3 id="calendar-month-title" class="font-bold text-base sm:text-lg text-ink truncate">Semaine</h3>
+                    <span class="hidden lg:inline-flex items-center gap-1 shrink-0 text-xs text-muted"><i class="fa-solid fa-arrows-left-right text-[10px]"></i> flèches : 1 semaine</span>
                     <!-- Confirmation visuelle après un ajout (« +5 séances ajoutées ») -->
                     <span id="calendar-added-chip" role="status" aria-live="polite" class="hidden shrink-0 items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md bg-accent text-white"></span>
                     <span class="mr-auto"></span>
-                    <button onclick="changeWeek(-1)" aria-label="Semaine précédente" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
+                    <button onclick="changeWeek(-1)" aria-label="Semaine précédente" title="Semaine précédente" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
                     <!-- Classes de couleur gérées par updateTodayButton() : bleu dès qu'on quitte la semaine en cours -->
                     <button onclick="goToCurrentWeek()" id="calendar-today-btn" title="Revenir à aujourd'hui" class="h-8 px-3 rounded-lg text-sm transition font-medium whitespace-nowrap flex items-center gap-1.5 bg-raised hover:bg-raised-hover text-ink">
                         <i class="fa-regular fa-calendar-check"></i><span>Aujourd'hui</span>
                     </button>
-                    <button onclick="changeWeek(1)" aria-label="Semaine suivante" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
+                    <button onclick="changeWeek(1)" aria-label="Semaine suivante" title="Semaine suivante" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
                         <i class="fa-solid fa-chevron-right"></i>
                     </button>
                 </div>
@@ -214,7 +224,8 @@
                 </div>
 
                 <!-- Mobile : liste de la semaine ; sm+ : grille de N semaines qui remplit la hauteur disponible -->
-                <div id="calendar-grid" class="grid grid-cols-1 sm:grid-cols-7 gap-1.5 sm:flex-1 sm:min-h-0 sm:overflow-y-auto">
+                <!-- relative : repère du cadre de la semaine sélectionnée (.active-week-band) -->
+                <div id="calendar-grid" class="relative grid grid-cols-1 sm:grid-cols-7 gap-1.5 sm:flex-1 sm:min-h-0 sm:overflow-y-auto">
                     <!-- Généré dynamiquement -->
                 </div>
 
@@ -1157,11 +1168,12 @@
             const startOfRange = getMonday(currentDateView);
             const endOfRange = new Date(startOfRange);
             endOfRange.setDate(startOfRange.getDate() + weeks * 7 - 1);
-            if (startOfRange.getMonth() === endOfRange.getMonth()) {
-                calendarMonthTitle.textContent = `${startOfRange.getDate()} - ${endOfRange.getDate()} ${monthNames[startOfRange.getMonth()]} ${startOfRange.getFullYear()}`;
-            } else {
-                calendarMonthTitle.textContent = `${startOfRange.getDate()} ${monthNames[startOfRange.getMonth()]} - ${endOfRange.getDate()} ${monthNames[endOfRange.getMonth()]} ${endOfRange.getFullYear()}`;
-            }
+            // Titre = semaine sélectionnée seulement (celle que les flèches font avancer), pas toute la plage affichée
+            const sunday = new Date(startOfRange);
+            sunday.setDate(startOfRange.getDate() + 6);
+            calendarMonthTitle.textContent = startOfRange.getMonth() === sunday.getMonth()
+                ? `Semaine du ${startOfRange.getDate()} au ${sunday.getDate()} ${monthNames[sunday.getMonth()]} ${sunday.getFullYear()}`
+                : `Semaine du ${startOfRange.getDate()} ${monthNames[startOfRange.getMonth()]} au ${sunday.getDate()} ${monthNames[sunday.getMonth()]} ${sunday.getFullYear()}`;
             endOfRange.setHours(23, 59, 59, 999);
             const numDays = Math.round((endOfRange - startOfRange) / (1000 * 60 * 60 * 24));
 
@@ -1176,7 +1188,7 @@
             for (let i = 0; i < numDays; i++) {
                 const dayDate = new Date(startOfRange);
                 dayDate.setDate(startOfRange.getDate() + i);
-                const isActiveWeek = isGridView && weeks > 1 && i < 7;
+                const isActiveWeek = isGridView && i < 7;
                 const dateStr = toDateStr(dayDate);
                 const isToday = todayStr === dateStr;
                 const isPast = dateStr < todayStr;
@@ -1185,7 +1197,7 @@
                 const compactEmpty = !isGridView && dayWorkouts.length === 0;
 
                 const dayCell = document.createElement('div');
-                dayCell.className = `bg-inset border border-line rounded-lg ${compactEmpty ? 'px-3 py-1.5 flex-row items-center' : 'p-2 flex-col'} ${isGridView ? 'min-h-0 overflow-y-auto' : ''} flex transition hover:border-accent/60 relative group ${isActiveWeek ? 'ring-1 ring-accent/40' : ''} ${isToday ? 'border-accent/60' : ''} ${isPast && !isToday ? 'opacity-80' : ''}`;
+                dayCell.className = `${isActiveWeek ? 'bg-accent/[0.07]' : 'bg-inset'} border border-line rounded-lg ${compactEmpty ? 'px-3 py-1.5 flex-row items-center' : 'p-2 flex-col'} ${isGridView ? 'min-h-0 overflow-y-auto' : ''} flex transition hover:border-accent/60 relative group ${isToday ? 'border-accent/60' : ''} ${isPast && !isToday ? 'opacity-80' : ''}`;
                 dayCell.dataset.date = dateStr;
                 dayCell.setAttribute('ondragover', 'allowDrop(event)');
                 dayCell.setAttribute('ondrop', `dropWorkout(event, '${dateStr}')`);
@@ -1265,6 +1277,15 @@
             } else {
                 noWorkouts.classList.add('hidden');
             }
+            // Cadre bleu autour de la semaine sélectionnée (1re ligne de la grille) : enfant en position absolue,
+            // placé sur la ligne 1 de la grille, donc hors du placement automatique des jours
+            if (isGridView) {
+                const band = document.createElement('div');
+                band.className = 'active-week-band';
+                band.setAttribute('aria-hidden', 'true');
+                calendarGrid.appendChild(band);
+            }
+
             renderWeekSummary(startOfRange, todayStr);
             updateTodayButton();
 
