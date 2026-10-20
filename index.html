@@ -65,6 +65,26 @@
             color-scheme: dark;
         }
         body { transition: background-color 0.2s, color 0.2s; font-feature-settings: 'cv11', 'ss01'; }
+        /* Séances tout juste ajoutées : apparition en cascade puis halo pulsé (couleur d'accent) */
+        @keyframes workout-pop {
+            0%   { opacity: 0; transform: translateY(10px) scale(.92); }
+            60%  { opacity: 1; transform: translateY(-2px) scale(1.03); }
+            100% { opacity: 1; transform: none; }
+        }
+        @keyframes workout-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgb(var(--accent) / 0); }
+            50%      { box-shadow: 0 0 0 4px rgb(var(--accent) / .4); }
+        }
+        .workout-new { animation: workout-pop .5s cubic-bezier(.2, .8, .2, 1) both, workout-glow 1.1s ease-in-out .5s 3; }
+        @keyframes chip-in {
+            0%   { opacity: 0; transform: translateX(-6px) scale(.9); }
+            100% { opacity: 1; transform: none; }
+        }
+        .chip-in { animation: chip-in .35s ease-out both; }
+        @media (prefers-reduced-motion: reduce) {
+            .workout-new, .chip-in { animation: none; }
+            .workout-new { box-shadow: 0 0 0 2px rgb(var(--accent) / .6); }
+        }
         /* Chiffres de largeur fixe : durées, allures et compteurs restent alignés */
         .tabular-nums, input, #calendar-grid, #week-summary, #detail-intervals { font-variant-numeric: tabular-nums; }
         /* Champs numériques du générateur : on masque les flèches natives au profit des boutons */
@@ -154,7 +174,10 @@
             <!-- VUE CALENDRIER -->
             <section class="flex-1 min-w-0 sm:min-h-0 flex flex-col bg-surface border border-line rounded-xl p-2 sm:p-3 shadow-sm">
                 <div class="flex items-center gap-2 mb-2 sticky top-12 sm:static bg-surface/95 backdrop-blur-sm z-20 -mx-2 px-2 py-1.5 sm:mx-0 sm:px-0 sm:py-0">
-                    <h3 id="calendar-month-title" class="font-bold text-base sm:text-lg capitalize text-ink mr-auto truncate">Semaine</h3>
+                    <h3 id="calendar-month-title" class="font-bold text-base sm:text-lg capitalize text-ink truncate">Semaine</h3>
+                    <!-- Confirmation visuelle après un ajout (« +5 séances ajoutées ») -->
+                    <span id="calendar-added-chip" role="status" aria-live="polite" class="hidden shrink-0 items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md bg-accent text-white"></span>
+                    <span class="mr-auto"></span>
                     <button onclick="changeWeek(-1)" aria-label="Semaine précédente" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
@@ -549,8 +572,9 @@
     </div>
 
     <!-- SCRIPT APPLICATION -->
-    <!-- Encodeur FIT (expose window.FitModule) -->
-    <script src="fitBuilder.js"></script>
+    <!-- Encodeur FIT (expose window.FitModule). ?v= : à incrémenter quand fitBuilder.js change, pour contourner
+         le cache du navigateur (GitHub Pages garde les fichiers 10 min) -->
+    <script src="fitBuilder.js?v=3"></script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5GrtRyqg1LV-wDZpFUxEnw_FHTDWbux';
@@ -919,10 +943,42 @@
             if (!error) {
                 workouts = data || [];
                 renderCalendar();
-                // Durées et efforts de la banque pour les cartes du calendrier et le résumé
+                // Durées et efforts de la banque pour les cartes du calendrier et le résumé (en cache après le 1er chargement)
                 const types = [...new Set(workouts.map(w => w.type).filter(t => t && t !== 'Repos'))];
-                Promise.all(types.map(getBankSessionsForSport)).then(renderCalendar);
+                await Promise.all(types.map(getBankSessionsForSport));
+                renderCalendar();
             }
+        }
+
+        // Séances tout juste ajoutées (ids) : animées au prochain affichage du calendrier
+        let newWorkoutIds = new Set();
+        let addedChipTimer;
+
+        // Après un ajout : calendrier placé sur la date des nouvelles séances, cartes animées, pastille « +N ajoutées »
+        async function refreshAndHighlightNew(beforeIds, focusDate) {
+            if (focusDate) {
+                const [y, m, d] = focusDate.split('-');
+                currentDateView = new Date(y, m - 1, d); // date locale (new Date('YYYY-MM-DD') serait en UTC : la veille au Québec)
+            }
+            await fetchWorkouts();
+            const added = workouts.filter(w => !beforeIds.has(String(w.id)));
+            newWorkoutIds = new Set(added.map(w => String(w.id)));
+            renderCalendar();
+
+            const first = calendarGrid.querySelector('.workout-new');
+            if (first) first.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            const chip = document.getElementById('calendar-added-chip');
+            if (added.length > 0) {
+                chip.innerHTML = `<i class="fa-solid fa-check"></i> ${added.length} séance${added.length > 1 ? 's' : ''} ajoutée${added.length > 1 ? 's' : ''}`;
+                chip.classList.remove('hidden', 'chip-in');
+                void chip.offsetWidth; // relance l'animation si la pastille était déjà visible
+                chip.classList.add('flex', 'chip-in');
+                clearTimeout(addedChipTimer);
+                addedChipTimer = setTimeout(() => { chip.classList.add('hidden'); chip.classList.remove('flex'); }, 6000);
+            }
+            // Les affichages suivants (navigation, coche…) ne rejouent pas l'animation
+            setTimeout(() => { newWorkoutIds = new Set(); }, 5000);
         }
 
         // Mobile : liste de la semaine. sm+ : grille d'autant de semaines que la hauteur d'écran le permet
@@ -1076,6 +1132,12 @@
                     workoutCard.className = `rounded-md border border-line border-l-[3px] ${style.card} bg-surface hover:bg-raised p-2 cursor-grab active:cursor-grabbing transition text-xs ${w.completed ? 'opacity-60' : ''}`;
                     workoutCard.draggable = true;
                     workoutCard.addEventListener('dragstart', (event) => drag(event, w.id));
+                    if (newWorkoutIds.has(String(w.id))) {
+                        // Nouvelle séance : apparition en cascade, dans l'ordre des dates
+                        const order = [...newWorkoutIds].indexOf(String(w.id));
+                        workoutCard.classList.add('workout-new');
+                        workoutCard.style.animationDelay = `${order * 110}ms, ${order * 110 + 500}ms`;
+                    }
 
                     // Titre et type viennent de la base : insérés en texte (jamais en HTML) pour éviter toute injection
                     workoutCard.innerHTML = `
@@ -2141,11 +2203,22 @@
             return prepareSteps(w, steps);
         }
 
+        // Encodeur FIT : s'il manque (ancienne version en cache, chargement raté), on recharge fitBuilder.js sans cache
+        function ensureFitModule() {
+            if (window.FitModule) return Promise.resolve(window.FitModule);
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `fitBuilder.js?reload=${Date.now()}`;
+                script.onload = () => window.FitModule ? resolve(window.FitModule)
+                    : reject(new Error("fitBuilder.js est chargé mais n'expose pas l'encodeur (version en cache ?). Recharge la page avec Ctrl+F5."));
+                script.onerror = () => reject(new Error("Impossible de charger fitBuilder.js depuis le serveur."));
+                document.head.appendChild(script);
+            });
+        }
+
         // Octets du fichier .FIT d'une séance
         async function buildFitBytes(w) {
-            if (!window.FitModule) {
-                throw new Error("Le module FIT n'a pas été chargé correctement.");
-            }
+            await ensureFitModule();
             const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
 
             const encoder = new FitEncoder();
@@ -2294,7 +2367,7 @@
                     await new Promise(resolve => setTimeout(resolve, 400));
                 }
                 const label = monday.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-                showToast(`<strong>${weekWorkouts.length} fichiers</strong> téléchargés (semaine du ${label}). Copie-les tous dans <strong>GARMIN/NewFiles</strong> de ta montre (USB).`, 12000);
+                showToast(`<strong>${weekWorkouts.length} fichiers</strong> téléchargés (semaine du ${label}). Copie-les tous dans <strong>GARMIN/NewFiles</strong> de ta montre (USB).<br><span class="text-muted">Un seul fichier reçu ? Autorise les téléchargements multiples pour ce site (icône à droite de la barre d'adresse), puis recommence.</span>`, 15000);
             } catch (e) {
                 console.error("Erreur FIT local:", e);
                 alert("Erreur locale lors de la génération des fichiers FIT : " + e.message);
@@ -2313,6 +2386,7 @@
             const cooldown = document.getElementById('w-cooldown').value;
 
             const { data: { user } } = await supabaseClient.auth.getUser();
+            const beforeIds = new Set(workouts.map(w => String(w.id)));
             const { error } = await supabaseClient.from('workouts').insert([
                 { title, date, type, warmup, main_block, cooldown, user_id: user.id, completed: false }
             ]);
@@ -2320,7 +2394,7 @@
             if (!error) {
                 closeModal();
                 document.getElementById('workout-form').reset();
-                fetchWorkouts();
+                await refreshAndHighlightNew(beforeIds, date);
             }
         });
 
@@ -2348,7 +2422,9 @@
             if (workouts && workouts.length > 0) {
                 // Find the latest workout date
                 const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
-                lastWorkoutDate = new Date(sortedWorkouts[0].date);
+                // Date locale à midi (new Date('YYYY-MM-DD') serait minuit UTC, soit la veille au soir au Québec)
+                const [ly, lm, ld] = sortedWorkouts[0].date.split('-');
+                lastWorkoutDate = new Date(ly, lm - 1, ld, 12);
                 
                 // Get workouts from the last 2 weeks relative to today, but only if they are after August 1st
                 const twoWeeksAgo = new Date();
@@ -2576,15 +2652,13 @@
                 });
             }
 
+            const beforeIds = new Set(workouts.map(w => String(w.id)));
             const { error } = await supabaseClient.from('workouts').insert(inserts);
 
             if (!error) {
                 closeGeneratorModal();
-                fetchWorkouts();
-                
-                // Move calendar view to the newly generated week
-                currentDateView = new Date(inserts[0].date);
-                renderCalendar();
+                // Calendrier placé sur la semaine générée, nouvelles séances animées
+                await refreshAndHighlightNew(beforeIds, inserts[0].date);
             } else {
                 alert("Erreur lors de la génération du plan : " + error.message);
             }
