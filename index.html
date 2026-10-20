@@ -1,10 +1,15 @@
 <!DOCTYPE html>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover : sur iPad / iPhone (webapp), la page connaît la zone de la barre d'état (env(safe-area-inset-*))
+         et l'en-tête s'agrandit d'autant ; sur ordinateur ces marges valent 0 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Mon Plan">
     <title>Mon Plan d'Entraînement Intelligent</title>
     <!-- Favicon : profil d'intervalles (couleurs des zones) sur fond graphite -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2315181d'/%3E%3Crect x='9' y='38' width='8' height='16' rx='2' fill='%239ca3af'/%3E%3Crect x='20' y='26' width='7' height='28' rx='2' fill='%233b82f6'/%3E%3Crect x='30' y='14' width='7' height='40' rx='2' fill='%23ef4444'/%3E%3Crect x='40' y='30' width='7' height='24' rx='2' fill='%2322c55e'/%3E%3Crect x='50' y='20' width='6' height='34' rx='2' fill='%23f59e0b'/%3E%3C/svg%3E">
-    <meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#15181d" media="(prefers-color-scheme: dark)">
     <!-- Thème = réglage clair / sombre de l'appareil, appliqué avant l'affichage (pas de flash) et suivi en direct -->
     <script>
@@ -65,6 +70,13 @@
             color-scheme: dark;
         }
         body { transition: background-color 0.2s, color 0.2s; font-feature-settings: 'cv11', 'ss01'; }
+        /* Zones sûres (webapp iPad / iPhone) : l'en-tête passe sous la barre d'état sans être recouvert,
+           le bas du contenu évite la barre d'accueil. Sur ordinateur, env(...) vaut 0 : rien ne change */
+        .app-header { height: calc(3rem + env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); }
+        .below-header { top: calc(3rem + env(safe-area-inset-top, 0px)); }
+        /* main.app-main (plus spécifique que .p-3) : les styles du CDN Tailwind sont injectés après celui-ci */
+        main.app-main { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)); }
+        @media (max-width: 639px) { main.app-main { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); } }
         /* Séances tout juste ajoutées : apparition en cascade puis halo pulsé (couleur d'accent) */
         @keyframes workout-pop {
             0%   { opacity: 0; transform: translateY(10px) scale(.92); }
@@ -75,14 +87,15 @@
             0%, 100% { box-shadow: 0 0 0 0 rgb(var(--accent) / 0); }
             50%      { box-shadow: 0 0 0 4px rgb(var(--accent) / .4); }
         }
-        .workout-new { animation: workout-pop .5s cubic-bezier(.2, .8, .2, 1) both, workout-glow 1.1s ease-in-out .5s 3; }
+        .workout-new { animation: workout-pop .5s cubic-bezier(.2, .8, .2, 1) both, workout-glow 1.1s ease-in-out .5s 1; }
+        .today-flash { animation: workout-glow 1.1s ease-in-out 1; }
         @keyframes chip-in {
             0%   { opacity: 0; transform: translateX(-6px) scale(.9); }
             100% { opacity: 1; transform: none; }
         }
         .chip-in { animation: chip-in .35s ease-out both; }
         @media (prefers-reduced-motion: reduce) {
-            .workout-new, .chip-in { animation: none; }
+            .workout-new, .chip-in, .today-flash { animation: none; }
             .workout-new { box-shadow: 0 0 0 2px rgb(var(--accent) / .6); }
         }
         /* Chiffres de largeur fixe : durées, allures et compteurs restent alignés */
@@ -139,9 +152,11 @@
 
     <!-- APPLICATION PRINCIPALE -->
     <!-- Mobile : la page défile ; à partir de sm, l'application occupe exactement l'écran et le calendrier remplit la hauteur -->
-    <div id="app-content" class="hidden flex-1 flex flex-col sm:h-screen sm:overflow-hidden">
+    <!-- sm:flex-none + sm:h-screen : hauteur exacte de l'écran (avec flex-1, la hauteur suivrait le contenu des semaines
+         et pousserait la page au-delà de l'écran) -->
+    <div id="app-content" class="hidden flex-1 sm:flex-none flex flex-col sm:h-screen sm:min-h-0 sm:overflow-hidden">
         <!-- HEADER : titre + toutes les actions -->
-        <header class="bg-surface border-b border-line sticky top-0 z-30 h-12 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-2 shadow-md shrink-0">
+        <header class="app-header bg-surface border-b border-line sticky top-0 z-30 px-2 sm:px-4 flex items-center gap-1.5 sm:gap-2 shadow-md shrink-0">
             <div class="flex items-center gap-2 min-w-0 mr-auto">
                 <div class="w-8 h-8 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
                     <i class="fa-solid fa-person-running"></i>
@@ -161,6 +176,9 @@
                 <i class="fa-solid fa-file-export"></i>
                 <span class="hidden lg:inline">Garmin .FIT</span>
             </button>
+            <button id="theme-toggle" type="button" title="Forcer le thème clair / sombre (au rechargement : réglage de l'appareil)" aria-label="Basculer le thème clair / sombre" class="h-8 w-8 rounded-lg bg-raised hover:bg-raised-hover text-accent shrink-0 transition">
+                <i class="fa-solid fa-moon"></i>
+            </button>
             <span id="user-email-display" class="text-xs text-muted hidden xl:inline truncate max-w-[14rem]"></span>
             <button id="logout-btn" title="Se déconnecter" class="h-8 w-7 text-muted hover:text-red-400 transition shrink-0">
                 <i class="fa-solid fa-right-from-bracket"></i>
@@ -168,12 +186,12 @@
         </header>
 
         <!-- CONTENU PRINCIPAL : calendrier + résumé de la semaine (colonne à droite sur grand écran, bandeau au-dessus sinon) -->
-        <main class="w-full max-w-[1920px] mx-auto p-2 sm:p-3 flex-1 flex flex-col xl:flex-row gap-2 sm:gap-3 sm:min-h-0">
+        <main class="app-main w-full max-w-[1920px] mx-auto p-2 sm:p-3 flex-1 flex flex-col xl:flex-row gap-2 sm:gap-3 sm:min-h-0">
             <div id="stat-completed" class="hidden"></div>
 
             <!-- VUE CALENDRIER -->
             <section class="flex-1 min-w-0 sm:min-h-0 flex flex-col bg-surface border border-line rounded-xl p-2 sm:p-3 shadow-sm">
-                <div class="flex items-center gap-2 mb-2 sticky top-12 sm:static bg-surface/95 backdrop-blur-sm z-20 -mx-2 px-2 py-1.5 sm:mx-0 sm:px-0 sm:py-0">
+                <div class="flex items-center gap-2 mb-2 sticky below-header sm:static bg-surface/95 backdrop-blur-sm z-20 -mx-2 px-2 py-1.5 sm:mx-0 sm:px-0 sm:py-0">
                     <h3 id="calendar-month-title" class="font-bold text-base sm:text-lg capitalize text-ink truncate">Semaine</h3>
                     <!-- Confirmation visuelle après un ajout (« +5 séances ajoutées ») -->
                     <span id="calendar-added-chip" role="status" aria-live="polite" class="hidden shrink-0 items-center gap-1 text-xs font-semibold px-2 py-1 rounded-md bg-accent text-white"></span>
@@ -181,8 +199,9 @@
                     <button onclick="changeWeek(-1)" aria-label="Semaine précédente" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
                         <i class="fa-solid fa-chevron-left"></i>
                     </button>
-                    <button onclick="goToCurrentWeek()" id="calendar-today-btn" class="bg-raised hover:bg-raised-hover text-ink h-8 px-3 rounded-lg text-sm transition font-medium whitespace-nowrap">
-                        Aujourd'hui
+                    <!-- Classes de couleur gérées par updateTodayButton() : bleu dès qu'on quitte la semaine en cours -->
+                    <button onclick="goToCurrentWeek()" id="calendar-today-btn" title="Revenir à aujourd'hui" class="h-8 px-3 rounded-lg text-sm transition font-medium whitespace-nowrap flex items-center gap-1.5 bg-raised hover:bg-raised-hover text-ink">
+                        <i class="fa-regular fa-calendar-check"></i><span>Aujourd'hui</span>
                     </button>
                     <button onclick="changeWeek(1)" aria-label="Semaine suivante" class="bg-raised hover:bg-raised-hover text-ink h-8 w-9 rounded-lg text-sm transition">
                         <i class="fa-solid fa-chevron-right"></i>
@@ -350,11 +369,11 @@
             </div>
             <!-- Séance précédente / suivante (ordre chronologique, flèches ← → du clavier) -->
             <div class="flex items-center gap-2">
-                <button type="button" id="detail-prev" onclick="navigateDetails(-1)" aria-label="Séance précédente" title="Séance précédente (←)" class="shrink-0 w-9 h-9 rounded-lg border border-line bg-inset text-ink hover:border-accent/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
+                <button type="button" id="detail-prev" onclick="navigateDetails(-1)" aria-label="Séance précédente" title="Séance précédente (←)" class="shrink-0 w-9 h-9 rounded-lg border border-line bg-inset text-ink hover:border-accent/60 hover:bg-accent/10 hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition">
                     <i class="fa-solid fa-chevron-left text-sm"></i>
                 </button>
                 <h3 id="detail-title" class="flex-1 min-w-0 text-center text-xl font-bold text-ink"></h3>
-                <button type="button" id="detail-next" onclick="navigateDetails(1)" aria-label="Séance suivante" title="Séance suivante (→)" class="shrink-0 w-9 h-9 rounded-lg border border-line bg-inset text-ink hover:border-accent/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition">
+                <button type="button" id="detail-next" onclick="navigateDetails(1)" aria-label="Séance suivante" title="Séance suivante (→)" class="shrink-0 w-9 h-9 rounded-lg border border-line bg-inset text-ink hover:border-accent/60 hover:bg-accent/10 hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition">
                     <i class="fa-solid fa-chevron-right text-sm"></i>
                 </button>
             </div>
@@ -705,6 +724,20 @@
         // Éléments DOM
         const authScreen = document.getElementById('auth-screen');
 
+        // Bascule clair / sombre pour la session seulement : rien n'est mémorisé, un rechargement reprend le
+        // réglage de l'appareil (appliqué dans <head>, qui suit aussi ses changements en direct)
+        const themeToggle = document.getElementById('theme-toggle');
+        function syncThemeIcon() {
+            const dark = document.documentElement.classList.contains('dark');
+            themeToggle.querySelector('i').className = `fa-solid ${dark ? 'fa-sun' : 'fa-moon'}`; // icône = thème proposé
+        }
+        syncThemeIcon();
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            syncThemeIcon();
+        });
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncThemeIcon);
+
         const appContent = document.getElementById('app-content');
         const authForm = document.getElementById('auth-form');
         const authTitle = document.getElementById('auth-title');
@@ -984,7 +1017,13 @@
         // Mobile : liste de la semaine. sm+ : grille d'autant de semaines que la hauteur d'écran le permet
         // (semaine active en première ligne), pour ne pas laisser de vide sous le calendrier
         const gridViewQuery = window.matchMedia('(min-width: 640px)');
-        const MIN_WEEK_ROW_PX = 120;
+        // Hauteur mini d'une semaine : de quoi afficher un jour avec une séance sans barre de défilement.
+        // Colonnes étroites (iPad portrait) : les titres passent sur 3-4 lignes, il faut des semaines plus hautes
+        function getMinWeekRowPx() {
+            const gap = parseFloat(getComputedStyle(calendarGrid).columnGap) || 0;
+            const dayWidth = (calendarGrid.clientWidth - 6 * gap) / 7;
+            return dayWidth < 120 ? 180 : 130;
+        }
         gridViewQuery.addEventListener('change', () => renderCalendar());
         let resizeTimer;
         window.addEventListener('resize', () => {
@@ -996,8 +1035,12 @@
         function getVisibleWeeks() {
             if (!gridViewQuery.matches) return 1;
             const top = calendarGrid.getBoundingClientRect().top;
-            const available = window.innerHeight - top - 24; // marges basses du panneau et de la page
-            return Math.max(1, Math.min(6, Math.floor(available / MIN_WEEK_ROW_PX)));
+            // Marges basses : bord + padding du panneau (~14 px) et padding de la page (barre d'accueil iPad comprise)
+            const pagePadding = parseFloat(getComputedStyle(document.querySelector('main.app-main')).paddingBottom) || 12;
+            const available = window.innerHeight - top - 14 - pagePadding;
+            // N semaines occupent N lignes + (N - 1) espaces entre elles
+            const gap = parseFloat(getComputedStyle(calendarGrid).rowGap) || 0;
+            return Math.max(1, Math.min(6, Math.floor((available + gap) / (getMinWeekRowPx() + gap))));
         }
 
         // Libellé affiché d'un type de séance (la valeur stockée en base, ex. "Renfo", ne change pas)
@@ -1042,9 +1085,25 @@
             renderCalendar();
         }
 
+        // Retour à la semaine en cours : la case d'aujourd'hui clignote une fois (et défile à l'écran sur mobile)
         function goToCurrentWeek() {
             currentDateView = new Date();
             renderCalendar();
+            const todayCell = calendarGrid.querySelector(`[data-date="${toDateStr(new Date())}"]`);
+            if (todayCell) {
+                todayCell.classList.remove('today-flash');
+                void todayCell.offsetWidth; // relance l'animation à chaque clic
+                todayCell.classList.add('today-flash');
+                todayCell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // Bouton « Aujourd'hui » mis en avant (accent) seulement quand la semaine affichée n'est pas la semaine en cours
+        function updateTodayButton() {
+            const away = toDateStr(getMonday(currentDateView)) !== toDateStr(getMonday(new Date()));
+            const btn = document.getElementById('calendar-today-btn');
+            ['bg-accent', 'hover:bg-accent-hover', 'text-white'].forEach(c => btn.classList.toggle(c, away));
+            ['bg-raised', 'hover:bg-raised-hover', 'text-ink'].forEach(c => btn.classList.toggle(c, !away));
         }
 
         // Lundi de la semaine contenant la date donnée, à minuit
@@ -1065,7 +1124,7 @@
             const weeks = getVisibleWeeks();
             lastVisibleWeeks = weeks;
             // Lignes de hauteur égale qui se partagent toute la hauteur disponible
-            calendarGrid.style.gridTemplateRows = isGridView ? `repeat(${weeks}, minmax(${MIN_WEEK_ROW_PX}px, 1fr))` : '';
+            calendarGrid.style.gridTemplateRows = isGridView ? `repeat(${weeks}, minmax(${getMinWeekRowPx()}px, 1fr))` : '';
 
             const monthNames = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
             const dayNames = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
@@ -1103,6 +1162,7 @@
 
                 const dayCell = document.createElement('div');
                 dayCell.className = `bg-inset border border-line rounded-lg ${compactEmpty ? 'px-3 py-1.5 flex-row items-center' : 'p-2 flex-col'} ${isGridView ? 'min-h-0 overflow-y-auto' : ''} flex transition hover:border-accent/60 relative group ${isActiveWeek ? 'ring-1 ring-accent/40' : ''} ${isToday ? 'border-accent/60' : ''} ${isPast && !isToday ? 'opacity-80' : ''}`;
+                dayCell.dataset.date = dateStr;
                 dayCell.setAttribute('ondragover', 'allowDrop(event)');
                 dayCell.setAttribute('ondrop', `dropWorkout(event, '${dateStr}')`);
 
@@ -1182,6 +1242,7 @@
                 noWorkouts.classList.add('hidden');
             }
             renderWeekSummary(startOfRange, todayStr);
+            updateTodayButton();
 
             // Le résumé peut avoir déplacé la grille : on recalcule une fois le nombre de semaines qui tiennent
             if (isGridView && !renderCalendar.reflowing && getVisibleWeeks() !== weeks) {
