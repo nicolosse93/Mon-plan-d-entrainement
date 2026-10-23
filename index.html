@@ -244,7 +244,7 @@
             </section>
 
             <!-- RÉSUMÉ DE LA SEMAINE ACTIVE -->
-            <aside id="week-summary" class="order-first xl:order-none grid grid-cols-2 md:grid-cols-4 xl:grid-cols-1 xl:auto-rows-min gap-2 xl:w-72 shrink-0 xl:overflow-y-auto">
+            <aside id="week-summary" class="order-first xl:order-none grid grid-cols-2 md:grid-cols-5 xl:grid-cols-1 xl:auto-rows-min gap-2 xl:w-72 shrink-0 xl:overflow-y-auto">
                 <!-- Généré dynamiquement -->
             </aside>
         </main>
@@ -561,6 +561,25 @@
                     <i class="fa-solid fa-rotate"></i><span id="regen-btn-label">Régénérer</span>
                 </button>
             </div>
+
+            <!-- Prévu vs réalisé : chaque effort comparé au tour correspondant de l'activité importée -->
+            <div id="detail-compare" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted"><i class="fa-solid fa-scale-balanced mr-1.5 text-accent"></i> Prévu vs réalisé</span>
+                    <span id="detail-compare-score" class="text-xs font-semibold text-ink"></span>
+                </div>
+                <p id="detail-compare-summary" class="text-xs text-muted"></p>
+                <ol id="detail-compare-list" class="space-y-1.5 text-xs"></ol>
+            </div>
+
+            <!-- Sortie réalisée : temps par zone de FC, courbes et tracé GPS -->
+            <div id="detail-activity" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+                <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block"><i class="fa-solid fa-chart-line mr-1.5 text-accent"></i> Sortie réalisée</span>
+                <div id="detail-zones" class="space-y-1"></div>
+                <div id="detail-chart-chips" class="flex flex-wrap gap-1.5"></div>
+                <div id="detail-chart" class="relative overflow-hidden"></div>
+                <div id="detail-map" class="hidden h-56 rounded-lg overflow-hidden border border-line"></div>
+            </div>
             </div>
             </div>
             </div>
@@ -664,6 +683,8 @@
                         <option value="normale" selected>Normal / Stable</option>
                         <option value="fatigue">Fatigué (Besoin de récup)</option>
                     </select>
+                    <!-- Proposition d'après la charge des 7 derniers jours (activités importées) -->
+                    <p id="gen-energy-hint" class="hidden mt-1.5 text-xs"></p>
                 </div>
 
                 <div>
@@ -787,6 +808,7 @@
                 upsert(values) { op = 'upsert'; payload = values; return query; },
                 delete() { op = 'delete'; return query; },
                 eq(col, value) { filters.push(row => String(row[col]) === String(value)); return query; },
+                gte(col, value) { filters.push(row => String(row[col]) >= String(value)); return query; },
                 order(col, opts = {}) { orderBy = { col, asc: opts.ascending !== false }; return query; },
                 single() { single = true; return query; },
                 limit(n) { max = n; return query; },
@@ -939,6 +961,7 @@
                 });
             }
             demoStore.workouts = rows;
+            demoStore.activities = await buildDemoActivities(rows);
 
             currentDateView = new Date();
             authScreen.classList.add('hidden');
@@ -1140,6 +1163,29 @@
             return parts.join(' · ');
         }
 
+        // Colonnes enregistrées d'une activité lue. Sans FC, charge estimée : minutes × (effort de la séance de la
+        // banque rattachée / 2, sinon 2), soit l'équivalent d'une zone de FC moyenne
+        function activityRow(a, workout) {
+            let load = a.load;
+            let estimated = false;
+            if (load === null) {
+                const bank = workout ? getBankMatch(workout) : null;
+                const perMinute = bank && bank.effort_score ? bank.effort_score / 2 : 2;
+                load = Math.round((a.timer_time || a.elapsed_time || 0) / 60 * perMinute);
+                estimated = true;
+            }
+            return {
+                sport: a.types[0] || null, fit_sport: a.fit_sport, fit_sub_sport: a.fit_sub_sport,
+                start_time: a.start_time, start_date_local: a.start_date_local, elapsed_time: a.elapsed_time,
+                timer_time: a.timer_time, distance: a.distance, total_ascent: a.total_ascent,
+                avg_heart_rate: a.avg_heart_rate, max_heart_rate: a.max_heart_rate, avg_speed: a.avg_speed,
+                max_speed: a.max_speed, avg_cadence: a.avg_cadence, avg_power: a.avg_power, calories: a.calories,
+                training_effect: a.training_effect, anaerobic_effect: a.anaerobic_effect,
+                time_in_zones: a.time_in_zones, zone_basis: a.zone_basis, load, load_estimated: estimated,
+                streams: a.streams, track: a.track, laps: a.laps
+            };
+        }
+
         // Lit les fichiers (.fit ou .zip), enregistre chaque activité et la rattache à une séance :
         // la première du même jour et du même sport encore libre (non réalisée d'abord), sinon une séance
         // « libre » créée et cochée. Une activité déjà importée (même heure de départ) est ignorée
@@ -1210,6 +1256,7 @@
                     .sort((p, q) => Number(p.completed) - Number(q.completed) || a.types.indexOf(p.type) - a.types.indexOf(q.type))[0];
                 if (match) {
                     workoutId = String(match.id);
+                    linkedWorkout = match;
                     if (!match.completed) await supabaseClient.from('workouts').update({ completed: true }).eq('id', match.id);
                     outcome = `séance « ${match.title} » cochée`;
                 } else if (type) {
@@ -1230,11 +1277,7 @@
                 if (workoutId) taken.add(workoutId);
 
                 const { error: insertError } = await supabaseClient.from('activities').insert([{
-                    user_id: user.id, workout_id: workoutId, sport: type, fit_sport: a.fit_sport, fit_sub_sport: a.fit_sub_sport,
-                    start_time: a.start_time, start_date_local: a.start_date_local, elapsed_time: a.elapsed_time,
-                    timer_time: a.timer_time, distance: a.distance, total_ascent: a.total_ascent,
-                    avg_heart_rate: a.avg_heart_rate, max_heart_rate: a.max_heart_rate, avg_speed: a.avg_speed,
-                    avg_power: a.avg_power, laps: a.laps
+                    user_id: user.id, workout_id: workoutId, ...activityRow(a, linkedWorkout)
                 }]);
                 if (insertError) {
                     addLine('fa-triangle-exclamation', warn, `${label} : erreur d'enregistrement (${insertError.message})`);
@@ -1272,17 +1315,594 @@
             if (files.length) importFitFiles(files);
         });
 
-        // Détail d'une séance : activité importée (résumé) et ses tours
+        // Démo : une sortie simulée pour chaque séance déjà réalisée (elle suit le plan, une répétition un peu trop
+        // lente pour montrer un verdict), sur une boucle du mont Royal, et 4 semaines d'historique pour la charge
+        async function buildDemoActivities(rows) {
+            const list = [];
+            const basis = { type: 'threshold', hr: 178 };
+            for (const w of rows.filter(r => r.completed)) {
+                const steps = await getWorkoutSteps(w);
+                const seq = plannedSequence(steps);
+                const bike = w.type === 'Vélo';
+                const points = [];
+                const laps = [];
+                let t = 0, hr = 100, dist = 0, effortCount = 0;
+                seq.forEach(({ step, index }) => {
+                    const level = step.type === 'rest' ? 1 : step.type === 'warmup' || step.type === 'cooldown' ? 1.5 : stepInfo(step).level;
+                    let speed = bike ? (18 + level * 4) / 3.6 : 1000 / (420 - level * 30);
+                    if (step.type === 'active' && level >= 4 && ++effortCount === 3) speed *= 0.94; // 3e effort trop lent
+                    const duration = step.distance_m ? step.distance_m / speed : (step.duration_sec || 60);
+                    const targetHr = 115 + level * 12;
+                    const lapStart = points.length;
+                    for (let s = 0; s < duration; s += 5) {
+                        hr += (targetHr - hr) * (1 - Math.exp(-5 / 30));
+                        const v = speed * (1 + 0.03 * Math.sin((t + s) / 9));
+                        dist += v * 5;
+                        points.push({ t: t + s, hr: Math.round(hr), speed: v, pwr: bike ? Math.round(60 + level * 45) : undefined, dist });
+                    }
+                    const lapPoints = points.slice(lapStart);
+                    laps.push({
+                        timer: Math.round(duration), elapsed: Math.round(duration), distance: Math.round(speed * duration),
+                        avg_speed: speed, avg_hr: Math.round(lapPoints.reduce((s, p) => s + p.hr, 0) / Math.max(1, lapPoints.length)),
+                        avg_power: bike ? Math.round(60 + level * 45) : null, step_index: index
+                    });
+                    t += duration;
+                });
+                const zones = [0, 0, 0, 0, 0];
+                points.forEach(p => { zones[window.FitParser.hrZone(p.hr, basis) - 1] += 5; });
+                const radius = dist / (2 * Math.PI) / 111320; // boucle d'une circonférence égale à la distance
+                const track = points.filter((_, i) => i % 6 === 0).map(p => {
+                    const angle = p.dist / dist * 2 * Math.PI;
+                    return [45.5048 + radius * Math.sin(angle), -73.5878 + radius * Math.cos(angle) / Math.cos(45.5 * Math.PI / 180)];
+                });
+                const streams = {
+                    t: points.map(p => p.t), hr: points.map(p => p.hr), speed: points.map(p => Math.round(p.speed * 100) / 100),
+                    alt: points.map(p => Math.round(120 + 40 * Math.sin(p.dist / dist * 2 * Math.PI)))
+                };
+                if (bike) streams.pwr = points.map(p => p.pwr);
+                list.push({
+                    id: `demo-act-${list.length + 1}`, user_id: DEMO_USER.id, workout_id: String(w.id), sport: w.type,
+                    start_time: `${w.date}T11:00:00.000Z`, start_date_local: w.date, elapsed_time: Math.round(t), timer_time: Math.round(t),
+                    distance: Math.round(dist), total_ascent: 80, avg_heart_rate: Math.round(points.reduce((s, p) => s + p.hr, 0) / points.length),
+                    max_heart_rate: Math.max(...points.map(p => p.hr)), avg_speed: dist / t, training_effect: 3.2, anaerobic_effect: 1.4,
+                    calories: Math.round(t / 60 * 11), time_in_zones: zones, zone_basis: basis,
+                    load: Math.round(zones.reduce((s, sec, i) => s + sec / 60 * (i + 1), 0)), load_estimated: false,
+                    streams, track, laps
+                });
+            }
+            // Historique des 4 semaines précédentes (charge seulement)
+            const monday = getMonday(new Date());
+            [[0, 80], [2, 120], [4, 70], [6, 110]].forEach(([day, load]) => {
+                for (let week = 1; week <= 4; week++) {
+                    const d = new Date(monday);
+                    d.setDate(monday.getDate() - 7 * week + day);
+                    list.push({ id: `demo-hist-${week}-${day}`, user_id: DEMO_USER.id, workout_id: null, sport: day % 4 ? 'Vélo' : 'Course',
+                        start_time: `${toDateStr(d)}T11:00:00.000Z`, start_date_local: toDateStr(d), timer_time: 3600, load: Math.round(load * (0.9 + week * 0.04)) });
+                }
+            });
+            return list;
+        }
+
+        // ==========================================
+        // CHARGE & FATIGUE
+        // ==========================================
+        // Activités des ~7 dernières semaines (résumé seulement), rechargées avec les séances
+        let activities = [];
+        async function fetchActivities() {
+            const from = new Date();
+            from.setDate(from.getDate() - 48);
+            const { data, error } = await supabaseClient.from('activities')
+                .select('id, workout_id, sport, start_date_local, load, load_estimated, timer_time, elapsed_time')
+                .gte('start_date_local', toDateStr(from));
+            activities = error ? [] : (data || []);
+        }
+
+        // Charge aiguë (7 derniers jours) et chronique (moyenne hebdo des 28 derniers jours), aujourd'hui inclus.
+        // Ratio < 0,8 sous-charge · ≤ 1,3 équilibré · ≤ 1,5 en hausse · au-delà risque de surcharge
+        function getLoadStatus() {
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            const daysAgo = n => { const d = new Date(today); d.setDate(d.getDate() - n); return toDateStr(d); };
+            const sumBetween = (from, to) => activities
+                .filter(a => a.start_date_local >= from && a.start_date_local <= to)
+                .reduce((sum, a) => sum + (a.load || 0), 0);
+            const acute = Math.round(sumBetween(daysAgo(6), daysAgo(0)));
+            const chronic = sumBetween(daysAgo(27), daysAgo(0)) / 4;
+            const first = activities.reduce((min, a) => (!min || a.start_date_local < min) ? a.start_date_local : min, null);
+            // Au moins 2 semaines d'historique pour que la moyenne ait un sens
+            const ratio = first && first <= daysAgo(13) && chronic > 0 ? acute / chronic : null;
+            const level = ratio === null ? null : ratio < 0.8 ? 'low' : ratio <= 1.3 ? 'good' : ratio <= 1.5 ? 'warn' : 'risk';
+            const monday = getMonday(today);
+            const weeks = [];
+            for (let i = 5; i >= 0; i--) {
+                const start = new Date(monday);
+                start.setDate(monday.getDate() - 7 * i);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                weeks.push({ start, load: Math.round(sumBetween(toDateStr(start), toDateStr(end))) });
+            }
+            return { acute, ratio, level, weeks, hasData: activities.length > 0 };
+        }
+
+        const LOAD_LEVELS = {
+            low: { icon: 'fa-arrow-trend-down', color: 'text-muted', label: 'Sous-charge' },
+            good: { icon: 'fa-circle-check', color: 'text-success', label: 'Charge équilibrée' },
+            warn: { icon: 'fa-triangle-exclamation', color: 'text-amber-600 dark:text-amber-400', label: 'Charge en hausse' },
+            risk: { icon: 'fa-circle-exclamation', color: 'text-red-500', label: 'Risque de surcharge' }
+        };
+        const formatRatio = r => r.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+        // Tuile du résumé de semaine : charge 7 jours, état (icône + mot) et barres des 6 dernières semaines
+        function loadTileHtml(tile, heading) {
+            const st = getLoadStatus();
+            if (!st.hasData) {
+                return `<div class="${tile}">${heading('fa-heart-pulse', 'Charge')}
+                    <p class="text-xs text-muted">Importe tes sorties (.FIT) pour suivre ta charge et ta fatigue.</p>
+                    <button type="button" onclick="openImportModal()" class="mt-1.5 text-xs font-semibold text-accent hover:underline"><i class="fa-solid fa-file-import mr-1"></i>Importer</button></div>`;
+            }
+            const max = Math.max(1, ...st.weeks.map(w => w.load));
+            const bars = st.weeks.map((w, i) => {
+                const label = `Semaine du ${w.start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : charge ${w.load}`;
+                const height = w.load > 0 ? Math.max(6, Math.round(w.load / max * 100)) : 0;
+                return `<div class="flex-1 max-w-[24px] h-full flex items-end" title="${label}" aria-label="${label}">
+                    <div class="w-full rounded-t ${i === st.weeks.length - 1 ? 'bg-accent' : 'bg-muted/35'}" style="height:${height}%"></div></div>`;
+            }).join('');
+            const lvl = st.level && LOAD_LEVELS[st.level];
+            const status = lvl
+                ? `<p class="text-xs font-semibold ${lvl.color} mt-0.5"><i class="fa-solid ${lvl.icon} mr-1"></i>${lvl.label}</p>
+                   <p class="text-[11px] text-muted">${formatRatio(st.ratio)}× ta moyenne de 4 semaines</p>`
+                : `<p class="text-[11px] text-muted mt-0.5">2 semaines d'historique pour juger ta fatigue</p>`;
+            return `<div class="${tile}">${heading('fa-heart-pulse', 'Charge 7 jours')}
+                <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${st.acute}</p>${status}
+                <div class="mt-2 h-8 flex items-end gap-[2px]" role="img" aria-label="Charge des 6 dernières semaines, semaine en cours en couleur">${bars}</div></div>`;
+        }
+
+        // Générateur : « Fatigué » proposé si la charge s'emballe (ratio > 1,5), simple avertissement au-delà de 1,3
+        function suggestEnergyFromLoad() {
+            const hint = document.getElementById('gen-energy-hint');
+            hint.classList.add('hidden');
+            const st = getLoadStatus();
+            if (st.level !== 'warn' && st.level !== 'risk') return;
+            const lvl = LOAD_LEVELS[st.level];
+            const select = document.getElementById('gen-energy');
+            if (st.level === 'risk' && select.value !== 'fatigue') {
+                select.value = 'fatigue';
+                select.dispatchEvent(new Event('change'));
+            }
+            hint.className = `mt-1.5 text-xs ${lvl.color}`;
+            hint.innerHTML = `<i class="fa-solid ${lvl.icon} mr-1"></i>`;
+            hint.append(st.level === 'risk'
+                ? `« Fatigué » proposé : ta charge des 7 derniers jours vaut ${formatRatio(st.ratio)}× ta moyenne de 4 semaines.`
+                : `Ta charge des 7 derniers jours vaut ${formatRatio(st.ratio)}× ta moyenne : évite « Pêche d'enfer ».`);
+        }
+
+        // ==========================================
+        // PRÉVU VS RÉALISÉ
+        // ==========================================
+        // Intensité visée -> zone de FC attendue (absente : pas de contrôle de FC, ex. force ou renfo)
+        const INTENSITY_HR_ZONE = {
+            zone1: 1, zone2: 2, zone3: 3, sweetspot: 3, zone4: 4, seuil: 4, ftp: 4, overunder: 4, vitesse_10k: 4,
+            zone5: 5, vitesse_5k: 5, vma: 5, pma: 5, sprint: 5
+        };
+
+        // Étapes prévues dans l'ordre d'exécution, avec leur numéro dans le fichier .FIT envoyé à la montre
+        // (même ordre que buildFitBytes : étapes d'une répétition, puis l'étape « répéter »)
+        function plannedSequence(steps) {
+            const seq = [];
+            let index = 0;
+            steps.forEach(s => {
+                if (s.type === 'repeat' && Array.isArray(s.steps) && s.steps.length > 0) {
+                    const first = index;
+                    index += s.steps.length + 1;
+                    const reps = parseInt(s.iterations) || 1;
+                    for (let rep = 1; rep <= reps; rep++) s.steps.forEach((child, j) => seq.push({ step: child, index: first + j, rep, reps }));
+                } else {
+                    seq.push({ step: s, index: index++ });
+                }
+            });
+            return seq;
+        }
+
+        // Tour <-> étape : par le numéro d'étape enregistré par la montre (séance suivie), sinon dans l'ordre
+        // si le nombre de tours correspond ; null si impossible (tours automatiques au km…)
+        function alignLaps(seq, laps) {
+            const indexed = laps.filter(l => l.step_index !== null && l.step_index !== undefined);
+            if (indexed.length > 0 && indexed.length >= laps.length * 0.8) {
+                const used = new Set();
+                return laps.map(lap => {
+                    const k = seq.findIndex((p, i) => !used.has(i) && p.index === lap.step_index);
+                    if (k < 0) return null;
+                    used.add(k);
+                    return { planned: seq[k], lap };
+                }).filter(Boolean);
+            }
+            if (laps.length === seq.length) return seq.map((planned, i) => ({ planned, lap: laps[i] }));
+            return null;
+        }
+
+        const VERDICTS = {
+            ok: { icon: 'fa-circle-check', color: 'text-success', label: 'Tenu' },
+            slow: { icon: 'fa-arrow-down', color: 'text-amber-600 dark:text-amber-400', label: 'Trop lent' },
+            fast: { icon: 'fa-arrow-up', color: 'text-amber-600 dark:text-amber-400', label: 'Trop rapide' },
+            easy: { icon: 'fa-arrow-down', color: 'text-amber-600 dark:text-amber-400', label: 'Trop facile' },
+            hard: { icon: 'fa-arrow-up', color: 'text-amber-600 dark:text-amber-400', label: 'Trop intense' },
+            short: { icon: 'fa-scissors', color: 'text-amber-600 dark:text-amber-400', label: 'Trop court' }
+        };
+
+        // Verdict d'un effort : volume (distance ou durée, -10 %) puis intensité (allure en course, sinon zone de FC
+        // à ±1 zone, seulement au-delà de 2 min car la FC met du temps à monter)
+        function judgeLap(w, step, lap, basis, zones) {
+            const time = lap.timer || lap.elapsed || 0;
+            if (step.distance_m && lap.distance) {
+                if (lap.distance < step.distance_m * 0.9 - 20) return 'short';
+            } else if (step.duration_sec && time < step.duration_sec * 0.9 - 10) {
+                return 'short';
+            }
+            const paceZone = stepPaceZone(w, step, zones);
+            if (paceZone && lap.avg_speed > 0) {
+                const pace = 1000 / lap.avg_speed;
+                const [fast, slow] = paceZone.range;
+                return pace > slow + 5 ? 'slow' : pace < fast - 5 ? 'fast' : 'ok';
+            }
+            const target = INTENSITY_HR_ZONE[step.intensity];
+            if (target && lap.avg_hr && basis && time >= 120) {
+                const zone = window.FitParser.hrZone(lap.avg_hr, basis);
+                return zone < target - 1 ? 'easy' : zone > target + 1 ? 'hard' : 'ok';
+            }
+            return 'ok';
+        }
+
+        const paceText = speed => {
+            const sec = Math.round(1000 / speed);
+            return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')} /km`;
+        };
+
+        async function renderComparison(w, a) {
+            const box = document.getElementById('detail-compare');
+            const steps = await getWorkoutSteps(w);
+            if (detailsModal.dataset.currentId != w.id || steps.length === 0) return;
+            const zones = w.type === 'Course' ? getRunningPaceZones() : null;
+            const pairs = alignLaps(plannedSequence(steps), Array.isArray(a.laps) ? a.laps : []);
+            const list = document.getElementById('detail-compare-list');
+            list.innerHTML = '';
+            const plannedMin = Math.round(stepsTotalSec(steps) / 60);
+            const doneMin = Math.round((a.timer_time || a.elapsed_time || 0) / 60);
+            const durations = `${formatDuration(doneMin)} réalisées pour ${formatDuration(plannedMin)} prévues`;
+            let score = null;
+            let summary;
+
+            const efforts = pairs ? pairs.filter(p => p.planned.step.type === 'active') : [];
+            if (efforts.length > 0) {
+                let held = 0;
+                efforts.forEach(({ planned, lap }) => {
+                    const s = planned.step;
+                    const verdict = VERDICTS[judgeLap(w, s, lap, a.zone_basis, zones)];
+                    if (verdict === VERDICTS.ok) held++;
+                    const li = document.createElement('li');
+                    li.className = 'flex flex-wrap items-baseline gap-x-2';
+                    const what = document.createElement('span');
+                    what.className = 'text-muted';
+                    what.textContent = `${planned.reps ? `${planned.rep}/${planned.reps} · ` : ''}${s.distance_m ? `${s.distance_m} m` : formatStepDuration(s.duration_sec)} ${stepInfo(s).label}`;
+                    const done = document.createElement('span');
+                    done.className = 'text-ink font-medium';
+                    const time = lap.timer || lap.elapsed;
+                    done.textContent = [
+                        time ? formatStepDuration(time) : '',
+                        w.type === 'Course' && lap.avg_speed > 0 ? paceText(lap.avg_speed) : '',
+                        lap.avg_hr ? `FC ${Math.round(lap.avg_hr)}` : ''
+                    ].filter(Boolean).join(' · ');
+                    const tag = document.createElement('span');
+                    tag.className = `ml-auto font-semibold ${verdict.color}`;
+                    tag.innerHTML = `<i class="fa-solid ${verdict.icon} mr-1"></i>`;
+                    tag.append(verdict.label);
+                    li.append(what, done, tag);
+                    list.appendChild(li);
+                });
+                score = Math.round(held / efforts.length * 10);
+                summary = `${held} effort${held > 1 ? 's' : ''} tenu${held > 1 ? 's' : ''} sur ${efforts.length} · ${durations}.`;
+            } else {
+                // Tours non alignables : jugement sur la durée totale
+                const ratio = plannedMin > 0 ? doneMin / plannedMin : null;
+                if (ratio !== null) score = ratio >= 0.9 && ratio <= 1.2 ? 10 : Math.max(0, Math.round(10 - Math.abs(1 - ratio) * 20));
+                summary = `${durations}. Pour un détail par intervalle, lance la séance .FIT de l'app sur ta montre : chaque étape devient un tour.`;
+            }
+            document.getElementById('detail-compare-summary').textContent = summary;
+            const scoreEl = document.getElementById('detail-compare-score');
+            if (score === null) {
+                scoreEl.textContent = '';
+            } else {
+                const lvl = score >= 8 ? VERDICTS.ok : score >= 5 ? { ...VERDICTS.slow, icon: 'fa-circle-half-stroke' } : { icon: 'fa-circle-xmark', color: 'text-red-500' };
+                const word = score >= 8 ? 'Séance réussie' : score >= 5 ? 'Partiellement tenue' : 'Loin du plan';
+                scoreEl.className = `text-xs font-semibold ${lvl.color}`;
+                scoreEl.innerHTML = `<i class="fa-solid ${lvl.icon} mr-1"></i>`;
+                scoreEl.append(`${score}/10 · ${word}`);
+            }
+            box.classList.remove('hidden');
+        }
+
+        // ==========================================
+        // SORTIE RÉALISÉE : ZONES, COURBES, CARTE
+        // ==========================================
+        // Courbes proposées ; l'allure (course) est inversée : plus rapide = plus haut
+        function chartMetrics(w) {
+            const clock = sec => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+            return [
+                { key: 'hr', label: 'FC', format: v => `${Math.round(v)} bpm`, tick: v => `${Math.round(v)}` },
+                w.type === 'Course'
+                    ? { key: 'speed', label: 'Allure', transform: v => v > 0.8 ? 1000 / v : null, invert: true, format: v => `${clock(v)} /km`, tick: clock }
+                    : { key: 'speed', label: 'Vitesse', transform: v => v * 3.6, format: v => `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km/h`, tick: v => `${Math.round(v)}` },
+                { key: 'pwr', label: 'Puissance', format: v => `${Math.round(v)} W`, tick: v => `${Math.round(v)}` },
+                { key: 'alt', label: 'Altitude', format: v => `${Math.round(v)} m`, tick: v => `${Math.round(v)}` },
+                { key: 'cad', label: 'Cadence', format: v => `${Math.round(v)} /min`, tick: v => `${Math.round(v)}` }
+            ];
+        }
+
+        let activityChart = null; // { a, w, metric } de la courbe affichée
+
+        function renderZones(a) {
+            const box = document.getElementById('detail-zones');
+            box.innerHTML = '';
+            const facts = [
+                a.training_effect ? `Effet aérobie ${a.training_effect.toLocaleString('fr-FR')}` : '',
+                a.anaerobic_effect ? `anaérobie ${a.anaerobic_effect.toLocaleString('fr-FR')}` : '',
+                a.total_ascent ? `D+ ${Math.round(a.total_ascent)} m` : '',
+                a.calories ? `${a.calories} kcal` : '',
+                a.load ? `charge ${Math.round(a.load)}${a.load_estimated ? ' (estimée)' : ''}` : ''
+            ].filter(Boolean);
+            if (facts.length) {
+                const p = document.createElement('p');
+                p.className = 'text-xs text-muted mb-2';
+                p.textContent = facts.join(' · ');
+                box.appendChild(p);
+            }
+            const zones = Array.isArray(a.time_in_zones) ? a.time_in_zones : null;
+            const total = zones ? zones.reduce((s, v) => s + v, 0) : 0;
+            if (!total) return;
+            const basis = a.zone_basis ? ` (base : ${a.zone_basis.type === 'threshold' ? 'FC seuil' : 'FC max'} ${a.zone_basis.hr})` : '';
+            const title = document.createElement('p');
+            title.className = 'text-xs text-muted';
+            title.textContent = `Temps par zone de FC${basis}`;
+            box.appendChild(title);
+            const max = Math.max(...zones);
+            [4, 3, 2, 1, 0].forEach(i => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-2 text-xs';
+                const pct = Math.round(zones[i] / total * 100);
+                row.title = `Zone ${i + 1} : ${formatStepDuration(Math.round(zones[i]))} (${pct} %)`;
+                row.innerHTML = `<span class="w-6 text-muted font-semibold">Z${i + 1}</span>
+                    <span class="flex-1 h-3"><span class="block h-full rounded-r bg-zone-${i + 1}" style="width:${zones[i] > 0 ? Math.max(1, zones[i] / max * 100) : 0}%"></span></span>
+                    <span class="w-20 text-right text-ink tabular-nums"></span>`;
+                row.lastElementChild.textContent = `${formatStepDuration(Math.round(zones[i]))} · ${pct} %`;
+                box.appendChild(row);
+            });
+        }
+
+        function renderChartChips(a, w) {
+            const chips = document.getElementById('detail-chart-chips');
+            chips.innerHTML = '';
+            const available = chartMetrics(w).filter(m => a.streams && Array.isArray(a.streams[m.key]));
+            if (available.length === 0) {
+                activityChart = null;
+                document.getElementById('detail-chart').innerHTML = '';
+                return;
+            }
+            if (!activityChart || activityChart.a !== a || !available.some(m => m.key === activityChart.metric.key)) {
+                activityChart = { a, w, metric: available[0] };
+            }
+            available.forEach(m => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                const on = m.key === activityChart.metric.key;
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                b.className = 'px-2.5 py-1 rounded-md border text-xs font-semibold transition ' + (on ? 'bg-accent border-accent text-white' : 'bg-surface border-line text-ink hover:border-accent/60');
+                b.textContent = m.label;
+                b.addEventListener('click', () => {
+                    activityChart.metric = m;
+                    renderChartChips(a, w);
+                });
+                chips.appendChild(b);
+            });
+            renderActivityChart();
+        }
+
+        // Courbe d'une mesure dans le temps : trait 2 px + voile 10 %, grille fine, repère et bulle au survol
+        function renderActivityChart() {
+            const box = document.getElementById('detail-chart');
+            box.innerHTML = '';
+            if (!activityChart) return;
+            const { a, metric } = activityChart;
+            const t = a.streams.t;
+            const values = a.streams[metric.key].map(v => v === null ? null : (metric.transform ? metric.transform(v) : v));
+            const sorted = values.filter(v => v !== null && Number.isFinite(v)).sort((x, y) => x - y);
+            if (sorted.length < 2) {
+                box.innerHTML = '<p class="text-xs text-muted">Pas assez de mesures pour tracer la courbe.</p>';
+                return;
+            }
+            // Bornes sur les percentiles 2-98 (arrêts et pics de GPS écartés), arrondies proprement
+            let lo = sorted[Math.floor(sorted.length * 0.02)];
+            let hi = sorted[Math.max(0, Math.ceil(sorted.length * 0.98) - 1)];
+            if (hi - lo < 1) { lo -= 1; hi += 1; }
+            const pad = (hi - lo) * 0.08;
+            lo -= pad;
+            hi += pad;
+
+            const W = Math.max(220, box.clientWidth || 320), H = 170;
+            const left = 42, right = 8, top = 8, bottom = 22;
+            const tMax = t[t.length - 1] || 1;
+            const x = sec => left + sec / tMax * (W - left - right);
+            const y = v => {
+                const r = (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo);
+                return top + (metric.invert ? r : 1 - r) * (H - top - bottom);
+            };
+            const NS = 'http://www.w3.org/2000/svg';
+            const el = (name, attrs) => {
+                const node = document.createElementNS(NS, name);
+                // Couleurs du thème (variables CSS) : seulement lues via style, pas via les attributs SVG
+                Object.entries(attrs).forEach(([k, v]) => {
+                    if ((k === 'fill' || k === 'stroke') && String(v).includes('var(')) node.style[k] = v;
+                    else node.setAttribute(k, v);
+                });
+                return node;
+            };
+            const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${metric.label} au fil de la sortie` });
+            svg.style.display = 'block';
+
+            // Grille : 3 graduations horizontales, temps en bas
+            for (let i = 0; i <= 2; i++) {
+                const v = lo + (hi - lo) * (0.15 + i * 0.35);
+                const yy = y(v);
+                svg.appendChild(el('line', { x1: left, x2: W - right, y1: yy, y2: yy, stroke: 'rgb(var(--line))', 'stroke-width': 1 }));
+                const label = el('text', { x: left - 6, y: yy + 3, 'text-anchor': 'end', 'font-size': 10, fill: 'rgb(var(--muted))' });
+                label.textContent = metric.tick(v);
+                svg.appendChild(label);
+            }
+            const stepMin = [5, 10, 15, 30, 60, 120].find(m => tMax / 60 / m <= 6) || 240;
+            for (let m = 0; m * 60 <= tMax; m += stepMin) {
+                const label = el('text', { x: x(m * 60), y: H - 6, 'text-anchor': m === 0 ? 'start' : 'middle', 'font-size': 10, fill: 'rgb(var(--muted))' });
+                label.textContent = m === 0 ? '0' : formatDuration(m);
+                svg.appendChild(label);
+            }
+
+            // Tracé par segments (une mesure manquante coupe la ligne)
+            let line = '', area = '', segStart = null, prevX = null;
+            values.forEach((v, i) => {
+                if (v === null || !Number.isFinite(v)) {
+                    if (segStart !== null) area += `L${prevX},${H - bottom}L${segStart},${H - bottom}Z`;
+                    segStart = null;
+                    return;
+                }
+                const px = x(t[i]).toFixed(1), py = y(v).toFixed(1);
+                if (segStart === null) {
+                    line += `M${px},${py}`;
+                    area += `M${px},${H - bottom}L${px},${py}`;
+                    segStart = px;
+                } else {
+                    line += `L${px},${py}`;
+                    area += `L${px},${py}`;
+                }
+                prevX = px;
+            });
+            if (segStart !== null) area += `L${prevX},${H - bottom}L${segStart},${H - bottom}Z`;
+            svg.appendChild(el('path', { d: area, fill: 'rgb(var(--accent) / 0.1)', stroke: 'none' }));
+            svg.appendChild(el('path', { d: line, fill: 'none', stroke: 'rgb(var(--accent))', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+            // Survol : repère vertical aimanté à la mesure la plus proche, point cerclé et bulle
+            const cross = el('line', { y1: top, y2: H - bottom, stroke: 'rgb(var(--muted))', 'stroke-width': 1, visibility: 'hidden' });
+            const dot = el('circle', { r: 4, fill: 'rgb(var(--accent))', stroke: 'rgb(var(--inset))', 'stroke-width': 2, visibility: 'hidden' });
+            svg.append(cross, dot);
+            const tip = document.createElement('div');
+            tip.className = 'hidden absolute top-0 pointer-events-none bg-surface border border-line rounded-md px-2 py-1 text-xs shadow-sm whitespace-nowrap';
+            box.append(svg, tip);
+
+            const hit = el('rect', { x: left, y: 0, width: W - left - right, height: H, fill: 'transparent' });
+            svg.appendChild(hit);
+            const show = clientX => {
+                const rect = svg.getBoundingClientRect();
+                const sec = (clientX - rect.left - left) / (W - left - right) * tMax;
+                let best = -1;
+                values.forEach((v, i) => {
+                    if (v !== null && Number.isFinite(v) && (best < 0 || Math.abs(t[i] - sec) < Math.abs(t[best] - sec))) best = i;
+                });
+                if (best < 0) return;
+                const px = x(t[best]), py = y(values[best]);
+                cross.setAttribute('x1', px);
+                cross.setAttribute('x2', px);
+                dot.setAttribute('cx', px);
+                dot.setAttribute('cy', py);
+                cross.setAttribute('visibility', 'visible');
+                dot.setAttribute('visibility', 'visible');
+                tip.innerHTML = '<strong class="text-ink"></strong> <span class="text-muted"></span>';
+                tip.firstChild.textContent = metric.format(values[best]);
+                tip.lastChild.textContent = formatStepDuration(Math.round(t[best]));
+                tip.classList.remove('hidden');
+                tip.style.left = `${Math.min(W - tip.offsetWidth - 2, Math.max(0, px - tip.offsetWidth / 2))}px`;
+            };
+            const hide = () => {
+                cross.setAttribute('visibility', 'hidden');
+                dot.setAttribute('visibility', 'hidden');
+                tip.classList.add('hidden');
+            };
+            hit.addEventListener('pointermove', e => show(e.clientX));
+            hit.addEventListener('pointerdown', e => show(e.clientX));
+            hit.addEventListener('pointerleave', hide);
+        }
+
+        // Courbe redessinée à la largeur réelle de son cadre (passage en 2 colonnes, rotation, redimensionnement)
+        let chartWidth = 0;
+        new ResizeObserver(entries => {
+            const width = Math.round(entries[0].contentRect.width);
+            if (width === chartWidth) return;
+            chartWidth = width;
+            if (activityChart && width > 0) renderActivityChart();
+        }).observe(document.getElementById('detail-chart'));
+
+        // Carte : Leaflet chargé à la demande (version figée + empreinte d'intégrité), fond OpenStreetMap
+        let leafletLoading = null;
+        let detailMap = null;
+        function loadLeaflet() {
+            if (window.L) return Promise.resolve();
+            if (!leafletLoading) {
+                leafletLoading = new Promise((resolve, reject) => {
+                    const css = document.createElement('link');
+                    css.rel = 'stylesheet';
+                    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+                    css.integrity = 'sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb';
+                    css.crossOrigin = 'anonymous';
+                    document.head.appendChild(css);
+                    const js = document.createElement('script');
+                    js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+                    js.integrity = 'sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO';
+                    js.crossOrigin = 'anonymous';
+                    js.onload = resolve;
+                    js.onerror = () => { leafletLoading = null; reject(new Error('Carte indisponible')); };
+                    document.head.appendChild(js);
+                });
+            }
+            return leafletLoading;
+        }
+
+        async function renderActivityMap(a, w) {
+            const el = document.getElementById('detail-map');
+            if (detailMap) { detailMap.remove(); detailMap = null; }
+            if (!Array.isArray(a.track) || a.track.length < 2) { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            try { await loadLeaflet(); } catch (e) { el.classList.add('hidden'); return; }
+            if (detailsModal.dataset.currentId != w.id) return;
+            if (detailMap) detailMap.remove();
+            detailMap = L.map(el, { scrollWheelZoom: false });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(detailMap);
+            const accent = `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()})`;
+            const route = L.polyline(a.track, { color: accent, weight: 3 }).addTo(detailMap);
+            L.circleMarker(a.track[0], { radius: 6, color: '#fff', weight: 2, fillColor: '#22c55e', fillOpacity: 1 }).bindTooltip('Départ').addTo(detailMap);
+            L.circleMarker(a.track[a.track.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#ef4444', fillOpacity: 1 }).bindTooltip('Arrivée').addTo(detailMap);
+            detailMap.fitBounds(route.getBounds(), { padding: [12, 12] });
+            setTimeout(() => detailMap && detailMap.invalidateSize(), 60);
+        }
+
+        // Détail d'une séance : activité importée (résumé, tours), prévu vs réalisé, zones, courbes et carte
         async function loadDetailActivity(w) {
             const box = document.getElementById('detail-done');
             const lapsBox = document.getElementById('detail-laps');
-            box.classList.add('hidden');
-            lapsBox.classList.add('hidden');
+            ['detail-done', 'detail-laps', 'detail-compare', 'detail-activity'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            if (detailMap) { detailMap.remove(); detailMap = null; }
             const { data, error } = await supabaseClient.from('activities').select('*').eq('workout_id', String(w.id)).limit(1);
             if (error || !data || !data[0] || detailsModal.dataset.currentId != w.id) return;
             const a = data[0];
             document.getElementById('detail-done-text').textContent = 'Réalisé : ' + (describeActivity(a, w.type) || 'activité importée');
             box.classList.remove('hidden');
+
+            const hasDetail = (Array.isArray(a.time_in_zones) && a.time_in_zones.some(v => v > 0)) || a.streams || a.track || a.training_effect;
+            if (hasDetail) {
+                document.getElementById('detail-activity').classList.remove('hidden');
+                renderZones(a);
+                updateDetailLayout();
+                renderChartChips(a, w);
+                renderActivityMap(a, w);
+            }
+            if (w.type !== 'Repos') await renderComparison(w, a);
+            if (detailsModal.dataset.currentId == w.id) updateDetailLayout();
 
             const laps = Array.isArray(a.laps) ? a.laps : [];
             if (laps.length < 2) return;
@@ -1311,6 +1931,7 @@
 
             if (!error) {
                 workouts = data || [];
+                await fetchActivities();
                 renderCalendar();
                 // Durées et efforts de la banque pour les cartes du calendrier et le résumé (en cache après le 1er chargement)
                 const types = [...new Set(workouts.map(w => w.type).filter(t => t && t !== 'Repos'))];
@@ -1652,7 +2273,8 @@
                     ${heading('fa-chart-pie', 'Sports')}
                     <div class="space-y-1">${sportRows || '<p class="text-xs text-muted">Aucune séance</p>'}</div>
                 </div>
-                <div class="${tile}" id="week-summary-next">
+                ${loadTileHtml(tile, heading)}
+                <div class="${tile} col-span-2 md:col-span-1" id="week-summary-next">
                     ${heading('fa-forward', 'Prochaine séance')}
                 </div>`;
 
@@ -2233,6 +2855,7 @@
         }
 
         function openGeneratorModal() {
+            suggestEnergyFromLoad();
             generatorModal.classList.remove('hidden');
         }
         function closeGeneratorModal() {
