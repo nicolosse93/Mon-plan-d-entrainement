@@ -26,7 +26,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script>
         // Couleurs de l'interface = variables CSS (une valeur par thème, voir <style>)
         const themeVar = name => `rgb(var(${name}) / <alpha-value>)`;
@@ -119,9 +119,9 @@
         .gen-stepper input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
     <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.0/dist/umd/supabase.js" integrity="sha384-xPW3QHswsICVC2mW6BFNwMbhpLkbZ133fKOhxNx3QGGgAOJfL3O9t8r2aWn1aez6" crossorigin="anonymous"></script>
     <!-- FontAwesome pour les icônes -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous">
 </head>
 <body class="min-h-screen flex flex-col font-sans bg-page text-ink">
 
@@ -184,6 +184,10 @@
             <button onclick="openProfileModal()" title="Profil & Garmin" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
                 <i class="fa-solid fa-user-gear text-accent"></i>
                 <span class="hidden lg:inline">Profil</span>
+            </button>
+            <button onclick="openImportModal()" title="Importer mes activités (.FIT de la montre)" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-import text-success"></i>
+                <span class="hidden lg:inline">Importer</span>
             </button>
             <button onclick="openExportModal()" title="Exporter vers Garmin (.FIT)" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
                 <i class="fa-solid fa-file-export"></i>
@@ -337,9 +341,10 @@
             </div>
             <form id="workout-form" class="flex-1 min-h-0 flex flex-col">
                 <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Titre de la séance</label>
-                    <input type="text" id="w-title" required placeholder="Ex: 10km Endurance Fondamentale" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
+                <!-- Choix du mode : séance tirée de la banque (mêmes règles que le générateur) ou saisie à la main -->
+                <div class="grid grid-cols-2 gap-1 p-1 bg-inset border border-line rounded-lg">
+                    <button type="button" data-mode="bank" class="w-mode-btn py-2 rounded-md text-sm font-semibold transition"><i class="fa-solid fa-shuffle mr-1.5"></i>Depuis la banque</button>
+                    <button type="button" data-mode="manual" class="w-mode-btn py-2 rounded-md text-sm font-semibold transition"><i class="fa-solid fa-pen mr-1.5"></i>Manuel</button>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -360,28 +365,115 @@
                     </div>
                 </div>
 
-                <div class="space-y-3 pt-2 border-t border-line">
-                    <h4 class="text-sm font-semibold text-accent"><i class="fa-solid fa-list-check mr-1"></i> Blocs de la séance</h4>
-                    <div>
-                        <label class="block text-xs text-muted mb-1">Échauffement (Warmup)</label>
-                        <input type="text" id="w-warmup" placeholder="Ex: 10 min trot" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
+                <!-- Mode banque : rôle, énergie et objectif comme dans le générateur de semaine -->
+                <div id="w-bank-section" class="space-y-3 pt-2 border-t border-line">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Type de séance</label>
+                            <select id="w-role" class="w-full bg-inset border border-line rounded-lg px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-accent">
+                                <option value="cle">Séance clé</option>
+                                <option value="secondaire">Séance secondaire</option>
+                                <option value="endurance">Endurance facile</option>
+                                <option value="longue">Sortie longue</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Énergie</label>
+                            <select id="w-energy" class="w-full bg-inset border border-line rounded-lg px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-accent">
+                                <option value="haute">Pêche d'enfer</option>
+                                <option value="normale">Normal / Stable</option>
+                                <option value="fatigue">Fatigué</option>
+                            </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs text-muted mb-1">Bloc Principal / Intervalles</label>
-                        <textarea id="w-main" rows="2" placeholder="Ex: 5x (400m vite)" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent"></textarea>
+                        <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Objectif</label>
+                        <select id="w-goal" class="w-full bg-inset border border-line rounded-lg px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-accent"></select>
+                    </div>
+                    <div class="rounded-lg border border-line bg-inset p-3 space-y-1.5">
+                        <p id="w-proposal-rule" class="text-[11px] uppercase tracking-wider text-muted font-semibold"></p>
+                        <p id="w-proposal-title" class="font-bold text-ink leading-tight"></p>
+                        <p id="w-proposal-meta" class="text-xs text-muted"></p>
+                        <p id="w-proposal-main" class="text-sm text-ink"></p>
+                    </div>
+                    <button type="button" id="w-reroll" class="w-full bg-raised hover:bg-raised-hover disabled:opacity-40 disabled:cursor-not-allowed text-ink font-semibold py-2 rounded-lg transition text-sm"><i class="fa-solid fa-rotate mr-1.5"></i>Autre proposition</button>
+                </div>
+
+                <!-- Mode manuel : texte libre dans un format que l'export Garmin sait lire, avec aperçu en direct -->
+                <div id="w-manual-section" class="space-y-3 pt-2 border-t border-line">
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Titre de la séance</label>
+                        <input type="text" id="w-title" placeholder="Ex: VMA 10x 400m" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
+                    </div>
+                    <details class="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-ink">
+                        <summary class="cursor-pointer font-semibold text-accent"><i class="fa-regular fa-circle-question mr-1"></i>Comment l'écrire pour Garmin</summary>
+                        <ul class="mt-2 space-y-1.5 list-disc pl-4">
+                            <li><strong>Un bloc par ligne</strong> (ou séparés par « + » ou « puis »).</li>
+                            <li><strong>Durée</strong> : <code>45 min</code>, <code>1h10</code>, <code>3 min 30</code>, <code>30 s</code>. <strong>Distance</strong> : <code>800m</code>, <code>2 km</code>.</li>
+                            <li><strong>Répétitions</strong> : <code>6x 3 min Z5, récup 2 min</code> ou <code>10x 400m VMA / 1 min 15</code>.</li>
+                            <li><strong>Intensité</strong> : <code>Z1</code> à <code>Z5</code>, <code>seuil</code>, <code>tempo</code>, <code>VMA</code>, <code>5K</code>, <code>10K</code>, <code>sprint</code>, <code>force</code> (côtes, frein) ; vélo : <code>sweetspot</code>, <code>FTP</code>, <code>PMA</code>.</li>
+                            <li>Échauffement et retour au calme : une durée suffit (<code>15 min</code>).</li>
+                        </ul>
+                        <p class="mt-2 text-muted">Exemple de bloc principal :<br><code>20 min Z2<br>6x 3 min Z5, récup 2 min<br>10 min tempo</code></p>
+                    </details>
+                    <div>
+                        <label class="block text-xs text-muted mb-1">Échauffement</label>
+                        <input type="text" id="w-warmup" placeholder="Ex: 15 min" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
                     </div>
                     <div>
-                        <label class="block text-xs text-muted mb-1">Retour au calme (Cooldown)</label>
-                        <input type="text" id="w-cooldown" placeholder="Ex: 5 min slow jog" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
+                        <label class="block text-xs text-muted mb-1">Bloc principal</label>
+                        <textarea id="w-main" rows="3" placeholder="Ex: 6x 3 min Z5, récup 2 min" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-muted mb-1">Retour au calme</label>
+                        <input type="text" id="w-cooldown" placeholder="Ex: 10 min" class="w-full bg-inset border border-line rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-accent">
+                    </div>
+                    <div class="rounded-lg border border-line bg-inset p-3">
+                        <p class="text-[11px] uppercase tracking-wider text-muted font-semibold mb-1.5"><i class="fa-solid fa-stopwatch mr-1"></i>Ce que la montre recevra</p>
+                        <ul id="w-preview" class="space-y-1 text-xs text-ink"></ul>
+                        <ul id="w-preview-warnings" class="mt-2 space-y-1 text-xs text-amber-600 dark:text-amber-400"></ul>
                     </div>
                 </div>
                 </div>
 
                 <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
                     <button type="button" onclick="closeModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Annuler</button>
-                    <button type="submit" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm">Enregistrer</button>
+                    <button type="submit" id="w-save" class="flex-1 bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition text-sm">Enregistrer</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL IMPORT DES ACTIVITÉS (.FIT de la montre ou .zip de Garmin Connect) -->
+    <div id="import-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-surface border border-line w-full max-w-lg rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
+                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold truncate"><i class="fa-solid fa-file-import text-success mr-2"></i>Importer mes activités</h3>
+                <button type="button" onclick="closeImportModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
+                <p class="text-sm text-muted">Chaque sortie coche la séance prévue le même jour pour le même sport. Une sortie non prévue est ajoutée au calendrier.</p>
+                <label id="import-drop" for="import-input" class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line hover:border-accent/60 bg-inset px-4 py-8 text-center cursor-pointer transition">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-accent"></i>
+                    <span class="font-semibold text-ink">Glisse tes fichiers .FIT ou .zip ici</span>
+                    <span class="text-xs text-muted">ou clique pour les choisir (plusieurs à la fois possible)</span>
+                </label>
+                <input type="file" id="import-input" accept=".fit,.zip" multiple class="hidden">
+                <details class="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-ink">
+                    <summary class="cursor-pointer font-semibold text-accent"><i class="fa-regular fa-circle-question mr-1"></i>Où trouver mes fichiers ?</summary>
+                    <ul class="mt-2 space-y-1.5 list-disc pl-4">
+                        <li><strong>Garmin Connect sur ordinateur</strong> (connect.garmin.com, pas l'appli mobile) : ouvre l'activité, clique sur l'engrenage en haut à droite, puis <strong>« Exporter le fichier d'origine »</strong>. Tu obtiens un .zip : glisse-le tel quel.</li>
+                        <li><strong>Montre branchée en USB</strong> : dossier <code>GARMIN/Activity</code>, un fichier .fit par sortie. Tu peux en glisser plusieurs d'un coup.</li>
+                        <li>Un fichier déjà importé est reconnu et ignoré : pas de doublon.</li>
+                    </ul>
+                </details>
+                <ul id="import-results" class="hidden space-y-1.5 text-sm"></ul>
+            </div>
+            <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
+                <button type="button" onclick="closeImportModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Fermer</button>
+            </div>
         </div>
     </div>
 
@@ -396,6 +488,12 @@
                     <span id="detail-date" class="text-xs text-muted"></span>
                     <span class="text-xs text-muted"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
                     <span id="detail-effort-wrap" class="hidden text-xs text-muted"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
+                    <!-- Activité de la montre (fichier .FIT importé) rattachée à la séance -->
+                    <span id="detail-done" class="hidden basis-full text-xs font-semibold text-success"><i class="fa-solid fa-circle-check mr-1"></i><span id="detail-done-text"></span></span>
+                    <details id="detail-laps" class="hidden basis-full text-xs">
+                        <summary class="cursor-pointer text-muted hover:text-ink"><span id="detail-laps-count"></span></summary>
+                        <ol id="detail-laps-list" class="mt-1.5 space-y-0.5 text-ink tabular-nums"></ol>
+                    </details>
                 </div>
                 <button type="button" onclick="closeDetailsModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -635,6 +733,7 @@
     <!-- Encodeur FIT (expose window.FitModule). ?v= : à incrémenter quand fitBuilder.js change, pour contourner
          le cache du navigateur (GitHub Pages garde les fichiers 10 min) -->
     <script src="fitBuilder.js?v=3"></script>
+    <script src="fitParser.js?v=1"></script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5GrtRyqg1LV-wDZpFUxEnw_FHTDWbux';
@@ -647,22 +746,24 @@
         // ==========================================
         let demoMode = false;
         const DEMO_USER = { id: 'demo', email: 'Mode démo' };
-        const DEMO_TABLES = ['workouts', 'user_profiles'];
-        const demoStore = { workouts: [], user_profiles: [] };
+        const DEMO_TABLES = ['workouts', 'user_profiles', 'activities'];
+        const demoStore = { workouts: [], user_profiles: [], activities: [] };
         let demoSeq = 0;
 
         // Mini constructeur de requêtes en mémoire : couvre les appels de l'app (select, order, eq, single,
         // insert, update, upsert, delete) avec la même forme de réponse { data, error } que Supabase
         function demoQuery(table) {
             const store = demoStore[table];
-            let op = 'select', payload = null, single = false, orderBy = null;
+            let op = 'select', payload = null, single = false, orderBy = null, max = null;
             const filters = [];
             const ok = data => ({ data, error: null });
             const run = () => {
                 const match = row => filters.every(f => f(row));
                 if (op === 'insert') {
-                    (Array.isArray(payload) ? payload : [payload]).forEach(row => store.push({ id: `demo-${++demoSeq}`, ...row }));
-                    return ok(null);
+                    // Lignes créées renvoyées, comme insert(...).select()
+                    const added = (Array.isArray(payload) ? payload : [payload]).map(row => ({ id: `demo-${++demoSeq}`, ...row }));
+                    store.push(...added);
+                    return ok(added.map(row => ({ ...row })));
                 }
                 if (op === 'update') { store.filter(match).forEach(row => Object.assign(row, payload)); return ok(null); }
                 if (op === 'delete') {
@@ -677,7 +778,7 @@
                 const rows = store.filter(match).map(row => ({ ...row }));
                 if (orderBy) rows.sort((a, b) => String(a[orderBy.col]).localeCompare(String(b[orderBy.col])) * (orderBy.asc ? 1 : -1));
                 if (single) return rows.length ? ok(rows[0]) : { data: null, error: { message: 'Aucune ligne' } };
-                return ok(rows);
+                return ok(max === null ? rows : rows.slice(0, max));
             };
             const query = {
                 select() { return query; },
@@ -688,6 +789,7 @@
                 eq(col, value) { filters.push(row => String(row[col]) === String(value)); return query; },
                 order(col, opts = {}) { orderBy = { col, asc: opts.ascending !== false }; return query; },
                 single() { single = true; return query; },
+                limit(n) { max = n; return query; },
                 then(resolve, reject) { return Promise.resolve().then(run).then(resolve, reject); }
             };
             return query;
@@ -852,6 +954,7 @@
             demoMode = false;
             demoStore.workouts = [];
             demoStore.user_profiles = [];
+            demoStore.activities = [];
             workouts = [];
             userProfile = {};
             document.getElementById('profile-form').reset();
@@ -1006,6 +1109,198 @@
         }
 
         // ==========================================
+        // IMPORT DES ACTIVITÉS (.FIT de la montre)
+        // ==========================================
+        function openImportModal() {
+            document.getElementById('import-results').classList.add('hidden');
+            document.getElementById('import-results').innerHTML = '';
+            document.getElementById('import-modal').classList.remove('hidden');
+        }
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        // "10,2 km · 52 min · 5:06 /km · FC moy 148 · 210 W" (allure en course, vitesse ailleurs, rien en renfo)
+        function describeActivity(a, type) {
+            const parts = [];
+            const km = n => (n / 1000).toLocaleString('fr-FR', { maximumFractionDigits: n < 10000 ? 2 : 1 });
+            if (a.distance > 0) parts.push(`${km(a.distance)} km`);
+            const sec = a.timer_time || a.elapsed_time;
+            if (sec > 0) parts.push(sec < 600 ? formatStepDuration(sec) : formatDuration(Math.round(sec / 60)));
+            if (a.avg_speed > 0 && type !== 'Renfo') {
+                if (type === 'Course') {
+                    const secPerKm = Math.round(1000 / a.avg_speed);
+                    parts.push(`${Math.floor(secPerKm / 60)}:${String(secPerKm % 60).padStart(2, '0')} /km`);
+                } else {
+                    parts.push(`${(a.avg_speed * 3.6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km/h`);
+                }
+            }
+            if (a.avg_heart_rate) parts.push(`FC moy ${Math.round(a.avg_heart_rate)}`);
+            if (a.avg_power) parts.push(`${Math.round(a.avg_power)} W`);
+            return parts.join(' · ');
+        }
+
+        // Lit les fichiers (.fit ou .zip), enregistre chaque activité et la rattache à une séance :
+        // la première du même jour et du même sport encore libre (non réalisée d'abord), sinon une séance
+        // « libre » créée et cochée. Une activité déjà importée (même heure de départ) est ignorée
+        async function importFitFiles(fileList) {
+            const results = document.getElementById('import-results');
+            results.classList.remove('hidden');
+            results.innerHTML = '';
+            const addLine = (icon, color, text) => {
+                const li = document.createElement('li');
+                li.className = 'flex gap-2';
+                li.innerHTML = `<i class="fa-solid ${icon} ${color} mt-0.5 shrink-0"></i><span></span>`;
+                li.querySelector('span').textContent = text;
+                results.appendChild(li);
+            };
+            const warn = 'text-amber-600 dark:text-amber-400';
+
+            const parsed = [];
+            // FC seuil du profil ("178 bpm") : base des zones si la montre n'en fournit pas
+            const thresholdHr = parseInt(userProfile && userProfile.threshold_hr) || null;
+            for (const file of fileList) {
+                try {
+                    const buffer = await file.arrayBuffer();
+                    const fits = /\.zip$/i.test(file.name) ? await window.FitParser.unzipFitFiles(buffer) : [{ name: file.name, buffer }];
+                    if (fits.length === 0) throw new Error('aucun fichier .fit dans cette archive');
+                    fits.forEach(f => window.FitParser.parseActivities(f.buffer, { thresholdHr }).forEach(a => parsed.push(a)));
+                } catch (e) {
+                    addLine('fa-triangle-exclamation', warn, `${file.name} : ${e.message}`);
+                }
+            }
+            if (parsed.length === 0) return;
+
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { data: existing, error } = await supabaseClient.from('activities').select('id, start_time, workout_id');
+            if (error) {
+                addLine('fa-triangle-exclamation', warn, "Import impossible : la table des activités n'existe pas encore dans Supabase (colle sql/activities.sql dans l'éditeur SQL).");
+                return;
+            }
+            const known = new Map((existing || []).map(a => [new Date(a.start_time).getTime(), a]));
+            const taken = new Set((existing || []).map(a => a.workout_id).filter(Boolean).map(String));
+            const beforeIds = new Set(workouts.map(w => String(w.id)));
+            let lastDate = null;
+
+            parsed.sort((x, y) => x.start_time.localeCompare(y.start_time));
+            for (const a of parsed) {
+                const type = a.types[0] || null;
+                const [y, m, d] = a.start_date_local.split('-');
+                const day = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+                const label = `${type ? sportLabel(type) : 'Activité'} du ${day}`;
+                const summary = describeActivity(a, type);
+                const already = known.get(new Date(a.start_time).getTime());
+                if (already) {
+                    // Déjà importée : données mises à jour (courbes, zones…), rattachement inchangé
+                    const linked = workouts.find(w => String(w.id) === String(already.workout_id));
+                    const { error: updateError } = await supabaseClient.from('activities')
+                        .update(activityRow(a, linked)).eq('id', already.id);
+                    addLine(updateError ? 'fa-triangle-exclamation' : 'fa-clone', updateError ? warn : 'text-muted',
+                        `${label} : déjà importée` + (updateError ? ` (mise à jour impossible : ${updateError.message})` : ', données mises à jour'));
+                    if (!updateError) lastDate = a.start_date_local;
+                    continue;
+                }
+                known.set(new Date(a.start_time).getTime(), { workout_id: null });
+
+                let workoutId = null;
+                let linkedWorkout = null;
+                let outcome;
+                const match = workouts
+                    .filter(w => w.date === a.start_date_local && a.types.includes(w.type) && !taken.has(String(w.id)))
+                    .sort((p, q) => Number(p.completed) - Number(q.completed) || a.types.indexOf(p.type) - a.types.indexOf(q.type))[0];
+                if (match) {
+                    workoutId = String(match.id);
+                    if (!match.completed) await supabaseClient.from('workouts').update({ completed: true }).eq('id', match.id);
+                    outcome = `séance « ${match.title} » cochée`;
+                } else if (type) {
+                    const title = `${sportLabel(type)} libre` + (a.distance > 0 ? ` ${(a.distance / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km` : '');
+                    const { data: created, error: createError } = await supabaseClient.from('workouts').insert([{
+                        title, date: a.start_date_local, type, warmup: '', main_block: summary, cooldown: '',
+                        completed: true, user_id: user.id
+                    }]).select();
+                    if (!createError && created && created[0]) {
+                        workoutId = String(created[0].id);
+                        outcome = 'ajoutée au calendrier (non prévue)';
+                    } else {
+                        outcome = "enregistrée, mais l'ajout au calendrier a échoué";
+                    }
+                } else {
+                    outcome = "sport non géré par l'app : enregistrée sans séance";
+                }
+                if (workoutId) taken.add(workoutId);
+
+                const { error: insertError } = await supabaseClient.from('activities').insert([{
+                    user_id: user.id, workout_id: workoutId, sport: type, fit_sport: a.fit_sport, fit_sub_sport: a.fit_sub_sport,
+                    start_time: a.start_time, start_date_local: a.start_date_local, elapsed_time: a.elapsed_time,
+                    timer_time: a.timer_time, distance: a.distance, total_ascent: a.total_ascent,
+                    avg_heart_rate: a.avg_heart_rate, max_heart_rate: a.max_heart_rate, avg_speed: a.avg_speed,
+                    avg_power: a.avg_power, laps: a.laps
+                }]);
+                if (insertError) {
+                    addLine('fa-triangle-exclamation', warn, `${label} : erreur d'enregistrement (${insertError.message})`);
+                    continue;
+                }
+                addLine('fa-circle-check', 'text-success', `${label}${summary ? ` (${summary})` : ''} : ${outcome}`);
+                lastDate = a.start_date_local;
+            }
+            if (lastDate) await refreshAndHighlightNew(beforeIds, lastDate);
+        }
+
+        document.getElementById('import-input').addEventListener('change', (e) => {
+            const files = [...e.target.files];
+            e.target.value = ''; // permet de réimporter le même fichier
+            if (files.length) importFitFiles(files);
+        });
+
+        // Glisser-déposer de fichiers : sur la zone de la fenêtre, ou n'importe où sur l'app (ouvre la fenêtre)
+        const importDrop = document.getElementById('import-drop');
+        const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+        window.addEventListener('dragover', (e) => {
+            if (!hasFiles(e) || appContent.classList.contains('hidden')) return;
+            e.preventDefault();
+            importDrop.classList.add('border-accent');
+        });
+        window.addEventListener('dragleave', (e) => {
+            if (!e.relatedTarget) importDrop.classList.remove('border-accent');
+        });
+        window.addEventListener('drop', (e) => {
+            if (!hasFiles(e) || appContent.classList.contains('hidden')) return;
+            e.preventDefault();
+            importDrop.classList.remove('border-accent');
+            const files = [...e.dataTransfer.files].filter(f => /\.(fit|zip)$/i.test(f.name));
+            if (document.getElementById('import-modal').classList.contains('hidden')) openImportModal();
+            if (files.length) importFitFiles(files);
+        });
+
+        // Détail d'une séance : activité importée (résumé) et ses tours
+        async function loadDetailActivity(w) {
+            const box = document.getElementById('detail-done');
+            const lapsBox = document.getElementById('detail-laps');
+            box.classList.add('hidden');
+            lapsBox.classList.add('hidden');
+            const { data, error } = await supabaseClient.from('activities').select('*').eq('workout_id', String(w.id)).limit(1);
+            if (error || !data || !data[0] || detailsModal.dataset.currentId != w.id) return;
+            const a = data[0];
+            document.getElementById('detail-done-text').textContent = 'Réalisé : ' + (describeActivity(a, w.type) || 'activité importée');
+            box.classList.remove('hidden');
+
+            const laps = Array.isArray(a.laps) ? a.laps : [];
+            if (laps.length < 2) return;
+            document.getElementById('detail-laps-count').textContent = `Voir les ${laps.length} tours`;
+            const list = document.getElementById('detail-laps-list');
+            list.innerHTML = '';
+            laps.forEach((lap, i) => {
+                const li = document.createElement('li');
+                li.textContent = `${i + 1}. ` + describeActivity({
+                    distance: lap.distance, timer_time: lap.timer, elapsed_time: lap.elapsed, avg_speed: lap.avg_speed,
+                    avg_heart_rate: lap.avg_hr, avg_power: lap.avg_power
+                }, w.type);
+                list.appendChild(li);
+            });
+            lapsBox.classList.remove('hidden');
+        }
+
+        // ==========================================
         // GESTION DES ENTRAÎNEMENTS & CALENDRIER
         // ==========================================
         async function fetchWorkouts() {
@@ -1114,8 +1409,15 @@
         function getWorkoutMinutes(w) {
             const bank = getBankMatch(w);
             if (bank && bank.duration_minutes) return bank.duration_minutes;
-            const sec = parseDurationSec(w.warmup, 0) + parseDurationSec(w.main_block, 0) + parseDurationSec(w.cooldown, 0);
-            return Math.round(sec / 60);
+            return Math.round(estimateTextSec(w) / 60);
+        }
+
+        // Durée (s) d'une séance hors banque : étapes lues dans le texte si le bloc principal est compris,
+        // sinon somme des durées trouvées dans les trois blocs
+        function estimateTextSec(w) {
+            const parsed = parseWorkoutText(w);
+            if (parsed.recognized) return stepsTotalSec(parsed.steps);
+            return parseDurationSec(w.warmup, 0) + parseDurationSec(w.main_block, 0) + parseDurationSec(w.cooldown, 0);
         }
 
         function toDateStr(d) {
@@ -1437,14 +1739,20 @@
         }
 
         function openModal() {
-            document.getElementById('w-date').valueAsDate = new Date();
-            document.getElementById('workout-form').reset();
-            workoutModal.classList.remove('hidden');
+            const d = new Date();
+            openModalForDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
         }
 
+        // reset() avant de poser la date : sinon il l'efface. Objectif et énergie repris du générateur de semaine
         function openModalForDate(dateStr) {
-            document.getElementById('w-date').value = dateStr;
             document.getElementById('workout-form').reset();
+            document.getElementById('w-date').value = dateStr;
+            document.getElementById('w-goal').value = goalSelect.value;
+            document.getElementById('w-energy').value = document.getElementById('gen-energy').value;
+            singleBank.seen = [];
+            let mode = 'bank';
+            try { if (localStorage.getItem('w-mode') === 'manual') mode = 'manual'; } catch (e) {}
+            setWorkoutMode(mode);
             workoutModal.classList.remove('hidden');
         }
 
@@ -1665,6 +1973,7 @@
 
             detailsModal.dataset.currentId = id;
             document.getElementById('detail-title').textContent = w.title;
+            loadDetailActivity(w);
             document.getElementById('detail-date').textContent = w.date;
             document.getElementById('detail-warmup').textContent = w.warmup || 'Non spécifié';
             document.getElementById('detail-main').textContent = w.main_block || 'Non spécifié';
@@ -1672,7 +1981,7 @@
 
             // Durée estimée depuis le texte, puis remplacée par celle de la banque si la séance en vient
             const durationEl = document.getElementById('detail-duration');
-            const estimatedSec = parseDurationSec(w.warmup, 0) + parseDurationSec(w.main_block, 0) + parseDurationSec(w.cooldown, 0);
+            const estimatedSec = estimateTextSec(w);
             durationEl.textContent = estimatedSec > 0 ? formatDuration(Math.round(estimatedSec / 60)) : 'Non spécifiée';
             renderDetailPaces(w, zonesFromText(w.main_block));
             document.getElementById('detail-effort-wrap').classList.add('hidden');
@@ -1692,6 +2001,10 @@
                     const bankZones = zonesFromSteps(current.garmin_steps);
                     if (bankZones.size > 0) renderDetailPaces(w, bankZones);
                     if (Array.isArray(current.garmin_steps) && current.garmin_steps.length > 0) renderDetailIntervals(w, prepareSteps(w, current.garmin_steps));
+                } else if (w.type !== 'Repos') {
+                    // Séance saisie à la main : intervalles lus dans le texte (les mêmes que dans le fichier .FIT)
+                    const parsed = parseWorkoutText(w);
+                    if (parsed.recognized) renderDetailIntervals(w, prepareSteps(w, parsed.steps));
                 }
                 setupRegen(w, current, sessions, estimatedSec / 60);
                 updateDetailLayout();
@@ -1758,7 +2071,7 @@
         // On exige que l'appui ait aussi commencé sur le fond : une sélection de texte relâchée dehors ne ferme rien
         const MODAL_CLOSERS = {
             'details-modal': closeDetailsModal, 'profile-modal': closeProfileModal, 'workout-modal': closeModal,
-            'export-modal': closeExportModal, 'generator-modal': closeGeneratorModal
+            'export-modal': closeExportModal, 'generator-modal': closeGeneratorModal, 'import-modal': closeImportModal
         };
         Object.entries(MODAL_CLOSERS).forEach(([id, close]) => {
             const modal = document.getElementById(id);
@@ -2042,6 +2355,25 @@
             return spec;
         }
 
+        // Séance de la banque pour un rôle (spec de getRoleSpec) : catégorie + effort, sinon l'effort seul, sinon la
+        // catégorie seule ; en évitant les titres donnés (séances récentes). Partagé par le générateur et l'ajout d'une séance
+        function pickBankSession(sessions, spec, avoidTitles) {
+            const inEffort = s => (s.effort_score || 0) >= spec.min && (s.effort_score || 0) <= spec.max;
+            const inCats = s => spec.cats.includes(s.category);
+            const results = [
+                sessions.filter(s => inCats(s) && inEffort(s)),
+                sessions.filter(inEffort),
+                sessions.filter(inCats)
+            ].find(list => list.length > 0);
+            if (!results) return null;
+
+            const fresh = results.filter(s => !avoidTitles.includes(s.title));
+            let pool = fresh.length > 0 ? fresh : results;
+            // Sortie longue : parmi les 3 plus longues
+            if (spec.longest) pool = [...pool].sort((a, b) => (b.duration_minutes || 0) - (a.duration_minutes || 0)).slice(0, 3);
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
         function describeRole(role, spec) {
             const cats = spec.cats.map(c => CATEGORY_LABELS[c] || c).join('/');
             if (role === 'cle') return `clé ${cats}`;
@@ -2272,23 +2604,108 @@
             return m ? parseInt(m[1]) * 60 : defaultSec;
         }
 
+        // Mots-clés d'intensité d'une séance saisie à la main -> intensité garmin_steps (le premier trouvé l'emporte)
+        const MANUAL_INTENSITIES = [
+            [/\bvma\b/, 'vma'], [/\bpma\b/, 'pma'], [/\bsprint|\ba fond\b/, 'sprint'],
+            [/\b10\s*k\b/, 'vitesse_10k'], [/\b5\s*k\b/, 'vitesse_5k'],
+            [/sweet\s*spot/, 'sweetspot'], [/\bftp\b/, 'ftp'], [/over.?under/, 'overunder'],
+            [/\bforce\b|\bcotes?\b|\bfrein/, 'force'],
+            [/\bz(?:one)?\s*5\b|\bvo2/, 'zone5'], [/\bseuil\b/, 'seuil'], [/\bz(?:one)?\s*4\b/, 'zone4'],
+            [/\bz(?:one)?\s*3\b|\btempo\b/, 'zone3'], [/\bz(?:one)?\s*2\b|\bendurance\b|\bef\b/, 'zone2'],
+            [/\bz(?:one)?\s*1\b|\brecup/, 'zone1']
+        ];
+
+        // Vitesse approximative (s/m) pour estimer la durée d'une étape en distance (graphique, durée totale)
+        const SEC_PER_METER = { 'Course': 0.3, 'Vélo': 0.12, 'Kayak': 0.24, 'Ski de fond classique': 0.2, 'Ski de fond skate': 0.18 };
+
+        const normalizeText = text => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’`]/g, "'");
+
+        // Première quantité d'un texte normalisé : { sec } ("1h10", "3 min 30", "3'30", "30 s") ou { meters } ("800m", "2 km")
+        function readQuantity(text) {
+            const candidates = [
+                [/(\d+)\s*h\s*(\d{1,2})?(?![a-z])/, m => ({ sec: parseInt(m[1]) * 3600 + (m[2] ? parseInt(m[2]) * 60 : 0) })],
+                [/(\d+(?:[.,]\d+)?)\s*(?:min|mn|')(?!')\s*(\d{1,2})?(?:\s*(?:s|sec|''))?(?![a-z])/, m => ({ sec: Math.round(parseFloat(m[1].replace(',', '.')) * 60) + (m[2] ? parseInt(m[2]) : 0) })],
+                [/(\d+)\s*(?:s|sec|secondes?|'')(?![a-z])/, m => ({ sec: parseInt(m[1]) })],
+                [/(\d+(?:[.,]\d+)?)\s*km\b/, m => ({ meters: Math.round(parseFloat(m[1].replace(',', '.')) * 1000) })],
+                [/(\d+)\s*m\b/, m => ({ meters: parseInt(m[1]) })]
+            ];
+            let best = null;
+            candidates.forEach(([re, build]) => {
+                const m = text.match(re);
+                if (m && (!best || m.index < best.index)) best = { index: m.index, ...build(m) };
+            });
+            return best;
+        }
+
+        function readIntensity(text) {
+            const found = MANUAL_INTENSITIES.find(([re]) => re.test(text));
+            return found ? found[1] : null;
+        }
+
+        // Étape à partir d'une quantité : durée, ou distance avec durée estimée selon le sport
+        function quantityStep(type, q, extra, sport) {
+            if (q.meters) return { type, distance_m: q.meters, duration_sec: Math.round(q.meters * (SEC_PER_METER[sport] || 0.3)), ...extra };
+            return { type, duration_sec: q.sec, ...extra };
+        }
+
+        // Séance saisie à la main -> étapes garmin_steps. Format : un bloc par ligne (ou « + », « ; », « puis »),
+        // "45 min Z2", "6x 3 min Z5, récup 2 min", "10x 400m VMA / 1 min 15". Renvoie aussi ce qui n'a pas été compris
+        function parseWorkoutText(w) {
+            const warnings = [];
+            const unknown = [];
+            const edge = (type, text, defaultSec, label) => {
+                const q = readQuantity(normalizeText(text));
+                if (q && q.sec) return { type, duration_sec: q.sec };
+                if (q && q.meters) return quantityStep(type, q, {}, w.type);
+                warnings.push(`${label} : pas de durée, ${formatStepDuration(defaultSec)} par défaut.`);
+                return { type, duration_sec: defaultSec };
+            };
+
+            const main = [];
+            (w.main_block || '').split(/\n|\+|;|\bpuis\b/i).map(s => s.trim()).filter(Boolean).forEach(raw => {
+                const seg = normalizeText(raw).replace(/[()]/g, ' ');
+                const rep = seg.match(/^(\d+)\s*[x×*]\s*(.+)$/);
+                if (rep) {
+                    // Effort avant le premier séparateur de récup ("/", ",", "récup"), récup après
+                    const body = rep[2];
+                    const cut = body.search(/\/|,|\brecup|\br\s*\d/);
+                    const effortText = cut >= 0 ? body.slice(0, cut) : body;
+                    const recText = cut >= 0 ? body.slice(cut) : '';
+                    const q = readQuantity(effortText);
+                    if (!q) { unknown.push(raw); return; }
+                    const intensity = readIntensity(effortText);
+                    if (!intensity) warnings.push(`« ${raw} » : intensité non précisée, Z4 par défaut.`);
+                    const sub = [quantityStep('active', q, { intensity: intensity || 'zone4' }, w.type)];
+                    const rq = recText && readQuantity(recText);
+                    if (rq) sub.push(quantityStep('rest', rq, {}, w.type));
+                    main.push({ type: 'repeat', iterations: parseInt(rep[1]), steps: sub });
+                    return;
+                }
+                const q = readQuantity(seg);
+                if (!q) { unknown.push(raw); return; }
+                const intensity = readIntensity(seg);
+                if (intensity === 'zone1' && /^\s*\d[^a-z]*\s*(?:min|mn|s|sec)?\s*recup/.test(seg)) {
+                    main.push(quantityStep('rest', q, {}, w.type));
+                } else {
+                    main.push(quantityStep('active', q, { intensity: intensity || 'zone2' }, w.type));
+                }
+            });
+
+            const recognized = main.length > 0;
+            if (!recognized) main.push({ type: 'active', duration_sec: parseDurationSec(w.main_block, 1800), intensity: 'zone2' });
+            const steps = [edge('warmup', w.warmup, 600, 'Échauffement'), ...main, edge('cooldown', w.cooldown, 300, 'Retour au calme')];
+            return { steps, recognized, unknown, warnings };
+        }
+
+        function stepsTotalSec(steps) {
+            return (steps || []).reduce((sum, s) => sum + (s.type === 'repeat'
+                ? (parseInt(s.iterations) || 1) * stepsTotalSec(s.steps)
+                : (s.duration_sec || 0)), 0);
+        }
+
         // Étapes au format garmin_steps de la banque, reconstruites depuis le texte d'une séance saisie à la main
         function textToGarminSteps(w) {
-            const main = w.main_block || '';
-            const steps = [{ type: 'warmup', duration_sec: parseDurationSec(w.warmup, 600) }];
-            if (w.type === 'Course' && main.includes('5x')) {
-                steps.push({ type: 'repeat', iterations: 5, steps: [
-                    { type: 'active', duration_sec: 90 }, { type: 'rest', duration_sec: 90 }
-                ] });
-            } else if (w.type === 'Course' && main.includes('2x 8 min')) {
-                steps.push({ type: 'repeat', iterations: 2, steps: [
-                    { type: 'active', duration_sec: 480 }, { type: 'rest', duration_sec: 120 }
-                ] });
-            } else {
-                steps.push({ type: 'active', duration_sec: parseDurationSec(main, 1800) });
-            }
-            steps.push({ type: 'cooldown', duration_sec: parseDurationSec(w.cooldown, 300) });
-            return steps;
+            return parseWorkoutText(w).steps;
         }
 
         // Distances lues dans le texte de la séance (la banque ne stocke que des durées), course uniquement :
@@ -2536,14 +2953,139 @@
             }
         }
 
+        // ==========================================
+        // AJOUT D'UNE SÉANCE : BANQUE OU MANUEL
+        // ==========================================
+        // Proposition courante de la banque et titres déjà proposés (pour « Autre proposition »)
+        let singleBank = { mode: 'bank', pick: null, seen: [] };
+
+        document.getElementById('w-goal').innerHTML = goalSelect.innerHTML;
+
+        function setWorkoutMode(mode) {
+            singleBank.mode = mode;
+            try { localStorage.setItem('w-mode', mode); } catch (e) {}
+            document.querySelectorAll('.w-mode-btn').forEach(btn => {
+                const on = btn.dataset.mode === mode;
+                btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                btn.className = 'w-mode-btn py-2 rounded-md text-sm font-semibold transition ' + (on ? 'bg-accent text-white' : 'text-muted hover:text-ink');
+            });
+            document.getElementById('w-bank-section').classList.toggle('hidden', mode !== 'bank');
+            document.getElementById('w-manual-section').classList.toggle('hidden', mode !== 'manual');
+            document.getElementById('w-title').required = mode === 'manual';
+            if (mode === 'bank') updateBankProposal();
+            else {
+                document.getElementById('w-save').disabled = false;
+                updateManualPreview();
+            }
+        }
+        document.querySelectorAll('.w-mode-btn').forEach(btn => btn.addEventListener('click', () => setWorkoutMode(btn.dataset.mode)));
+
+        // Même choix que le générateur (pickBankSession + getRoleSpec), en évitant les séances des 2 semaines
+        // précédant la date choisie et les propositions déjà vues
+        async function updateBankProposal(reroll = false) {
+            const type = document.getElementById('w-type').value;
+            const date = document.getElementById('w-date').value;
+            const role = document.getElementById('w-role').value;
+            const goal = document.getElementById('w-goal').value;
+            const energy = document.getElementById('w-energy').value;
+            const ruleEl = document.getElementById('w-proposal-rule');
+            const titleEl = document.getElementById('w-proposal-title');
+            const metaEl = document.getElementById('w-proposal-meta');
+            const mainEl = document.getElementById('w-proposal-main');
+            const saveBtn = document.getElementById('w-save');
+            const rerollBtn = document.getElementById('w-reroll');
+
+            const spec = getRoleSpec(role, type, goal, energy);
+            ruleEl.textContent = `${describeRole(role, spec)} · effort ${spec.min}-${spec.max}/10`;
+            const sessions = type === 'Repos' ? [] : await getBankSessionsForSport(type);
+            if (singleBank.mode !== 'bank') return;
+
+            if (!reroll) singleBank.seen = [];
+            const from = new Date(date || Date.now());
+            from.setDate(from.getDate() - 14);
+            const fromStr = from.toISOString().split('T')[0];
+            const recent = workouts.filter(w => w.date >= fromStr && w.date <= date).map(w => w.title);
+            let pick = pickBankSession(sessions, spec, [...recent, ...singleBank.seen]);
+            // Toutes les séances possibles déjà vues : on repart de zéro
+            if (reroll && pick && singleBank.seen.includes(pick.title)) {
+                singleBank.seen = singleBank.pick ? [singleBank.pick.title] : [];
+                pick = pickBankSession(sessions, spec, [...recent, ...singleBank.seen]);
+            }
+            singleBank.pick = pick;
+
+            if (!pick) {
+                titleEl.textContent = type === 'Repos' ? 'Pas de banque pour le repos' : `Aucune séance de ${sportLabel(type)} dans la banque`;
+                metaEl.textContent = '';
+                mainEl.textContent = 'Passe en mode Manuel pour écrire la séance toi-même.';
+                saveBtn.disabled = true;
+                rerollBtn.disabled = true;
+                return;
+            }
+            singleBank.seen.push(pick.title);
+            titleEl.textContent = pick.title;
+            metaEl.textContent = [CATEGORY_LABELS[pick.category] || pick.category,
+                pick.duration_minutes ? formatDuration(pick.duration_minutes) : '',
+                pick.effort_score ? `effort ${pick.effort_score}/10` : ''].filter(Boolean).join(' · ');
+            mainEl.textContent = pick.main_block || '';
+            saveBtn.disabled = false;
+            rerollBtn.disabled = false;
+        }
+        ['w-type', 'w-date', 'w-role', 'w-goal', 'w-energy'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+            if (singleBank.mode === 'bank') updateBankProposal();
+            else updateManualPreview();
+        }));
+        document.getElementById('w-reroll').addEventListener('click', () => updateBankProposal(true));
+
+        // Aperçu en direct des étapes que recevra la montre (même lecture du texte que l'export .FIT)
+        function updateManualPreview() {
+            const w = {
+                type: document.getElementById('w-type').value,
+                warmup: document.getElementById('w-warmup').value,
+                main_block: document.getElementById('w-main').value,
+                cooldown: document.getElementById('w-cooldown').value
+            };
+            const list = document.getElementById('w-preview');
+            const warnList = document.getElementById('w-preview-warnings');
+            list.innerHTML = '';
+            warnList.innerHTML = '';
+            if (w.type === 'Repos') {
+                list.innerHTML = '<li class="text-muted">Jour de repos : pas de fichier montre.</li>';
+                return;
+            }
+            const parsed = parseWorkoutText(w);
+            const qty = s => s.distance_m ? `${s.distance_m} m` : formatStepDuration(s.duration_sec);
+            const label = s => `${qty(s)} ${stepInfo(s).label}`;
+            parsed.steps.forEach(s => {
+                const li = document.createElement('li');
+                li.textContent = s.type === 'repeat' ? `${s.iterations} × (${s.steps.map(label).join(' / ')})` : label(s);
+                list.appendChild(li);
+            });
+            const total = document.createElement('li');
+            total.className = 'text-muted pt-1';
+            total.textContent = `Durée estimée : ${formatDuration(Math.round(stepsTotalSec(parsed.steps) / 60))}`;
+            list.appendChild(total);
+
+            const warnings = [...parsed.warnings];
+            if (!parsed.recognized && w.main_block.trim()) warnings.unshift('Bloc principal non compris : la montre recevra un seul bloc en Z2. Vois « Comment l\'écrire ».');
+            parsed.unknown.forEach(u => warnings.push(`Ignoré (ni durée ni distance) : « ${u} »`));
+            warnings.forEach(text => {
+                const li = document.createElement('li');
+                li.textContent = text;
+                warnList.appendChild(li);
+            });
+        }
+        ['w-warmup', 'w-main', 'w-cooldown'].forEach(id => document.getElementById(id).addEventListener('input', updateManualPreview));
+
         document.getElementById('workout-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const title = document.getElementById('w-title').value;
             const date = document.getElementById('w-date').value;
             const type = document.getElementById('w-type').value;
-            const warmup = document.getElementById('w-warmup').value;
-            const main_block = document.getElementById('w-main').value;
-            const cooldown = document.getElementById('w-cooldown').value;
+            const pick = singleBank.mode === 'bank' ? singleBank.pick : null;
+            if (singleBank.mode === 'bank' && !pick) return;
+            const title = pick ? pick.title : document.getElementById('w-title').value;
+            const warmup = pick ? pick.warmup : document.getElementById('w-warmup').value;
+            const main_block = pick ? pick.main_block : document.getElementById('w-main').value;
+            const cooldown = pick ? pick.cooldown : document.getElementById('w-cooldown').value;
 
             const { data: { user } } = await supabaseClient.auth.getUser();
             const beforeIds = new Set(workouts.map(w => String(w.id)));
@@ -2695,22 +3237,9 @@
             // Séance de la banque correspondant au rôle (objectif + énergie) ; l'effort prime sur la catégorie
             async function pickFromBank(sport, role, fallback) {
                 const sessions = await getBankSessionsForSport(sport);
-                const spec = getRoleSpec(role, sport, goal, energy);
-                const inEffort = s => (s.effort_score || 0) >= spec.min && (s.effort_score || 0) <= spec.max;
-                const inCats = s => spec.cats.includes(s.category);
-                const results = [
-                    sessions.filter(s => inCats(s) && inEffort(s)),
-                    sessions.filter(inEffort),
-                    sessions.filter(inCats)
-                ].find(list => list.length > 0);
-                if (!results) return fallback;
-
                 // Éviter les séances des 2 dernières semaines et celles déjà placées cette semaine
-                const fresh = results.filter(s => !recentTitles.includes(s.title));
-                let pool = fresh.length > 0 ? fresh : results;
-                // Sortie longue : parmi les 3 plus longues
-                if (spec.longest) pool = [...pool].sort((a, b) => (b.duration_minutes || 0) - (a.duration_minutes || 0)).slice(0, 3);
-                const s = pool[Math.floor(Math.random() * pool.length)];
+                const s = pickBankSession(sessions, getRoleSpec(role, sport, goal, energy), recentTitles);
+                if (!s) return fallback;
                 recentTitles.push(s.title);
                 return { type: s.sport, title: s.title, warmup: s.warmup, main: s.main_block, cooldown: s.cooldown };
             }

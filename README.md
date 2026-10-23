@@ -10,6 +10,10 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 - **Mode démo** (bouton « Essayer la démo » sur la page de connexion) : visite complète sans compte, avec une semaine d'exemple et un profil fictif. Séances et profil restent en mémoire : rien n'est écrit en base, tout disparaît en quittant ou en rechargeant. Seule la banque d'entraînements (publique) est lue.
 - **Calendrier hebdomadaire** : navigation semaine par semaine, glisser-déposer pour déplacer une séance, case à cocher « réalisée », suppression d'une séance ou de tout le calendrier.
 - **Séances structurées** : titre, date, type (Course à pied, Vélo / Gravel, Musculation, ski de fond, Kayak de vitesse, Repos) et trois blocs (échauffement, bloc principal, retour au calme).
+- **Ajouter une séance** (bouton « + » d'un jour), deux modes :
+  - **Depuis la banque** : type de séance (clé, secondaire, endurance facile, sortie longue), énergie et objectif, avec les mêmes règles que le générateur ; évite les séances des 2 semaines précédentes ; bouton « Autre proposition ».
+  - **Manuel** : un bloc par ligne (`20 min Z2`, `6x 3 min Z5, récup 2 min`, `10x 400m VMA / 1 min 15`). Un aperçu montre en direct les étapes que recevra la montre et signale ce qui n'est pas compris. Ces étapes servent aussi au détail de la séance et à l'export .FIT.
+- **Import des activités de la montre** (bouton « Importer » de l'en-tête, ou glisser-déposer n'importe où) : fichiers `.fit` (montre en USB, dossier `GARMIN/Activity`) ou `.zip` de Garmin Connect (« Exporter le fichier d'origine »). Chaque activité coche la séance prévue le même jour pour le même sport, sinon une séance « libre » réalisée est ajoutée au calendrier. Le détail de la séance affiche « Réalisé : distance · durée · allure ou vitesse · FC · puissance » et les tours. Un fichier déjà importé est ignoré.
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
 - **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
@@ -25,8 +29,9 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 | --- | --- |
 | [index.html](index.html) | L'application complète : interface, logique, appels Supabase, générateur et export. |
 | [fitBuilder.js](fitBuilder.js) | Encodeur FIT minimal, sans dépendance, pour les fichiers d'entraînement Garmin (script classique qui expose `window.FitModule`). |
+| [fitParser.js](fitParser.js) | Lecteur FIT minimal, sans dépendance, pour les activités de la montre (séances, tours, heure locale) et les .zip de Garmin Connect (`window.FitParser`). |
+| [sql/activities.sql](sql/activities.sql) | Table `activities` (activités importées, rattachées aux séances) et ses règles d'accès. |
 | [sql/seed_training_bank.sql](sql/seed_training_bank.sql) | Requête à coller dans l'éditeur SQL de Supabase : ~35 séances par sport dans `training_bank` (relançable sans doublons). |
-| [supabase.js](supabase.js) | Client Supabase en module ES (non utilisé par `index.html`, qui crée son propre client). |
 | [test-import.js](test-import.js) | Petit test de chargement du SDK FIT officiel de Garmin depuis un CDN. |
 | [garmin-export-app/](garmin-export-app/) | Prototype autonome : un bouton qui télécharge une séance de fractionné codée en dur au format `.fit`. |
 
@@ -76,7 +81,21 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 | `threshold_hr` | `text` | ex. `178 bpm` |
 | `updated_at` | `timestamptz` | |
 
-> La clé publique est faite pour être visible côté navigateur. La sécurité repose sur la **Row Level Security** : active-la sur les deux tables avec une politique du type `user_id = auth.uid()` pour que chacun ne voie que ses propres données.
+> La clé publique est faite pour être visible côté navigateur. La sécurité repose sur la **Row Level Security** :
+> - `workouts` et `user_profiles` : chacun ne lit et ne modifie que ses lignes (`user_id = auth.uid()`) ;
+> - `training_bank` : lecture pour tous (mode démo compris), aucune écriture depuis le site. On la remplit depuis l'éditeur SQL de Supabase, qui n'est pas soumis à la RLS.
+>
+> Ne mets jamais la clé `service_role` (ou `sb_secret_…`) dans le code : elle contourne toutes ces règles.
+
+## Importer ses activités Garmin
+
+L'API officielle Garmin n'accepte pas de nouveaux développeurs (2026) et celle de Strava demande un abonnement : l'app lit donc directement les fichiers d'activité `.FIT`, gratuitement et sans mot de passe à confier.
+
+1. Coller [sql/activities.sql](sql/activities.sql) dans l'éditeur SQL de Supabase (une seule fois).
+2. Récupérer les fichiers : sur connect.garmin.com (ordinateur), ouvrir l'activité → engrenage → « Exporter le fichier d'origine » (un `.zip`, à glisser tel quel) ; ou montre en USB, dossier `GARMIN/Activity`.
+3. Les glisser sur l'app (ou bouton « Importer »).
+
+Seules les activités sont lues : VO2max, prédictions, sommeil, Body Battery et VFC restent saisis à la main dans le profil.
 
 ## Importer une séance sur Garmin
 
