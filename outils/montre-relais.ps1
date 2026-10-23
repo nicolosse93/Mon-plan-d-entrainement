@@ -298,6 +298,36 @@ function Invoke-Route($ctx) {
         Send-Json $ctx 200 @{ ok = $true }
         return
     }
+    # Séances de l'app présentes sur la montre (noms AAAA-MM-JJ_….fit), rangées ou en attente
+    if ($req.HttpMethod -eq 'GET' -and $path -eq '/workouts') {
+        $list = @()
+        foreach ($sub in 'Workouts', 'NewFiles') {
+            foreach ($file in Get-WatchFiles $watch $sub) {
+                if ($file.Name -match '^\d{4}-\d{2}-\d{2}_') { $list += @{ name = $file.Name; folder = $sub } }
+            }
+        }
+        Send-Json $ctx 200 @($list)
+        return
+    }
+    # Retire une séance de l'app (séance remplacée, déplacée ou supprimée du plan) : déplacée, pas effacée
+    if ($req.HttpMethod -eq 'POST' -and $path -match '^/remove/([^/]+)$') {
+        $name = $Matches[1]
+        if (-not (Test-FileName $name) -or $name -notmatch '^\d{4}-\d{2}-\d{2}_') {
+            Send-Json $ctx 400 @{ error = "Seules les séances créées par l'app peuvent être retirées" }; return
+        }
+        $removed = @()
+        foreach ($sub in 'Workouts', 'NewFiles') {
+            foreach ($file in Get-WatchFiles $watch $sub) {
+                if ($file.Name -eq $name) {
+                    Move-WatchFileAway $watch $file
+                    $removed += "$sub/$name"
+                    Write-Log "Séance retirée (plan modifié) : $sub\$name"
+                }
+            }
+        }
+        Send-Json $ctx 200 @{ removed = @($removed) }
+        return
+    }
     if ($req.HttpMethod -eq 'POST' -and $path -eq '/cleanup') {
         $before = $req.QueryString['before']
         if ($before -notmatch '^\d{4}-\d{2}-\d{2}$') { Send-Json $ctx 400 @{ error = 'Date invalide' }; return }

@@ -1240,6 +1240,8 @@
             if (!res.ok) {
                 let message = `erreur ${res.status}`;
                 try { message = (await res.json()).error || message; } catch (e) {}
+                // Relais installé avant l'ajout d'une route : il faut juste le réinstaller
+                if (message === 'Route inconnue') message = 'Relais à mettre à jour : relance outils/installer-relais.cmd (ton jeton est conservé).';
                 throw new Error(message);
             }
             return res;
@@ -1312,29 +1314,53 @@
                     importLine('fa-broom', ok, `${removed.length} séance${removed.length > 1 ? 's' : ''} passée${removed.length > 1 ? 's' : ''} retirée${removed.length > 1 ? 's' : ''} de la montre.`);
                 }
 
-                // 3. Séances des 7 prochains jours, envoyées si nouvelles ou modifiées depuis le dernier envoi
+                // 3. Séances des 7 prochains jours : la montre doit refléter le plan actuel. On compare avec les
+                // séances de l'app présentes sur la montre : en trop (régénérée, déplacée, supprimée) -> retirée ;
+                // modifiée -> remplacée ; absente -> envoyée
                 const end = new Date();
                 end.setDate(end.getDate() + 6);
                 const endStr = toDateStr(end);
                 const sent = readLocalJson('relay-sent', {});
                 Object.keys(sent).forEach(name => { if (name.slice(0, 10) < todayStr) delete sent[name]; });
                 const upcoming = workouts.filter(w => w.date >= todayStr && w.date <= endStr && !w.completed && w.type !== 'Repos');
-                let count = 0;
-                for (const w of upcoming) {
-                    const name = fitFileName(w);
-                    const fingerprint = [w.title, w.date, w.type, w.warmup, w.main_block, w.cooldown].join('|');
-                    if (sent[name] === fingerprint) continue;
+                const wanted = new Map(upcoming.map(w => [fitFileName(w), {
+                    w, fingerprint: [w.title, w.date, w.type, w.warmup, w.main_block, w.cooldown].join('|')
+                }]));
+                const onWatch = new Set((await (await relayFetch('/workouts')).json()).map(f => f.name));
+
+                let replaced = 0, dropped = 0, added = 0;
+                const removeFromWatch = name => relayFetch(`/remove/${encodeURIComponent(name)}`, { method: 'POST' });
+                for (const name of onWatch) {
+                    if (name.slice(0, 10) >= todayStr && !wanted.has(name)) {
+                        await removeFromWatch(name);
+                        delete sent[name];
+                        dropped++;
+                    }
+                }
+                for (const [name, { w, fingerprint }] of wanted) {
+                    const present = onWatch.has(name);
+                    const changed = present && sent[name] && sent[name] !== fingerprint;
+                    if (present && !changed) {
+                        sent[name] = sent[name] || fingerprint;
+                        continue;
+                    }
+                    if (changed) await removeFromWatch(name);
                     const bytes = await buildFitBytes(w);
                     await relayFetch(`/workouts/${encodeURIComponent(name)}`, {
                         method: 'POST', body: bytes, headers: { 'Content-Type': 'application/octet-stream' }
                     });
                     sent[name] = fingerprint;
-                    count++;
+                    if (changed) replaced++; else added++;
                 }
                 writeLocalJson('relay-sent', sent);
-                importLine('fa-paper-plane', ok, count > 0
-                    ? `${count} séance${count > 1 ? 's' : ''} envoyée${count > 1 ? 's' : ''} à la montre : elle${count > 1 ? 's' : ''} apparaîtr${count > 1 ? 'ont' : 'a'} après avoir débranché la montre.`
+
+                const s = n => n > 1 ? 's' : '';
+                if (dropped > 0) importLine('fa-broom', ok, `${dropped} séance${s(dropped)} qui n'${dropped > 1 ? 'étaient' : 'était'} plus au plan retirée${s(dropped)} de la montre.`);
+                if (replaced > 0) importLine('fa-pen', ok, `${replaced} séance${s(replaced)} modifiée${s(replaced)} remplacée${s(replaced)} sur la montre.`);
+                importLine('fa-paper-plane', ok, added > 0
+                    ? `${added} séance${s(added)} envoyée${s(added)} à la montre.`
                     : upcoming.length > 0 ? 'Séances des 7 prochains jours déjà sur la montre.' : 'Aucune séance prévue dans les 7 prochains jours.');
+                if (added + replaced > 0) importLine('fa-circle-info', 'text-muted', 'Débranche la montre : elle intègre les nouvelles séances à ce moment-là.');
             } catch (e) {
                 importLine('fa-triangle-exclamation', warn, e.message);
             } finally {
