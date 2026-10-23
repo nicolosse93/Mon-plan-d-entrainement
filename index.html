@@ -324,7 +324,7 @@
                         <p class="flex-1 font-semibold text-ink text-sm">Synchro de la montre (USB)</p>
                         <span id="relay-state" class="text-xs text-muted"></span>
                     </div>
-                    <p class="text-xs text-muted">Une fois sur ce PC : lance <code>outils/installer-relais.cmd</code> (double-clic), puis colle ici le jeton affiché. Ensuite, montre branchée, le bouton « Montre » de l'en-tête importe tes sorties et envoie les séances des 7 prochains jours.</p>
+                    <p class="text-xs text-muted">Une fois sur ce PC : lance <code>outils/installer-relais.cmd</code> (double-clic), puis colle ici le jeton affiché. Ensuite, montre branchée, le bouton « Montre » de l'en-tête importe tes sorties et envoie les séances des 14 prochains jours.</p>
                     <div class="flex gap-2">
                         <input type="password" id="relay-token" autocomplete="off" spellcheck="false" placeholder="Jeton du relais" class="flex-1 min-w-0 bg-inset border border-line rounded-lg px-3 py-2 text-xs text-ink font-mono focus:outline-none focus:border-accent">
                         <button type="button" onclick="saveRelayToken()" class="px-3 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition">Tester</button>
@@ -1264,7 +1264,7 @@
 
         // Un clic, montre branchée : 1) nouvelles sorties importées (pipeline d'import habituel) ;
         // 2) séances de l'app datées d'avant aujourd'hui retirées de la montre ;
-        // 3) séances des 7 prochains jours (non réalisées) envoyées si nouvelles ou modifiées
+        // 3) séances des 14 prochains jours (non réalisées) envoyées si nouvelles ou modifiées
         let watchSyncing = false;
         async function syncWatch() {
             if (demoMode) {
@@ -1314,17 +1314,19 @@
                     importLine('fa-broom', ok, `${removed.length} séance${removed.length > 1 ? 's' : ''} passée${removed.length > 1 ? 's' : ''} retirée${removed.length > 1 ? 's' : ''} de la montre.`);
                 }
 
-                // 3. Séances des 7 prochains jours : la montre doit refléter le plan actuel. On compare avec les
+                // 3. Séances des 14 prochains jours : la montre doit refléter le plan actuel. On compare avec les
                 // séances de l'app présentes sur la montre : en trop (régénérée, déplacée, supprimée) -> retirée ;
-                // modifiée -> remplacée ; absente -> envoyée
+                // modifiée -> remplacée ; absente -> envoyée. Envois dans l'ordre chronologique
                 const end = new Date();
-                end.setDate(end.getDate() + 6);
+                end.setDate(end.getDate() + 13);
                 const endStr = toDateStr(end);
                 const sent = readLocalJson('relay-sent', {});
                 Object.keys(sent).forEach(name => { if (name.slice(0, 10) < todayStr) delete sent[name]; });
-                const upcoming = workouts.filter(w => w.date >= todayStr && w.date <= endStr && !w.completed && w.type !== 'Repos');
+                const upcoming = workouts.filter(w => w.date >= todayStr && w.date <= endStr && !w.completed && w.type !== 'Repos')
+                    .sort((a, b) => a.date.localeCompare(b.date));
+                // Le préfixe du nom fait partie de l'empreinte : une séance envoyée avec un ancien format est remplacée
                 const wanted = new Map(upcoming.map(w => [fitFileName(w), {
-                    w, fingerprint: [w.title, w.date, w.type, w.warmup, w.main_block, w.cooldown].join('|')
+                    w, fingerprint: [workoutDayPrefix(w.date), w.title, w.date, w.type, w.warmup, w.main_block, w.cooldown].join('|')
                 }]));
                 const onWatch = new Set((await (await relayFetch('/workouts')).json()).map(f => f.name));
 
@@ -1359,7 +1361,7 @@
                 if (replaced > 0) importLine('fa-pen', ok, `${replaced} séance${s(replaced)} modifiée${s(replaced)} remplacée${s(replaced)} sur la montre.`);
                 importLine('fa-paper-plane', ok, added > 0
                     ? `${added} séance${s(added)} envoyée${s(added)} à la montre.`
-                    : upcoming.length > 0 ? 'Séances des 7 prochains jours déjà sur la montre.' : 'Aucune séance prévue dans les 7 prochains jours.');
+                    : upcoming.length > 0 ? 'Séances des 14 prochains jours déjà sur la montre.' : 'Aucune séance prévue dans les 14 prochains jours.');
                 if (added + replaced > 0) importLine('fa-circle-info', 'text-muted', 'Débranche la montre : elle intègre les nouvelles séances à ce moment-là.');
             } catch (e) {
                 importLine('fa-triangle-exclamation', warn, e.message);
@@ -3393,7 +3395,7 @@
                 const li = document.createElement('li');
                 li.className = 'flex items-center gap-2 min-w-0';
                 li.innerHTML = `
-                    <span class="w-12 shrink-0 font-semibold text-muted">${workoutDayPrefix(w.date)}</span>
+                    <span class="shrink-0 whitespace-nowrap font-semibold text-muted">${workoutDayPrefix(w.date)}</span>
                     <i class="fa-solid ${SPORT_ICONS[w.type] || 'fa-circle'} ${sportStyle(w.type).icon} w-4 text-center shrink-0"></i>
                     <span data-field="title" class="text-ink truncate"></span>`;
                 li.querySelector('[data-field="title"]').textContent = w.title || '';
@@ -3592,12 +3594,17 @@
             const [y, m, d] = dateStr.split('-');
             return DAY_ABBR[new Date(y, m - 1, d).getDay()];
         }
-        // Préfixe du nom sur la montre : numéro du jour (1 = lundi ... 7 = dimanche) + jour abrégé,
-        // pour que les séances restent dans l'ordre de la semaine si la montre trie par nom
+        // Préfixe du nom sur la montre : mois-jour + jour abrégé (« 10-22 Jeu »), pour que les séances restent
+        // dans l'ordre chronologique si la montre trie par nom. Quand les 14 jours de la synchro passent sur
+        // l'année suivante (fin décembre), l'année est ajoutée (« 26-12-29 Mar », « 27-01-03 Sam ») pour que
+        // janvier ne passe pas avant décembre ; la synchro renomme les séances une fois l'année changée
         function workoutDayPrefix(dateStr) {
             const [y, m, d] = dateStr.split('-');
-            const day = new Date(y, m - 1, d).getDay();
-            return `${(day + 6) % 7 + 1} ${DAY_ABBR[day]}`;
+            const today = new Date();
+            const end = new Date();
+            end.setDate(today.getDate() + 13);
+            const year = end.getFullYear() > today.getFullYear() ? `${y.slice(2)}-` : '';
+            return `${year}${m}-${d} ${DAY_ABBR[new Date(y, m - 1, d).getDay()]}`;
         }
 
         // Étapes d'une séance : celles de la banque (même titre + même sport), sinon reconstruites depuis le texte

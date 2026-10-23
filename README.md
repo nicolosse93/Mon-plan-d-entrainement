@@ -17,11 +17,11 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
   - **Prévu vs réalisé** : chaque effort comparé au tour correspondant (allure en course, zone de FC ailleurs ; durée ou distance), verdict « Tenu / Trop lent / Trop court… » et note de séance /10. Le détail par intervalle suppose d'avoir suivi la séance .FIT de l'app sur la montre (une étape = un tour).
   - **Charge & fatigue** : charge TRIMP (minutes × zone de FC ; estimée sans cardio) ; tuile « Charge 7 jours » du résumé avec le ratio sur la moyenne des 4 semaines et l'historique de 6 semaines ; le générateur propose « Fatigué » au-delà de 1,5×.
   - **Sortie réalisée** : temps par zone de FC (base FC seuil de la montre ou du profil, sinon FC max), Training Effect, courbes FC / allure ou vitesse / puissance / altitude / cadence avec survol, carte du parcours (Leaflet + OpenStreetMap).
-- **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 7 prochains jours.
+- **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 14 prochains jours, dans l'ordre chronologique.
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
 - **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
-  - le nom « 2 Mar - Titre » : numéro du jour (1 = lundi … 7 = dimanche) et jour abrégé, pour garder l'ordre de la semaine sur la montre ;
+  - le nom « 10-22 Jeu - Titre » : mois-jour et jour abrégé, pour garder l'ordre chronologique sur la montre (fin décembre, quand les 14 jours de la synchro débordent sur janvier, l'année est ajoutée : « 26-12-29 Mar », « 27-01-03 Sam ») ;
   - les étapes et les répétitions, en **distance** quand le texte de la séance en donne une (« 5x 600m », pyramide « 200-400-600-400-200m ») ;
   - des **cibles d'allure** pour la course (calculées depuis les prédictions 5K / 10K du profil : allure de l'intervalle, endurance Z2 pour l'échauffement et le retour au calme, récup libre) ;
   - des zones cardio pour les autres sports.
@@ -114,7 +114,7 @@ Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucu
 **Utilisation** : brancher la montre, attendre qu'elle apparaisse dans l'Explorateur, cliquer sur **« Montre »**. Puis débrancher la montre : elle intègre les nouvelles séances.
 - Sorties des 30 derniers jours pas encore récupérées → import habituel (rattachement aux séances, pas de doublon).
 - Séances de l'app datées d'avant aujourd'hui (fichiers `AAAA-MM-JJ_….fit` de `GARMIN/Workouts` et `GARMIN/NewFiles`) → déplacées dans `%APPDATA%\MonPlan\retires` (pas effacées). Les autres entraînements de la montre ne sont jamais touchés.
-- Séances des 7 prochains jours (non réalisées) → copiées dans `GARMIN/NewFiles`, seulement si nouvelles ou modifiées.
+- Séances des 14 prochains jours (non réalisées) → copiées dans `GARMIN/NewFiles` dans l'ordre chronologique, seulement si nouvelles ou modifiées.
 
 **Sécurité** : le relais n'écoute que `localhost:47812`, exige le jeton secret (gardé dans ce navigateur, jamais en base), n'accepte que l'adresse du site et `localhost`, refuse tout nom de fichier contenant un chemin et tout fichier qui n'est pas un `.FIT`. Journal : `%APPDATA%\MonPlan\relais.log`.
 
