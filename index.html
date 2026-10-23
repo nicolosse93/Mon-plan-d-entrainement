@@ -1314,47 +1314,43 @@
                     importLine('fa-broom', ok, `${removed.length} séance${removed.length > 1 ? 's' : ''} passée${removed.length > 1 ? 's' : ''} retirée${removed.length > 1 ? 's' : ''} de la montre.`);
                 }
 
-                // 3. Séances des 14 prochains jours : la montre doit refléter le plan actuel. On compare avec les
-                // séances de l'app présentes sur la montre : en trop (régénérée, déplacée, supprimée) -> retirée ;
-                // modifiée -> remplacée ; absente -> envoyée. Envois dans l'ordre chronologique
+                // 3. Séances des 14 prochains jours : la montre doit refléter le plan actuel. Chaque fichier porte
+                // l'empreinte de son contenu dans son nom (syncFitFileName) : séance de l'app sur la montre absente
+                // de la liste voulue (modifiée, déplacée, supprimée) -> retirée ; voulue mais absente -> envoyée.
+                // Rien n'est gardé dans le navigateur : la montre fait foi, quel que soit l'ordinateur.
+                // Envois dans l'ordre chronologique
+                try { localStorage.removeItem('relay-sent'); } catch (e) {} // ancien suivi des envois
                 const end = new Date();
                 end.setDate(end.getDate() + 13);
                 const endStr = toDateStr(end);
-                const sent = readLocalJson('relay-sent', {});
-                Object.keys(sent).forEach(name => { if (name.slice(0, 10) < todayStr) delete sent[name]; });
                 const upcoming = workouts.filter(w => w.date >= todayStr && w.date <= endStr && !w.completed && w.type !== 'Repos')
                     .sort((a, b) => a.date.localeCompare(b.date));
-                // Le préfixe du nom fait partie de l'empreinte : une séance envoyée avec un ancien format est remplacée
-                const wanted = new Map(upcoming.map(w => [fitFileName(w), {
-                    w, fingerprint: [workoutDayPrefix(w.date), w.title, w.date, w.type, w.warmup, w.main_block, w.cooldown].join('|')
-                }]));
+                const wanted = new Map();
+                for (const w of upcoming) {
+                    const bytes = await buildFitBytes(w, { stable: true });
+                    wanted.set(syncFitFileName(w, bytes), bytes);
+                }
                 const onWatch = new Set((await (await relayFetch('/workouts')).json()).map(f => f.name));
 
-                let replaced = 0, dropped = 0, added = 0;
-                const removeFromWatch = name => relayFetch(`/remove/${encodeURIComponent(name)}`, { method: 'POST' });
+                // Nom sans empreinte : une séance retirée puis renvoyée sous le même nom compte comme remplacée
+                const baseName = name => name.replace(/(_[0-9a-f]{8})?\.fit$/, '');
+                const removedBases = new Set();
+                let removedCount = 0, replaced = 0, added = 0;
                 for (const name of onWatch) {
                     if (name.slice(0, 10) >= todayStr && !wanted.has(name)) {
-                        await removeFromWatch(name);
-                        delete sent[name];
-                        dropped++;
+                        await relayFetch(`/remove/${encodeURIComponent(name)}`, { method: 'POST' });
+                        removedBases.add(baseName(name));
+                        removedCount++;
                     }
                 }
-                for (const [name, { w, fingerprint }] of wanted) {
-                    const present = onWatch.has(name);
-                    const changed = present && sent[name] && sent[name] !== fingerprint;
-                    if (present && !changed) {
-                        sent[name] = sent[name] || fingerprint;
-                        continue;
-                    }
-                    if (changed) await removeFromWatch(name);
-                    const bytes = await buildFitBytes(w);
+                for (const [name, bytes] of wanted) {
+                    if (onWatch.has(name)) continue;
                     await relayFetch(`/workouts/${encodeURIComponent(name)}`, {
                         method: 'POST', body: bytes, headers: { 'Content-Type': 'application/octet-stream' }
                     });
-                    sent[name] = fingerprint;
-                    if (changed) replaced++; else added++;
+                    if (removedBases.has(baseName(name))) replaced++; else added++;
                 }
-                writeLocalJson('relay-sent', sent);
+                const dropped = Math.max(0, removedCount - replaced);
 
                 const s = n => n > 1 ? 's' : '';
                 if (dropped > 0) importLine('fa-broom', ok, `${dropped} séance${s(dropped)} qui n'${dropped > 1 ? 'étaient' : 'était'} plus au plan retirée${s(dropped)} de la montre.`);
@@ -3629,7 +3625,9 @@
         }
 
         // Octets du fichier .FIT d'une séance
-        async function buildFitBytes(w) {
+        // stable : numéro de série et date de création tirés de la séance (pas du hasard ni de l'heure), pour que
+        // la même séance donne toujours le même fichier (empreinte de la synchro montre)
+        async function buildFitBytes(w, { stable = false } = {}) {
             await ensureFitModule();
             const { FitEncoder, MesgNum, FileType, Manufacturer, Sport, SubSport, WktStepDuration, WktStepTarget, Intensity } = window.FitModule;
 
@@ -3643,8 +3641,9 @@
                 0: FileType.workout,
                 1: Manufacturer.development,
                 2: 0,
-                3: Math.floor(Math.random() * 100000),
-                4: Math.floor(Date.now() / 1000) - 631065600 // Temps FIT (secondes depuis 1989)
+                3: stable ? parseInt(fnv1aHex(new TextEncoder().encode(fitFileName(w))), 16) % 100000 : Math.floor(Math.random() * 100000),
+                // Temps FIT (secondes depuis 1989) ; stable : minuit le jour de la séance
+                4: Math.floor((stable ? new Date(`${w.date}T00:00:00`).getTime() : Date.now()) / 1000) - 631065600
             });
 
             // Conversion des étapes en messages FIT workout_step
@@ -3727,6 +3726,19 @@
             const slug = (w.title || 'seance').normalize('NFD').replace(/[̀-ͯ]/g, '')
                 .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).toLowerCase();
             return `${w.date}_${dayAbbr(w.date).toLowerCase()}_${slug || 'seance'}.fit`;
+        }
+
+        // Empreinte FNV-1a 32 bits d'un tableau d'octets, en 8 caractères hexadécimaux
+        function fnv1aHex(bytes) {
+            let h = 0x811c9dc5;
+            for (const b of bytes) h = Math.imul(h ^ b, 0x01000193);
+            return (h >>> 0).toString(16).padStart(8, '0');
+        }
+
+        // Nom sur la montre (synchro) : nom habituel + empreinte du contenu. Fichier modifié -> autre nom :
+        // il suffit de comparer avec les noms présents sur la montre, sans rien garder dans le navigateur
+        function syncFitFileName(w, bytes) {
+            return fitFileName(w).replace(/\.fit$/, `_${fnv1aHex(bytes)}.fit`);
         }
 
         function saveFitFile(bytes, w) {

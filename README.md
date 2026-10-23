@@ -114,7 +114,7 @@ Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucu
 **Utilisation** : brancher la montre, attendre qu'elle apparaisse dans l'Explorateur, cliquer sur **« Montre »**. Puis débrancher la montre : elle intègre les nouvelles séances.
 - Sorties des 30 derniers jours pas encore récupérées → import habituel (rattachement aux séances, pas de doublon).
 - Séances de l'app datées d'avant aujourd'hui (fichiers `AAAA-MM-JJ_….fit` de `GARMIN/Workouts` et `GARMIN/NewFiles`) → déplacées dans `%APPDATA%\MonPlan\retires` (pas effacées). Les autres entraînements de la montre ne sont jamais touchés.
-- Séances des 14 prochains jours (non réalisées) → copiées dans `GARMIN/NewFiles` dans l'ordre chronologique, seulement si nouvelles ou modifiées.
+- Séances des 14 prochains jours (non réalisées) → copiées dans `GARMIN/NewFiles` dans l'ordre chronologique, seulement si nouvelles ou modifiées. Le nom du fichier porte l'empreinte de son contenu (`AAAA-MM-JJ_jeu_titre_a3f9c1d2.fit`) : la synchro compare avec ce qui est sur la montre, sans rien garder dans le navigateur, et fonctionne donc depuis n'importe quel ordinateur. Toute modification (séance, allures du profil, étapes de la banque) est détectée ; l'ancienne version est retirée de la montre.
 
 **Sécurité** : le relais n'écoute que `localhost:47812`, exige le jeton secret (gardé dans ce navigateur, jamais en base), n'accepte que l'adresse du site et `localhost`, refuse tout nom de fichier contenant un chemin et tout fichier qui n'est pas un `.FIT`. Journal : `%APPDATA%\MonPlan\relais.log`.
 
