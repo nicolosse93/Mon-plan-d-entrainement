@@ -1546,13 +1546,20 @@
         // ==========================================
         // Activités des ~7 dernières semaines (résumé seulement), rechargées avec les séances
         let activities = [];
+        // État « réalisé » d'une séance : sortie de la montre liée (cœur), cochée à la main (coche), ou à faire
+        function workoutDoneState(w) {
+            if (w.completed && linkedWorkoutIds.has(String(w.id))) return { kind: 'linked', icon: 'fa-heart-pulse', title: 'Réalisée : sortie de la montre liée' };
+            if (w.completed) return { kind: 'manual', icon: 'fa-circle-check', title: 'Cochée à la main : aucune sortie de la montre liée' };
+            return { kind: 'todo', icon: 'fa-check', title: 'À faire' };
+        }
+
+        // Toutes les activités (colonnes de résumé seulement, légères) : charge, et séances liées à une sortie
+        let linkedWorkoutIds = new Set();
         async function fetchActivities() {
-            const from = new Date();
-            from.setDate(from.getDate() - 48);
             const { data, error } = await supabaseClient.from('activities')
-                .select('id, workout_id, sport, start_date_local, load, load_estimated, timer_time, elapsed_time')
-                .gte('start_date_local', toDateStr(from));
+                .select('id, workout_id, sport, start_date_local, load, load_estimated, timer_time, elapsed_time');
             activities = error ? [] : (data || []);
+            linkedWorkoutIds = new Set(activities.filter(a => a.workout_id).map(a => String(a.workout_id)));
         }
 
         // Charge aiguë (7 derniers jours) et chronique (moyenne hebdo des 28 derniers jours), aujourd'hui inclus.
@@ -2046,10 +2053,21 @@
             ['detail-done', 'detail-laps', 'detail-compare', 'detail-activity'].forEach(id => document.getElementById(id).classList.add('hidden'));
             if (detailMap) { detailMap.remove(); detailMap = null; }
             const { data, error } = await supabaseClient.from('activities').select('*').eq('workout_id', String(w.id)).limit(1);
-            if (error || !data || !data[0] || detailsModal.dataset.currentId != w.id) return;
+            if (detailsModal.dataset.currentId != w.id) return;
+            const icon = box.querySelector('i');
+            if (error || !data || !data[0]) {
+                // Réalisée sans sortie liée : on le dit, pour la distinguer d'une séance mesurée par la montre
+                if (w.completed && w.type !== 'Repos') {
+                    box.className = 'basis-full text-xs font-semibold text-muted';
+                    icon.className = 'fa-solid fa-circle-check mr-1';
+                    document.getElementById('detail-done-text').textContent = 'Cochée à la main · aucune sortie de la montre liée';
+                }
+                return;
+            }
             const a = data[0];
-            document.getElementById('detail-done-text').textContent = 'Réalisé : ' + (describeActivity(a, w.type) || 'activité importée');
-            box.classList.remove('hidden');
+            box.className = 'basis-full text-xs font-semibold text-success';
+            icon.className = 'fa-solid fa-heart-pulse mr-1';
+            document.getElementById('detail-done-text').textContent = 'Réalisé avec la montre : ' + (describeActivity(a, w.type) || 'activité importée');
 
             const hasDetail = (Array.isArray(a.time_in_zones) && a.time_in_zones.some(v => v > 0)) || a.streams || a.track || a.training_effect;
             if (hasDetail) {
@@ -2323,6 +2341,7 @@
                         workoutCard.style.animationDelay = `${order * 110}ms, ${order * 110 + 500}ms`;
                     }
 
+                    const doneState = workoutDoneState(w);
                     // Titre et type viennent de la base : insérés en texte (jamais en HTML) pour éviter toute injection
                     workoutCard.innerHTML = `
                         <!-- Une seule ligne ; dans une pastille étroite (iPad portrait), la durée se masque (.card-duration) pour laisser la place à ✓ / poubelle -->
@@ -2334,7 +2353,7 @@
                                 ${bank && bank.effort_score ? `<span class="hidden lg:inline text-[11px] font-medium whitespace-nowrap" title="Effort ${bank.effort_score}/10"><i class="fa-solid fa-gauge text-[9px] mr-0.5"></i>${bank.effort_score}</span>` : ''}
                             </span>
                             <span class="ml-auto flex items-center gap-1.5 shrink-0">
-                                <button type="button" data-action="toggle" aria-label="${w.completed ? 'Marquer comme non terminée' : 'Marquer comme terminée'}" class="${w.completed ? 'text-success' : 'hover:text-success'} transition"><i class="fa-solid ${w.completed ? 'fa-circle-check' : 'fa-check'} text-[11px]"></i></button>
+                                <button type="button" data-action="toggle" title="${doneState.title}" aria-label="${doneState.title} — ${w.completed ? 'cliquer pour marquer comme non terminée' : 'cliquer pour marquer comme terminée'}" class="${w.completed ? 'text-success' : 'hover:text-success'} transition"><i class="fa-solid ${doneState.icon} text-[11px]"></i></button>
                                 <button type="button" data-action="delete" aria-label="Supprimer la séance" class="hover:text-red-500 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
                             </span>
                         </div>
@@ -2399,6 +2418,7 @@
             const totalMin = week.reduce((sum, w) => sum + getWorkoutMinutes(w), 0);
             const doneMin = done.reduce((sum, w) => sum + getWorkoutMinutes(w), 0);
             const pct = week.length ? Math.round(done.length / week.length * 100) : 0;
+            const withWatch = done.filter(w => workoutDoneState(w).kind === 'linked').length;
             const tile = 'bg-surface border border-line rounded-xl p-2.5 sm:p-3 shadow-sm min-w-0';
             const heading = (icon, label) => `<p class="text-[10px] uppercase tracking-wider font-semibold text-muted mb-1"><i class="fa-solid ${icon} mr-1"></i>${label}</p>`;
 
@@ -2421,6 +2441,7 @@
                     ${heading('fa-list-check', 'Semaine')}
                     <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${done.length}<span class="text-sm text-muted font-semibold"> / ${week.length} séances</span></p>
                     <div class="mt-1.5 h-1.5 rounded-full bg-raised overflow-hidden"><div class="h-full bg-success rounded-full transition-all" style="width:${pct}%"></div></div>
+                    ${done.length ? `<p class="text-[11px] text-muted mt-1"><i class="fa-solid fa-heart-pulse text-success mr-1"></i>${withWatch} avec la montre · <i class="fa-solid fa-circle-check mx-1"></i>${done.length - withWatch} à la main</p>` : ''}
                 </div>
                 <div class="${tile}">
                     ${heading('fa-clock', 'Volume')}

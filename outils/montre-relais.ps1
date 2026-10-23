@@ -118,20 +118,41 @@ function Get-WatchFiles($watch, [string]$sub) {
     if (-not $folder) { return @() }
     foreach ($item in $folder.Items()) {
         if ($item.IsFolder) { continue }
-        $files += @{ Name = (Get-ItemFileName $item); Size = [long]$item.Size; Modified = $item.ModifyDate; Item = $item }
+        # En MTP, Size et ModifyDate valent 0 / 1899 : les propriétés étendues donnent les vraies valeurs
+        $name = Get-ItemFileName $item
+        $size = 0
+        try { $size = [long]$item.ExtendedProperty('System.Size') } catch {}
+        if (-not $size) { $size = [long]$item.Size }
+        $modified = $null
+        try { $modified = [datetime]$item.ExtendedProperty('System.DateModified') } catch {}
+        if (-not $modified -or $modified.Year -lt 2000) {
+            # Sorties nommées AAAA-MM-JJ-HH-MM-SS.fit par la montre
+            if ($name -match '^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})') {
+                $modified = Get-Date -Year $Matches[1] -Month $Matches[2] -Day $Matches[3] -Hour $Matches[4] -Minute $Matches[5] -Second $Matches[6]
+            } else {
+                $modified = [datetime]$item.ModifyDate
+            }
+        }
+        $files += @{ Name = $name; Size = $size; Modified = $modified; Item = $item }
     }
     return $files
 }
 
 # Attend qu'un fichier local existe avec la taille attendue (copie Shell asynchrone)
 function Wait-LocalFile([string]$path, [long]$size, [int]$timeoutSec = 30) {
+    # Taille inconnue : le fichier est jugé complet quand sa taille ne bouge plus entre deux relevés
     $limit = (Get-Date).AddSeconds($timeoutSec)
+    $previous = -1
     while ((Get-Date) -lt $limit) {
         if (Test-Path $path) {
             $len = (Get-Item $path).Length
-            if ($len -gt 0 -and ($size -le 0 -or $len -ge $size)) { Start-Sleep -Milliseconds 200; return $true }
+            if ($len -gt 0 -and (($size -gt 0 -and $len -ge $size) -or ($size -le 0 -and $len -eq $previous))) {
+                Start-Sleep -Milliseconds 200
+                return $true
+            }
+            $previous = $len
         }
-        Start-Sleep -Milliseconds 200
+        Start-Sleep -Milliseconds 300
     }
     return $false
 }
@@ -143,7 +164,9 @@ function Read-WatchFile($watch, $file) {
     if (Test-Path $local) { Remove-Item $local -Force }
     $Shell.Namespace($Temp).CopyHere($file.Item, $CopyFlags)
     if (-not (Wait-LocalFile $local $file.Size)) { throw "Copie de $($file.Name) depuis la montre trop longue" }
-    return , [System.IO.File]::ReadAllBytes($local)
+    $bytes = [System.IO.File]::ReadAllBytes($local)
+    Remove-Item $local -Force -ErrorAction SilentlyContinue # copie temporaire : rien ne reste sur le PC
+    return , $bytes
 }
 
 function Write-WatchWorkout($watch, [string]$name, [byte[]]$bytes) {
