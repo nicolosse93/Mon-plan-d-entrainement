@@ -529,10 +529,10 @@
             </div>
             </div>
 
-            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-3">
-            <!-- Deux colonnes sur grand écran quand la séance a des intervalles / options (sinon une seule, plus étroite) -->
-            <div id="details-grid" class="grid gap-3 items-start">
-            <div class="space-y-3 min-w-0">
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-3 space-y-3">
+            <!-- Deux colonnes sur grand écran quand la séance a des intervalles / options (sinon une seule, plus étroite).
+                 Colonnes « de journal » : le navigateur répartit les blocs pour équilibrer les hauteurs, sans trou -->
+            <div id="details-grid" class="gap-3 -mb-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
             <div class="space-y-3 bg-inset border border-line rounded-lg p-4 text-sm">
                 <div>
                     <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-0.5"><i class="fa-solid fa-fire mr-1.5 text-zone-4"></i> Échauffement</span>
@@ -553,9 +553,7 @@
                 <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-2"><i class="fa-solid fa-gauge-high mr-1.5 text-accent"></i> Allures cibles</span>
                 <div id="detail-paces-list" class="space-y-1.5"></div>
             </div>
-            </div>
 
-            <div id="details-side" class="space-y-3 min-w-0">
             <!-- Intervalles structurés de la séance (garmin_steps de la banque) -->
             <div id="detail-intervals" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
                 <div class="flex items-center justify-between">
@@ -565,11 +563,43 @@
                 <div id="detail-intervals-chart" class="flex items-end gap-px h-20 rounded-lg overflow-hidden bg-inset" aria-hidden="true"></div>
                 <ol id="detail-intervals-list" class="space-y-1.5"></ol>
             </div>
+            </div>
 
-            <!-- Régénération depuis la banque : durée et difficulté combinables -->
-            <div id="detail-regen" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
-                <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block"><i class="fa-solid fa-shuffle mr-1.5 text-accent"></i> Régénérer la séance</span>
-                <div class="grid grid-cols-2 gap-2">
+            <!-- Séance réalisée, sur toute la largeur sous le plan : comparaison et sortie de la montre -->
+            <div id="details-bottom" class="hidden space-y-3">
+            <!-- Prévu vs réalisé : chaque effort comparé au tour correspondant de l'activité importée -->
+            <div id="detail-compare" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted"><i class="fa-solid fa-scale-balanced mr-1.5 text-accent"></i> Prévu vs réalisé</span>
+                    <span id="detail-compare-score" class="text-xs font-semibold text-ink"></span>
+                </div>
+                <p id="detail-compare-summary" class="text-xs text-muted"></p>
+                <ol id="detail-compare-list" class="grid md:grid-cols-2 gap-x-6 gap-y-1.5 text-xs"></ol>
+            </div>
+
+            <!-- Sortie réalisée : temps par zone de FC et tracé GPS côte à côte, courbes en dessous -->
+            <div id="detail-activity" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+                <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block"><i class="fa-solid fa-chart-line mr-1.5 text-accent"></i> Sortie réalisée</span>
+                <!-- Carte étirée à la hauteur des zones quand elles sont plus hautes : pas de vide sous l'une ou l'autre -->
+                <div id="detail-activity-top" class="grid gap-3">
+                    <div id="detail-zones" class="space-y-1 min-w-0"></div>
+                    <div id="detail-map" class="hidden h-56 md:h-auto md:min-h-[14rem] rounded-lg overflow-hidden border border-line"></div>
+                </div>
+                <div id="detail-chart-chips" class="flex flex-wrap gap-1.5"></div>
+                <div id="detail-chart" class="relative overflow-hidden"></div>
+            </div>
+            </div>
+            </div>
+
+            <div class="shrink-0 px-4 sm:px-5 py-3 border-t border-line space-y-3">
+            <!-- Choix de la régénération (bouton « Régénérer ») : durée et difficulté combinables, depuis la banque.
+                 Ouvert au-dessus des boutons, dans la barre d'actions : la fiche ne bouge pas -->
+            <div id="detail-regen" class="hidden text-sm space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted"><i class="fa-solid fa-shuffle mr-1.5 text-accent"></i> Régénérer la séance</span>
+                    <button type="button" onclick="toggleRegenPanel(false)" aria-label="Fermer les options de régénération" class="h-7 w-7 rounded-md text-muted hover:text-ink hover:bg-raised transition"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <button type="button" data-axis="duration" data-dir="shorter" class="regen-chip"><i class="fa-solid fa-hourglass-start mr-1"></i> Plus courte</button>
                     <button type="button" data-axis="duration" data-dir="longer" class="regen-chip"><i class="fa-solid fa-hourglass-end mr-1"></i> Plus longue</button>
                     <button type="button" data-axis="effort" data-dir="easier" class="regen-chip"><i class="fa-solid fa-feather mr-1"></i> Plus facile</button>
@@ -579,38 +609,19 @@
                     <i class="fa-solid fa-rotate"></i><span id="regen-btn-label">Régénérer</span>
                 </button>
             </div>
-
-            <!-- Prévu vs réalisé : chaque effort comparé au tour correspondant de l'activité importée -->
-            <div id="detail-compare" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
-                <div class="flex items-center justify-between gap-2">
-                    <span class="text-[11px] uppercase tracking-wider font-semibold text-muted"><i class="fa-solid fa-scale-balanced mr-1.5 text-accent"></i> Prévu vs réalisé</span>
-                    <span id="detail-compare-score" class="text-xs font-semibold text-ink"></span>
-                </div>
-                <p id="detail-compare-summary" class="text-xs text-muted"></p>
-                <ol id="detail-compare-list" class="space-y-1.5 text-xs"></ol>
-            </div>
-
-            <!-- Sortie réalisée : temps par zone de FC, courbes et tracé GPS -->
-            <div id="detail-activity" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
-                <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block"><i class="fa-solid fa-chart-line mr-1.5 text-accent"></i> Sortie réalisée</span>
-                <div id="detail-zones" class="space-y-1"></div>
-                <div id="detail-chart-chips" class="flex flex-wrap gap-1.5"></div>
-                <div id="detail-chart" class="relative overflow-hidden"></div>
-                <div id="detail-map" class="hidden h-56 rounded-lg overflow-hidden border border-line"></div>
-            </div>
-            </div>
-            </div>
-            </div>
-
-            <div class="shrink-0 flex gap-2 sm:gap-3 px-4 sm:px-5 py-3 border-t border-line">
+            <div class="flex gap-2 sm:gap-3">
                 <button id="detail-toggle-btn" onclick="" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2 ">
                     <i class="fa-solid fa-check"></i>
                     <span>Marquer comme terminé</span>
+                </button>
+                <button id="detail-regen-toggle" type="button" onclick="toggleRegenPanel()" aria-expanded="false" aria-controls="detail-regen" title="Régénérer la séance (plus courte, plus longue, plus facile, plus difficile)" class="hidden bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 font-semibold px-3 py-2.5 rounded-lg transition text-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-shuffle"></i><span class="hidden sm:inline">Régénérer</span>
                 </button>
                 <button id="detail-fit-btn" type="button" title="Télécharger pour Garmin (.FIT)" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 font-semibold px-3 py-2.5 rounded-lg transition text-sm flex items-center gap-1.5">
                     <i class="fa-solid fa-download"></i><span>.FIT</span>
                 </button>
                 <button onclick="closeDetailsModal()" class="hidden sm:block bg-raised hover:bg-raised-hover text-ink font-semibold px-4 py-2.5 rounded-lg transition text-sm">Fermer</button>
+            </div>
             </div>
         </div>
     </div>
@@ -2050,12 +2061,21 @@
             return leafletLoading;
         }
 
+        // Zones de FC et carte côte à côte sur grand écran quand les deux sont là, sinon l'une prend toute la largeur
+        function updateActivityLayout() {
+            const hasMap = !document.getElementById('detail-map').classList.contains('hidden');
+            const hasZones = document.getElementById('detail-zones').children.length > 0;
+            document.getElementById('detail-activity-top').classList.toggle('md:grid-cols-2', hasMap && hasZones);
+        }
+
         async function renderActivityMap(a, w) {
             const el = document.getElementById('detail-map');
             if (detailMap) { detailMap.remove(); detailMap = null; }
-            if (!Array.isArray(a.track) || a.track.length < 2) { el.classList.add('hidden'); return; }
+            const hide = () => { el.classList.add('hidden'); updateActivityLayout(); };
+            if (!Array.isArray(a.track) || a.track.length < 2) { hide(); return; }
             el.classList.remove('hidden');
-            try { await loadLeaflet(); } catch (e) { el.classList.add('hidden'); return; }
+            updateActivityLayout();
+            try { await loadLeaflet(); } catch (e) { hide(); return; }
             if (detailsModal.dataset.currentId != w.id) return;
             if (detailMap) detailMap.remove();
             detailMap = L.map(el, { scrollWheelZoom: false });
@@ -2097,6 +2117,7 @@
             if (hasDetail) {
                 document.getElementById('detail-activity').classList.remove('hidden');
                 renderZones(a);
+                updateActivityLayout();
                 updateDetailLayout();
                 renderChartChips(a, w);
                 renderActivityMap(a, w);
@@ -2810,7 +2831,8 @@
             durationEl.textContent = estimatedSec > 0 ? formatDuration(Math.round(estimatedSec / 60)) : 'Non spécifiée';
             renderDetailPaces(w, zonesFromText(w.main_block));
             document.getElementById('detail-effort-wrap').classList.add('hidden');
-            document.getElementById('detail-regen').classList.add('hidden');
+            document.getElementById('detail-regen-toggle').classList.add('hidden');
+            toggleRegenPanel(false);
             document.getElementById('detail-intervals').classList.add('hidden');
 
             // Séances du même sport dans la banque : durée, effort, allures et options de régénération
@@ -2863,13 +2885,17 @@
             detailsModal.classList.remove('hidden');
         }
 
-        // Fenêtre large en 2 colonnes seulement si la colonne de droite (intervalles, régénération) a du contenu
+        // Plan en 2 colonnes seulement si la colonne de droite (intervalles, régénération) a du contenu ;
+        // séance réalisée (comparaison, sortie) sur toute la largeur en dessous. Fenêtre large dès qu'il y a l'un des deux
         function updateDetailLayout() {
-            const hasSide = [...document.getElementById('details-side').children].some(c => !c.classList.contains('hidden'));
-            document.getElementById('details-grid').classList.toggle('md:grid-cols-2', hasSide);
+            const shown = id => !document.getElementById(id).classList.contains('hidden');
+            const hasSide = shown('detail-intervals');
+            const hasBottom = shown('detail-compare') || shown('detail-activity');
+            document.getElementById('details-grid').classList.toggle('md:columns-2', hasSide);
+            document.getElementById('details-bottom').classList.toggle('hidden', !hasBottom);
             const box = document.getElementById('details-box');
-            box.classList.toggle('max-w-4xl', hasSide);
-            box.classList.toggle('max-w-xl', !hasSide);
+            box.classList.toggle('max-w-4xl', hasSide || hasBottom);
+            box.classList.toggle('max-w-xl', !hasSide && !hasBottom);
         }
 
         // Toutes les séances par date (puis par id pour départager un même jour)
@@ -2960,11 +2986,21 @@
         // Critères choisis : un sens par axe (durée, difficulté), combinables entre eux
         let regenState = { duration: null, effort: null, workout: null, current: null, sessions: [], refDuration: 0, refEffort: 5 };
 
+        // Bouton « Régénérer » de la barre d'actions : ouvre / ferme les choix (open omis : bascule)
+        function toggleRegenPanel(open) {
+            const panel = document.getElementById('detail-regen');
+            const show = open === undefined ? panel.classList.contains('hidden') : open;
+            panel.classList.toggle('hidden', !show);
+            document.getElementById('detail-regen-toggle').setAttribute('aria-expanded', show ? 'true' : 'false');
+        }
+
+        // Bouton affiché seulement si la banque a d'autres séances de ce sport
         function setupRegen(w, current, sessions, estimatedMinutes) {
-            const box = document.getElementById('detail-regen');
+            const toggle = document.getElementById('detail-regen-toggle');
             const others = sessions.filter(s => s.title !== w.title);
             if (others.length === 0) {
-                box.classList.add('hidden');
+                toggle.classList.add('hidden');
+                toggleRegenPanel(false);
                 return;
             }
             regenState = {
@@ -2977,7 +3013,7 @@
                 refDuration: current && current.duration_minutes ? current.duration_minutes : estimatedMinutes,
                 refEffort: current && current.effort_score ? current.effort_score : 5
             };
-            box.classList.remove('hidden');
+            toggle.classList.remove('hidden');
             updateRegenUI();
         }
 
