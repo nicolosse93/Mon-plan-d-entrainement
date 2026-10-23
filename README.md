@@ -17,7 +17,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
   - **Prévu vs réalisé** : chaque effort comparé au tour correspondant (allure en course, zone de FC ailleurs ; durée ou distance), verdict « Tenu / Trop lent / Trop court… » et note de séance /10. Le détail par intervalle suppose d'avoir suivi la séance .FIT de l'app sur la montre (une étape = un tour).
   - **Charge & fatigue** : charge TRIMP (minutes × zone de FC ; estimée sans cardio) ; tuile « Charge 7 jours » du résumé avec le ratio sur la moyenne des 4 semaines et l'historique de 6 semaines ; le générateur propose « Fatigué » au-delà de 1,5×.
   - **Sortie réalisée** : temps par zone de FC (base FC seuil de la montre ou du profil, sinon FC max), Training Effect, courbes FC / allure ou vitesse / puissance / altitude / cadence avec survol, carte du parcours (Leaflet + OpenStreetMap).
-- **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 14 prochains jours, dans l'ordre chronologique.
+- **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows ou un Mac avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 14 prochains jours, dans l'ordre chronologique.
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
 - **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
@@ -34,7 +34,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 | [index.html](index.html) | L'application complète : interface, logique, appels Supabase, générateur et export. |
 | [fitBuilder.js](fitBuilder.js) | Encodeur FIT minimal, sans dépendance, pour les fichiers d'entraînement Garmin (script classique qui expose `window.FitModule`). |
 | [fitParser.js](fitParser.js) | Lecteur FIT minimal, sans dépendance, pour les activités de la montre (résumé, tours, mesures seconde par seconde, zones, heure locale) et les .zip de Garmin Connect ; calcule temps par zone, charge, courbes réduites et tracé GPS (`window.FitParser`). |
-| [outils/](outils/) | Relais montre (Windows) : `montre-relais.ps1` (petit serveur local qui lit la montre branchée en USB, même en MTP), `installer-relais.cmd` / `desinstaller-relais.cmd`. |
+| [outils/](outils/) | Relais montre, petit serveur local qui lit la montre branchée en USB, même en MTP. Windows : `montre-relais.ps1`, `installer-relais.cmd` / `desinstaller-relais.cmd`. Mac : `montre-relais-mac.py` (libmtp), `installer-relais-mac.command` / `desinstaller-relais-mac.command`. Mêmes routes, l'app ne voit pas la différence. |
 | [sql/activities.sql](sql/activities.sql) | Table `activities` (activités importées, rattachées aux séances : résumé, zones, charge, courbes, tracé) et ses règles d'accès. Relançable : ajoute les colonnes manquantes. |
 | [sql/seed_training_bank.sql](sql/seed_training_bank.sql) | Requête à coller dans l'éditeur SQL de Supabase : ~35 séances par sport dans `training_bank` (relançable sans doublons). |
 | [test-import.js](test-import.js) | Petit test de chargement du SDK FIT officiel de Garmin depuis un CDN. |
@@ -97,27 +97,33 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 L'API officielle Garmin n'accepte pas de nouveaux développeurs (2026) et celle de Strava demande un abonnement : l'app lit donc directement les fichiers d'activité `.FIT`, gratuitement et sans mot de passe à confier.
 
 1. Coller [sql/activities.sql](sql/activities.sql) dans l'éditeur SQL de Supabase (une seule fois).
-2. Installer le relais de la montre (voir [Synchroniser la montre](#synchroniser-la-montre-windows)) : la synchro importe les nouvelles sorties du dossier `GARMIN/Activity`.
+2. Installer le relais de la montre (voir [Synchroniser la montre](#synchroniser-la-montre-windows-et-mac)) : la synchro importe les nouvelles sorties du dossier `GARMIN/Activity`.
 
 Seules les activités sont lues : VO2max, prédictions, sommeil, Body Battery et VFC restent saisis à la main dans le profil.
 
-## Synchroniser la montre (Windows)
+## Synchroniser la montre (Windows et Mac)
 
-Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucun navigateur ne peut la lire. Un petit relais PowerShell, sans logiciel à télécharger, le fait à sa place et ne répond qu'à l'app.
+Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucun navigateur ne peut la lire. Un petit relais local le fait à sa place et ne répond qu'à l'app : PowerShell sur Windows (sans logiciel à télécharger), Python + libmtp sur Mac. Les deux répondent de la même façon : un ordinateur ou l'autre, le bouton « Montre » fait la même chose. Chaque ordinateur a son propre jeton, à coller dans le navigateur de cet ordinateur. Pas de synchro sur iPad : iPadOS ne lit pas les montres en MTP.
 
-**Installation (une fois par PC)**
+**Installation sur Windows (une fois par PC)**
 1. Double-cliquer sur [outils/installer-relais.cmd](outils/installer-relais.cmd), donner l'adresse du site (ex. `https://monsite.github.io`).
 2. Le jeton affiché est copié dans le presse-papiers : le coller dans l'app, **Profil → Synchro de la montre**, puis « Tester ».
 3. Au premier clic, le navigateur peut demander l'autorisation d'accéder aux appareils du réseau local : accepter.
 
-**Utilisation** : brancher la montre, attendre qu'elle apparaisse dans l'Explorateur, cliquer sur **« Montre »**. Puis débrancher la montre : elle intègre les nouvelles séances.
+**Installation sur Mac (une fois par Mac)**
+1. Installer [Homebrew](https://brew.sh) s'il n'y est pas.
+2. Double-cliquer sur [outils/installer-relais-mac.command](outils/installer-relais-mac.command) (si macOS le bloque : clic droit → Ouvrir, ou `bash outils/installer-relais-mac.command` dans le Terminal). Il installe libmtp (et Python 3 si besoin), demande l'adresse du site et lance le relais à chaque ouverture de session (LaunchAgent `com.monplan.relais`).
+3. Coller le jeton affiché (déjà dans le presse-papiers) dans l'app, **Profil → Synchro de la montre**, puis « Tester ».
+4. Navigateur conseillé : Chrome ou Edge. Safari peut refuser qu'un site en ligne appelle `localhost`.
+
+**Utilisation** : brancher la montre (sur Windows, attendre qu'elle apparaisse dans l'Explorateur ; sur Mac, **fermer Garmin Express**, qui bloque l'accès à la montre), cliquer sur **« Montre »**. Puis débrancher la montre : elle intègre les nouvelles séances.
 - Sorties des 30 derniers jours pas encore récupérées → import habituel (rattachement aux séances, pas de doublon).
-- Séances de l'app datées d'avant aujourd'hui → déplacées dans `%APPDATA%\MonPlan\retires` (pas effacées). Le relais les reconnaît dans `GARMIN/NewFiles` (`AAAA-MM-JJ_….fit`) et dans `GARMIN/Workouts`, où la montre les range au débranchement sous un nom tiré du nom affiché (`10-23_Ven_-_Seuil_Lactique_-_2x_workout.fit`, contenu identique). Les autres entraînements de la montre ne sont jamais touchés.
+- Séances de l'app datées d'avant aujourd'hui → déplacées dans `%APPDATA%\MonPlan\retires` (Mac : `~/Library/Application Support/MonPlan/retires`), pas effacées. Le relais les reconnaît dans `GARMIN/NewFiles` (`AAAA-MM-JJ_….fit`) et dans `GARMIN/Workouts`, où la montre les range au débranchement sous un nom tiré du nom affiché (`10-23_Ven_-_Seuil_Lactique_-_2x_workout.fit`, contenu identique). Les autres entraînements de la montre ne sont jamais touchés.
 - Séances des 14 prochains jours (non réalisées) → copiées dans `GARMIN/NewFiles` dans l'ordre chronologique, seulement si nouvelles ou modifiées. Le nom du fichier porte l'empreinte de son contenu (`AAAA-MM-JJ_jeu_titre_a3f9c1d2.fit`), que le relais recalcule pour les séances renommées par la montre : la synchro compare les empreintes avec ce qui est sur la montre, sans rien garder dans le navigateur, et fonctionne donc depuis n'importe quel ordinateur. Toute modification (séance, allures du profil, étapes de la banque) est détectée ; l'ancienne version est retirée de la montre.
 
-**Sécurité** : le relais n'écoute que `localhost:47812`, exige le jeton secret (gardé dans ce navigateur, jamais en base), n'accepte que l'adresse du site et `localhost`, refuse tout nom de fichier contenant un chemin et tout fichier qui n'est pas un `.FIT`. Journal : `%APPDATA%\MonPlan\relais.log`.
+**Sécurité** : le relais n'écoute que `localhost:47812`, exige le jeton secret (gardé dans ce navigateur, jamais en base), n'accepte que l'adresse du site et `localhost`, refuse tout nom de fichier contenant un chemin et tout fichier qui n'est pas un `.FIT`. Journal : `%APPDATA%\MonPlan\relais.log` (Mac : `~/Library/Application Support/MonPlan/relais.log`).
 
-**Désinstallation** : double-cliquer sur [outils/desinstaller-relais.cmd](outils/desinstaller-relais.cmd).
+**Désinstallation** : double-cliquer sur [outils/desinstaller-relais.cmd](outils/desinstaller-relais.cmd) (Windows) ou [outils/desinstaller-relais-mac.command](outils/desinstaller-relais-mac.command) (Mac).
 
 ## Importer une séance sur Garmin
 

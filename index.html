@@ -313,14 +313,14 @@
                     </table>
                 </div>
 
-                <!-- Relais montre : jeton du programme installé sur ce PC (outils/installer-relais.cmd) -->
+                <!-- Relais montre : jeton du programme installé sur cet ordinateur (installer-relais.cmd sur Windows, installer-relais-mac.command sur Mac) -->
                 <div id="relay-section" class="rounded-lg border border-line p-3 space-y-2">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-arrows-rotate text-accent"></i>
                         <p class="flex-1 font-semibold text-ink text-sm">Synchro de la montre (USB)</p>
                         <span id="relay-state" class="text-xs text-muted"></span>
                     </div>
-                    <p class="text-xs text-muted">Une fois sur ce PC : lance <code>outils/installer-relais.cmd</code> (double-clic), puis colle ici le jeton affiché. Ensuite, montre branchée, le bouton « Montre » de l'en-tête importe tes sorties et envoie les séances des 14 prochains jours.</p>
+                    <p class="text-xs text-muted">Une fois sur cet ordinateur : lance <code>outils/installer-relais.cmd</code> (Windows) ou <code>outils/installer-relais-mac.command</code> (Mac), d'un double-clic, puis colle ici le jeton affiché. Ensuite, montre branchée, le bouton « Montre » de l'en-tête importe tes sorties et envoie les séances des 14 prochains jours.</p>
                     <div class="flex gap-2">
                         <input type="password" id="relay-token" autocomplete="off" spellcheck="false" placeholder="Jeton du relais" class="flex-1 min-w-0 bg-inset border border-line rounded-lg px-3 py-2 text-xs text-ink font-mono focus:outline-none focus:border-accent">
                         <button type="button" onclick="saveRelayToken()" class="px-3 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition">Tester</button>
@@ -512,9 +512,10 @@
             </div>
 
             <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-3 space-y-3">
-            <!-- Deux colonnes sur grand écran quand la séance a des intervalles / options (sinon une seule, plus étroite).
-                 Colonnes « de journal » : le navigateur répartit les blocs pour équilibrer les hauteurs, sans trou -->
-            <div id="details-grid" class="gap-3 -mb-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
+            <!-- Deux colonnes dès 768 px (iPad compris) quand la séance a des intervalles (sinon une seule, plus étroite) :
+                 séance et allures à gauche, intervalles à droite. Grille et non colonnes CSS, que Safari empile parfois -->
+            <div id="details-grid" class="flex flex-col gap-3">
+            <div class="flex flex-col gap-3 min-w-0">
             <div class="space-y-3 bg-inset border border-line rounded-lg p-4 text-sm">
                 <div>
                     <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-0.5"><i class="fa-solid fa-fire mr-1.5 text-zone-4"></i> Échauffement</span>
@@ -535,9 +536,10 @@
                 <span class="text-[11px] uppercase tracking-wider font-semibold text-muted block mb-2"><i class="fa-solid fa-gauge-high mr-1.5 text-accent"></i> Allures cibles</span>
                 <div id="detail-paces-list" class="space-y-1.5"></div>
             </div>
+            </div>
 
             <!-- Intervalles structurés de la séance (garmin_steps de la banque) -->
-            <div id="detail-intervals" class="hidden bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
+            <div id="detail-intervals" class="hidden min-w-0 bg-inset border border-line rounded-lg p-4 text-sm space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="text-[11px] uppercase tracking-wider font-semibold text-muted"><i class="fa-solid fa-chart-simple mr-1.5 text-accent"></i> Intervalles</span>
                     <span id="detail-intervals-total" class="text-xs text-muted"></span>
@@ -1209,6 +1211,9 @@
         // Le navigateur ne peut pas lire une montre branchée en MTP : un petit serveur local (localhost) le fait.
         // Son jeton reste dans ce navigateur (localStorage), jamais en base
         const RELAY_URL = 'http://localhost:47812';
+        // Relais Windows (PowerShell) ou Mac (libmtp) : mêmes routes, seuls l'installateur et les conseils changent
+        const IS_MAC = /Mac/i.test(navigator.platform || navigator.userAgent) && !('ontouchend' in document);
+        const RELAY_INSTALLER = IS_MAC ? 'outils/installer-relais-mac.command' : 'outils/installer-relais.cmd';
 
         function getRelayToken() {
             try { return localStorage.getItem('relay-token') || ''; } catch (e) { return ''; }
@@ -1226,15 +1231,15 @@
             try {
                 res = await fetch(RELAY_URL + path, { ...options, headers: { 'X-Relais-Jeton': getRelayToken(), ...(options.headers || {}) } });
             } catch (e) {
-                throw new Error("Relais introuvable : vérifie qu'il est installé (outils/installer-relais.cmd) et que le navigateur a le droit d'accéder aux appareils du réseau local.");
+                throw new Error(`Relais introuvable : vérifie qu'il est installé (${RELAY_INSTALLER}) et que le navigateur a le droit d'accéder aux appareils du réseau local.`);
             }
             if (res.status === 401) throw new Error('Jeton refusé : recolle le jeton du relais dans Profil > Synchro de la montre.');
-            if (res.status === 403) throw new Error("Le relais n'accepte pas cette adresse de site : relance installer-relais.cmd avec la bonne adresse.");
+            if (res.status === 403) throw new Error(`Le relais n'accepte pas cette adresse de site : relance ${RELAY_INSTALLER} avec la bonne adresse.`);
             if (!res.ok) {
                 let message = `erreur ${res.status}`;
                 try { message = (await res.json()).error || message; } catch (e) {}
                 // Relais installé avant l'ajout d'une route : il faut juste le réinstaller
-                if (message === 'Route inconnue') message = 'Relais à mettre à jour : relance outils/installer-relais.cmd (ton jeton est conservé).';
+                if (message === 'Route inconnue') message = `Relais à mettre à jour : relance ${RELAY_INSTALLER} (ton jeton est conservé).`;
                 throw new Error(message);
             }
             return res;
@@ -1248,7 +1253,8 @@
             state.textContent = 'Test…';
             try {
                 const status = await (await relayFetch('/status')).json();
-                state.textContent = status.watch ? `Montre détectée : ${status.name}` : 'Relais OK · montre non branchée';
+                state.textContent = status.watch ? `Montre détectée : ${status.name}`
+                    : status.error ? 'Relais OK · montre occupée (Garmin Express ?)' : 'Relais OK · montre non branchée';
             } catch (e) {
                 state.textContent = 'Échec';
                 alert(e.message);
@@ -1268,7 +1274,7 @@
             openImportModal();
             const ok = 'text-success', warn = 'text-amber-600 dark:text-amber-400';
             if (!getRelayToken()) {
-                importLine('fa-circle-info', 'text-accent', 'Synchro pas encore configurée : installe le relais (outils/installer-relais.cmd) puis colle son jeton dans Profil > Synchro de la montre.');
+                importLine('fa-circle-info', 'text-accent', `Synchro pas encore configurée : installe le relais (${RELAY_INSTALLER}) puis colle son jeton dans Profil > Synchro de la montre.`);
                 return;
             }
             watchSyncing = true;
@@ -1276,12 +1282,15 @@
                 importLine('fa-arrows-rotate', 'text-accent', 'Connexion à la montre…');
                 const status = await (await relayFetch('/status')).json();
                 if (!status.watch) {
-                    importLine('fa-plug-circle-xmark', warn, "Montre non détectée : branche-la et attends qu'elle apparaisse dans l'Explorateur Windows, puis recommence.");
+                    // Relais Mac : montre vue mais occupée (Garmin Express…), message précis dans status.error
+                    importLine('fa-plug-circle-xmark', warn, status.error || (IS_MAC
+                        ? 'Montre non détectée : branche-la, ferme Garmin Express, puis recommence.'
+                        : "Montre non détectée : branche-la et attends qu'elle apparaisse dans l'Explorateur Windows, puis recommence."));
                     return;
                 }
                 importLine('fa-circle-check', ok, `Montre détectée : ${status.name}`);
                 // Relais d'avant la reconnaissance des séances renommées par la montre (version 2)
-                if (!(status.version >= 2)) throw new Error('Relais à mettre à jour : relance outils/installer-relais.cmd (ton jeton est conservé).');
+                if (!(status.version >= 2)) throw new Error(`Relais à mettre à jour : relance ${RELAY_INSTALLER} (ton jeton est conservé).`);
 
                 // 1. Sorties des 30 derniers jours pas encore récupérées
                 const seen = new Set(readLocalJson('relay-seen', []));
@@ -1846,16 +1855,27 @@
             if (!activityChart || activityChart.a !== a || !available.some(m => m.key === activityChart.metric.key)) {
                 activityChart = { a, w, metric: available[0] };
             }
+            const paint = (b, on) => {
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                b.className = 'px-2.5 py-1 rounded-md border text-xs font-semibold transition ' + (on ? 'bg-accent border-accent text-white' : 'bg-surface border-line text-ink hover:border-accent/60');
+            };
             available.forEach(m => {
                 const b = document.createElement('button');
                 b.type = 'button';
-                const on = m.key === activityChart.metric.key;
-                b.setAttribute('aria-pressed', on ? 'true' : 'false');
-                b.className = 'px-2.5 py-1 rounded-md border text-xs font-semibold transition ' + (on ? 'bg-accent border-accent text-white' : 'bg-surface border-line text-ink hover:border-accent/60');
+                paint(b, m.key === activityChart.metric.key);
                 b.textContent = m.label;
+                // Boutons mis à jour sur place (pas reconstruits) et défilement de la fenêtre remis où il était
+                // (Safari sur iPad la faisait remonter en haut pendant que la courbe est redessinée)
                 b.addEventListener('click', () => {
+                    const scroller = chips.closest('.overflow-y-auto');
+                    const scrollTop = scroller ? scroller.scrollTop : 0;
                     activityChart.metric = m;
-                    renderChartChips(a, w);
+                    [...chips.children].forEach((c, i) => paint(c, available[i].key === m.key));
+                    renderActivityChart();
+                    if (scroller) {
+                        scroller.scrollTop = scrollTop;
+                        requestAnimationFrame(() => { scroller.scrollTop = scrollTop; });
+                    }
                 });
                 chips.appendChild(b);
             });
@@ -1865,6 +1885,8 @@
         // Courbe d'une mesure dans le temps : trait 2 px + voile 10 %, grille fine, repère et bulle au survol
         function renderActivityChart() {
             const box = document.getElementById('detail-chart');
+            // Largeur lue avant de vider le cadre : lue après, le cadre vide raccourcit la fenêtre et la fait remonter
+            const boxWidth = box.clientWidth;
             box.innerHTML = '';
             if (!activityChart) return;
             const { a, metric } = activityChart;
@@ -1883,7 +1905,7 @@
             lo -= pad;
             hi += pad;
 
-            const W = Math.max(220, box.clientWidth || 320), H = 170;
+            const W = Math.max(220, boxWidth || 320), H = 170;
             const left = 42, right = 8, top = 8, bottom = 22;
             const tMax = t[t.length - 1] || 1;
             const x = sec => left + sec / tMax * (W - left - right);
@@ -2848,7 +2870,7 @@
             const shown = id => !document.getElementById(id).classList.contains('hidden');
             const hasSide = shown('detail-intervals');
             const hasBottom = shown('detail-compare') || shown('detail-activity');
-            document.getElementById('details-grid').classList.toggle('md:columns-2', hasSide);
+            ['md:grid', 'md:grid-cols-2', 'md:items-start'].forEach(c => document.getElementById('details-grid').classList.toggle(c, hasSide));
             document.getElementById('details-bottom').classList.toggle('hidden', !hasBottom);
             const box = document.getElementById('details-box');
             box.classList.toggle('max-w-4xl', hasSide || hasBottom);
