@@ -7,6 +7,8 @@
 #   GET  /activities?days=30           sorties récentes de GARMIN\Activity (nom, taille, date)
 #   GET  /activities/<nom>.fit         contenu d'une sortie
 #   POST /workouts/<nom>.fit           dépose une séance dans GARMIN\NewFiles (prise en compte au débranchement)
+#   GET  /workouts                     séances de l'app sur la montre (nom, dossier, date, empreinte du contenu)
+#   POST /remove/<nom>.fit             retire une séance de l'app (déplacée, pas effacée)
 #   POST /cleanup?before=AAAA-MM-JJ    retire les séances de l'app datées d'avant cette date (déplacées, pas effacées)
 #
 # -DossierTest <chemin> : utilise un dossier normal contenant GARMIN\... à la place de la montre (tests).
@@ -19,6 +21,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Version des routes : l'app demande de réinstaller le relais si elle est plus ancienne que celle attendue
+$Version = 2
 $Base = if ($DossierTest) { Join-Path $DossierTest '_relais' } else { Join-Path $env:APPDATA 'MonPlan' }
 $Temp = Join-Path $env:TEMP 'monplan-relais'
 $Retires = Join-Path $Base 'retires'
@@ -189,6 +193,58 @@ function Write-WatchWorkout($watch, [string]$name, [byte[]]$bytes) {
     throw "Écriture de $name sur la montre trop longue"
 }
 
+# ---------------------------------------------------------------------------
+# Séances de l'app sur la montre
+# ---------------------------------------------------------------------------
+# Dans NewFiles, une séance garde le nom donné par l'app (« 2026-10-23_ven_seuil_48e22570.fit »). Au débranchement,
+# la montre l'intègre dans Workouts sous un nom tiré du nom affiché, coupé (« 10-23_Ven_-_Seuil_Lactique_-_2x_workout.fit » ;
+# « 26-12-29_Mar_-_… » fin décembre), avec un contenu identique à l'octet près
+function Get-AppWorkoutDate([string]$name) {
+    if ($name -match '^(\d{4}-\d{2}-\d{2})_') { return $Matches[1] }
+    if ($name -notmatch '^(?:(\d{2})-)?(\d{2})-(\d{2})_(Lun|Mar|Mer|Jeu|Ven|Sam|Dim)_-_.*_workout\.fit$') { return $null }
+    $month = [int]$Matches[2]; $day = [int]$Matches[3]
+    if ($Matches[1]) { $years = @(2000 + [int]$Matches[1]) } else {
+        # Année absente : celle qui place la date au plus près d'aujourd'hui
+        $y = (Get-Date).Year; $years = @(($y - 1), $y, ($y + 1))
+    }
+    $best = $null
+    foreach ($year in $years) {
+        try { $date = Get-Date -Year $year -Month $month -Day $day -Hour 0 -Minute 0 -Second 0 } catch { continue }
+        if (-not $best -or [Math]::Abs(((Get-Date) - $date).TotalDays) -lt [Math]::Abs(((Get-Date) - $best).TotalDays)) { $best = $date }
+    }
+    if (-not $best) { return $null }
+    return $best.ToString('yyyy-MM-dd')
+}
+
+# Empreinte FNV-1a 32 bits du contenu (la même que l'app met dans le nom de ses fichiers)
+function Get-Fnv1a([byte[]]$bytes) {
+    [uint32]$h = 2166136261
+    foreach ($b in $bytes) { $h = [uint32](([uint64]($h -bxor $b) * 16777619) % 4294967296) }
+    return '{0:x8}' -f $h
+}
+
+# Empreintes déjà calculées (le fichier n'a pas changé tant que dossier, nom, taille et date sont les mêmes)
+$HashCache = @{}
+function Get-WatchFileHash($watch, [string]$sub, $file) {
+    # Nom donné par l'app : l'empreinte y est déjà
+    if ($file.Name -match '^\d{4}-\d{2}-\d{2}_.*_([0-9a-f]{8})\.fit$') { return $Matches[1] }
+    $key = "$sub|$($file.Name)|$($file.Size)|$($file.Modified)"
+    if (-not $HashCache.ContainsKey($key)) { $HashCache[$key] = Get-Fnv1a (Read-WatchFile $watch $file) }
+    return $HashCache[$key]
+}
+
+# @{ Name; Folder; Date; File } pour chaque séance de l'app, dans Workouts et NewFiles
+function Get-AppWorkouts($watch) {
+    $list = @()
+    foreach ($sub in 'Workouts', 'NewFiles') {
+        foreach ($file in Get-WatchFiles $watch $sub) {
+            $date = Get-AppWorkoutDate $file.Name
+            if ($date) { $list += @{ Name = $file.Name; Folder = $sub; Date = $date; File = $file } }
+        }
+    }
+    return $list
+}
+
 # Déplace (sans effacer) vers %APPDATA%\MonPlan\retires
 function Move-WatchFileAway($watch, $file) {
     $target = Join-Path $Retires $file.Name
@@ -262,7 +318,7 @@ function Invoke-Route($ctx) {
     $watch = Find-Watch
 
     if ($req.HttpMethod -eq 'GET' -and $path -eq '/status') {
-        Send-Json $ctx 200 @{ relay = $true; watch = [bool]$watch; name = $(if ($watch) { $watch.Name } else { $null }) }
+        Send-Json $ctx 200 @{ relay = $true; version = $Version; watch = [bool]$watch; name = $(if ($watch) { $watch.Name } else { $null }) }
         return
     }
     if (-not $watch) { Send-Json $ctx 409 @{ error = 'Montre non détectée' }; return }
@@ -298,32 +354,27 @@ function Invoke-Route($ctx) {
         Send-Json $ctx 200 @{ ok = $true }
         return
     }
-    # Séances de l'app présentes sur la montre (noms AAAA-MM-JJ_….fit), rangées ou en attente
+    # Séances de l'app présentes sur la montre, rangées (Workouts) ou en attente (NewFiles), avec l'empreinte
+    # de leur contenu : l'app reconnaît ainsi une séance à jour même renommée par la montre
     if ($req.HttpMethod -eq 'GET' -and $path -eq '/workouts') {
-        $list = @()
-        foreach ($sub in 'Workouts', 'NewFiles') {
-            foreach ($file in Get-WatchFiles $watch $sub) {
-                if ($file.Name -match '^\d{4}-\d{2}-\d{2}_') { $list += @{ name = $file.Name; folder = $sub } }
-            }
-        }
-        Send-Json $ctx 200 @($list)
+        $list = @(Get-AppWorkouts $watch | ForEach-Object {
+            @{ name = $_.Name; folder = $_.Folder; date = $_.Date; hash = (Get-WatchFileHash $watch $_.Folder $_.File) }
+        })
+        Send-Json $ctx 200 $list
         return
     }
-    # Retire une séance de l'app (séance remplacée, déplacée ou supprimée du plan) : déplacée, pas effacée
+    # Retire une séance de l'app (réalisée, remplacée, déplacée ou supprimée du plan) : déplacée, pas effacée.
+    # Seul un fichier reconnu comme séance de l'app, présent sous ce nom exact, peut l'être
     if ($req.HttpMethod -eq 'POST' -and $path -match '^/remove/([^/]+)$') {
         $name = $Matches[1]
-        if (-not (Test-FileName $name) -or $name -notmatch '^\d{4}-\d{2}-\d{2}_') {
+        if ($name -match '[\\/:*?"<>|]|\.\.' -or -not (Get-AppWorkoutDate $name)) {
             Send-Json $ctx 400 @{ error = "Seules les séances créées par l'app peuvent être retirées" }; return
         }
         $removed = @()
-        foreach ($sub in 'Workouts', 'NewFiles') {
-            foreach ($file in Get-WatchFiles $watch $sub) {
-                if ($file.Name -eq $name) {
-                    Move-WatchFileAway $watch $file
-                    $removed += "$sub/$name"
-                    Write-Log "Séance retirée (plan modifié) : $sub\$name"
-                }
-            }
+        foreach ($w in Get-AppWorkouts $watch | Where-Object { $_.Name -eq $name }) {
+            Move-WatchFileAway $watch $w.File
+            $removed += "$($w.Folder)/$name"
+            Write-Log "Séance retirée (plus à jour) : $($w.Folder)\$name"
         }
         Send-Json $ctx 200 @{ removed = @($removed) }
         return
@@ -331,16 +382,12 @@ function Invoke-Route($ctx) {
     if ($req.HttpMethod -eq 'POST' -and $path -eq '/cleanup') {
         $before = $req.QueryString['before']
         if ($before -notmatch '^\d{4}-\d{2}-\d{2}$') { Send-Json $ctx 400 @{ error = 'Date invalide' }; return }
-        # Seulement les fichiers créés par l'app (nom commençant par AAAA-MM-JJ_) et datés d'avant
+        # Seulement les séances de l'app datées d'avant
         $removed = @()
-        foreach ($sub in 'Workouts', 'NewFiles') {
-            foreach ($file in Get-WatchFiles $watch $sub) {
-                if ($file.Name -match '^(\d{4}-\d{2}-\d{2})_' -and $Matches[1] -lt $before) {
-                    Move-WatchFileAway $watch $file
-                    $removed += $file.Name
-                    Write-Log "Séance passée retirée : $sub\$($file.Name)"
-                }
-            }
+        foreach ($w in Get-AppWorkouts $watch | Where-Object { $_.Date -lt $before }) {
+            Move-WatchFileAway $watch $w.File
+            $removed += $w.Name
+            Write-Log "Séance passée retirée : $($w.Folder)\$($w.Name)"
         }
         Send-Json $ctx 200 @{ removed = @($removed) }
         return
