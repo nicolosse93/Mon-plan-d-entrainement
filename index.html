@@ -189,10 +189,6 @@
                 <i class="fa-solid fa-arrows-rotate text-accent"></i>
                 <span class="hidden lg:inline">Montre</span>
             </button>
-            <button onclick="openImportModal()" title="Importer mes activités (.FIT de la montre)" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
-                <i class="fa-solid fa-file-import text-success"></i>
-                <span class="hidden lg:inline">Importer</span>
-            </button>
             <button onclick="openExportModal()" title="Exporter vers Garmin (.FIT)" class="bg-accent/10 hover:bg-accent/20 text-accent border border-accent/30 h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
                 <i class="fa-solid fa-file-export"></i>
                 <span class="hidden lg:inline">Garmin .FIT</span>
@@ -462,31 +458,17 @@
         </div>
     </div>
 
-    <!-- MODAL IMPORT DES ACTIVITÉS (.FIT de la montre ou .zip de Garmin Connect) -->
+    <!-- MODAL SYNCHRO DE LA MONTRE : compte rendu (sorties importées, séances envoyées / retirées) -->
     <div id="import-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-surface border border-line w-full max-w-lg rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
             <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
-                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold truncate"><i class="fa-solid fa-file-import text-success mr-2"></i>Importer mes activités</h3>
+                <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold truncate"><i class="fa-solid fa-arrows-rotate text-accent mr-2"></i>Synchro de la montre</h3>
                 <button type="button" onclick="closeImportModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
                 <p class="text-sm text-muted">Chaque sortie coche la séance prévue le même jour pour le même sport. Une sortie non prévue est ajoutée au calendrier.</p>
-                <label id="import-drop" for="import-input" class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line hover:border-accent/60 bg-inset px-4 py-8 text-center cursor-pointer transition">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-accent"></i>
-                    <span class="font-semibold text-ink">Glisse tes fichiers .FIT ou .zip ici</span>
-                    <span class="text-xs text-muted">ou clique pour les choisir (plusieurs à la fois possible)</span>
-                </label>
-                <input type="file" id="import-input" accept=".fit,.zip" multiple class="hidden">
-                <details class="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-ink">
-                    <summary class="cursor-pointer font-semibold text-accent"><i class="fa-regular fa-circle-question mr-1"></i>Où trouver mes fichiers ?</summary>
-                    <ul class="mt-2 space-y-1.5 list-disc pl-4">
-                        <li><strong>Garmin Connect sur ordinateur</strong> (connect.garmin.com, pas l'appli mobile) : ouvre l'activité, clique sur l'engrenage en haut à droite, puis <strong>« Exporter le fichier d'origine »</strong>. Tu obtiens un .zip : glisse-le tel quel.</li>
-                        <li><strong>Montre branchée en USB</strong> : dossier <code>GARMIN/Activity</code>, un fichier .fit par sortie. Tu peux en glisser plusieurs d'un coup.</li>
-                        <li>Un fichier déjà importé est reconnu et ignoré : pas de doublon.</li>
-                    </ul>
-                </details>
                 <ul id="import-results" class="hidden space-y-1.5 text-sm"></ul>
             </div>
             <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
@@ -1482,32 +1464,6 @@
             return true;
         }
 
-        document.getElementById('import-input').addEventListener('change', (e) => {
-            const files = [...e.target.files];
-            e.target.value = ''; // permet de réimporter le même fichier
-            if (files.length) importFitFiles(files);
-        });
-
-        // Glisser-déposer de fichiers : sur la zone de la fenêtre, ou n'importe où sur l'app (ouvre la fenêtre)
-        const importDrop = document.getElementById('import-drop');
-        const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
-        window.addEventListener('dragover', (e) => {
-            if (!hasFiles(e) || appContent.classList.contains('hidden')) return;
-            e.preventDefault();
-            importDrop.classList.add('border-accent');
-        });
-        window.addEventListener('dragleave', (e) => {
-            if (!e.relatedTarget) importDrop.classList.remove('border-accent');
-        });
-        window.addEventListener('drop', (e) => {
-            if (!hasFiles(e) || appContent.classList.contains('hidden')) return;
-            e.preventDefault();
-            importDrop.classList.remove('border-accent');
-            const files = [...e.dataTransfer.files].filter(f => /\.(fit|zip)$/i.test(f.name));
-            if (document.getElementById('import-modal').classList.contains('hidden')) openImportModal();
-            if (files.length) importFitFiles(files);
-        });
-
         // Démo : une sortie simulée pour chaque séance déjà réalisée (elle suit le plan, une répétition un peu trop
         // lente pour montrer un verdict), sur une boucle du mont Royal, et 4 semaines d'historique pour la charge
         async function buildDemoActivities(rows) {
@@ -1637,8 +1593,8 @@
             const st = getLoadStatus();
             if (!st.hasData) {
                 return `<div class="${tile}">${heading('fa-heart-pulse', 'Charge')}
-                    <p class="text-xs text-muted">Importe tes sorties (.FIT) pour suivre ta charge et ta fatigue.</p>
-                    <button type="button" onclick="openImportModal()" class="mt-1.5 text-xs font-semibold text-accent hover:underline"><i class="fa-solid fa-file-import mr-1"></i>Importer</button></div>`;
+                    <p class="text-xs text-muted">Synchronise ta montre pour suivre ta charge et ta fatigue.</p>
+                    <button type="button" onclick="syncWatch()" class="mt-1.5 text-xs font-semibold text-accent hover:underline"><i class="fa-solid fa-arrows-rotate mr-1"></i>Synchroniser</button></div>`;
             }
             const max = Math.max(1, ...st.weeks.map(w => w.load));
             const bars = st.weeks.map((w, i) => {

@@ -13,7 +13,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 - **Ajouter une séance** (bouton « + » d'un jour), deux modes :
   - **Depuis la banque** : type de séance (clé, secondaire, endurance facile, sortie longue), énergie et objectif, avec les mêmes règles que le générateur ; évite les séances des 2 semaines précédentes ; bouton « Autre proposition ».
   - **Manuel** : un bloc par ligne (`20 min Z2`, `6x 3 min Z5, récup 2 min`, `10x 400m VMA / 1 min 15`). Un aperçu montre en direct les étapes que recevra la montre et signale ce qui n'est pas compris. Ces étapes servent aussi au détail de la séance et à l'export .FIT.
-- **Import des activités de la montre** (bouton « Importer » de l'en-tête, ou glisser-déposer n'importe où) : fichiers `.fit` (montre en USB, dossier `GARMIN/Activity`) ou `.zip` de Garmin Connect (« Exporter le fichier d'origine »). Chaque activité coche la séance prévue le même jour pour le même sport, sinon une séance « libre » réalisée est ajoutée au calendrier. Le détail de la séance affiche « Réalisé : distance · durée · allure ou vitesse · FC · puissance » et les tours. Réimporter un fichier met à jour son activité, sans doublon.
+- **Import des activités de la montre** (par la synchro, bouton « Montre » de l'en-tête) : chaque activité coche la séance prévue le même jour pour le même sport, sinon une séance « libre » réalisée est ajoutée au calendrier. Le détail de la séance affiche « Réalisé : distance · durée · allure ou vitesse · FC · puissance » et les tours. Une activité déjà importée est reconnue, sans doublon.
   - **Prévu vs réalisé** : chaque effort comparé au tour correspondant (allure en course, zone de FC ailleurs ; durée ou distance), verdict « Tenu / Trop lent / Trop court… » et note de séance /10. Le détail par intervalle suppose d'avoir suivi la séance .FIT de l'app sur la montre (une étape = un tour).
   - **Charge & fatigue** : charge TRIMP (minutes × zone de FC ; estimée sans cardio) ; tuile « Charge 7 jours » du résumé avec le ratio sur la moyenne des 4 semaines et l'historique de 6 semaines ; le générateur propose « Fatigué » au-delà de 1,5×.
   - **Sortie réalisée** : temps par zone de FC (base FC seuil de la montre ou du profil, sinon FC max), Training Effect, courbes FC / allure ou vitesse / puissance / altitude / cadence avec survol, carte du parcours (Leaflet + OpenStreetMap).
@@ -97,8 +97,7 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 L'API officielle Garmin n'accepte pas de nouveaux développeurs (2026) et celle de Strava demande un abonnement : l'app lit donc directement les fichiers d'activité `.FIT`, gratuitement et sans mot de passe à confier.
 
 1. Coller [sql/activities.sql](sql/activities.sql) dans l'éditeur SQL de Supabase (une seule fois).
-2. Récupérer les fichiers : sur connect.garmin.com (ordinateur), ouvrir l'activité → engrenage → « Exporter le fichier d'origine » (un `.zip`, à glisser tel quel) ; ou montre en USB, dossier `GARMIN/Activity`.
-3. Les glisser sur l'app (ou bouton « Importer »).
+2. Installer le relais de la montre (voir [Synchroniser la montre](#synchroniser-la-montre-windows)) : la synchro importe les nouvelles sorties du dossier `GARMIN/Activity`.
 
 Seules les activités sont lues : VO2max, prédictions, sommeil, Body Battery et VFC restent saisis à la main dans le profil.
 
