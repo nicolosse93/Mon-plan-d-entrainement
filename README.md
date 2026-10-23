@@ -9,7 +9,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 - **Compte utilisateur** : inscription / connexion par e-mail et mot de passe (Supabase Auth).
 - **Mode démo** (bouton « Essayer la démo » sur la page de connexion) : visite complète sans compte, avec une semaine d'exemple et un profil fictif. Séances et profil restent en mémoire : rien n'est écrit en base, tout disparaît en quittant ou en rechargeant. Seule la banque d'entraînements (publique) est lue.
 - **Calendrier hebdomadaire** : navigation semaine par semaine, glisser-déposer pour déplacer une séance, case à cocher « réalisée », suppression d'une séance ou de tout le calendrier.
-- **Séances structurées** : titre, date, type (Course à pied, Vélo / Gravel, Musculation, ski de fond, Repos) et trois blocs (échauffement, bloc principal, retour au calme).
+- **Séances structurées** : titre, date, type (Course à pied, Vélo / Gravel, Musculation, ski de fond, Kayak de vitesse, Repos) et trois blocs (échauffement, bloc principal, retour au calme).
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
 - **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
@@ -25,6 +25,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 | --- | --- |
 | [index.html](index.html) | L'application complète : interface, logique, appels Supabase, générateur et export. |
 | [fitBuilder.js](fitBuilder.js) | Encodeur FIT minimal, sans dépendance, pour les fichiers d'entraînement Garmin (script classique qui expose `window.FitModule`). |
+| [sql/seed_training_bank.sql](sql/seed_training_bank.sql) | Requête à coller dans l'éditeur SQL de Supabase : ~35 séances par sport dans `training_bank` (relançable sans doublons). |
 | [supabase.js](supabase.js) | Client Supabase en module ES (non utilisé par `index.html`, qui crée son propre client). |
 | [test-import.js](test-import.js) | Petit test de chargement du SDK FIT officiel de Garmin depuis un CDN. |
 | [garmin-export-app/](garmin-export-app/) | Prototype autonome : un bouton qui télécharge une séance de fractionné codée en dur au format `.fit`. |
@@ -57,7 +58,7 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 | `user_id` | `uuid` | référence `auth.users.id` |
 | `title` | `text` | |
 | `date` | `date` | |
-| `type` | `text` | `Course`, `Vélo`, `Renfo` (affiché « Muscu »), `Ski de fond classique`, `Ski de fond skate`, `Repos` |
+| `type` | `text` | `Course`, `Vélo`, `Renfo` (affiché « Muscu »), `Ski de fond classique`, `Ski de fond skate`, `Kayak` (affiché « Kayak de vitesse »), `Repos` |
 | `warmup` | `text` | |
 | `main_block` | `text` | |
 | `cooldown` | `text` | |

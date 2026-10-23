@@ -46,7 +46,7 @@
                         accent: { DEFAULT: themeVar('--accent'), hover: themeVar('--accent-hover') },
                         success: themeVar('--success'),
                         // Une couleur par sport (bande latérale des cartes, icônes)
-                        sport: { run: '#f97316', bike: '#22c55e', gym: '#a78bfa', skic: '#06b6d4', skis: '#14b8a6', rest: '#6b7280' },
+                        sport: { run: '#f97316', bike: '#22c55e', gym: '#a78bfa', skic: '#06b6d4', skis: '#14b8a6', kayak: '#6366f1', rest: '#6b7280' },
                         // Zones d'intensité façon Garmin : gris, bleu, vert, orange, rouge
                         zone: { 1: '#9ca3af', 2: '#3b82f6', 3: '#22c55e', 4: '#f59e0b', 5: '#ef4444' }
                     }
@@ -354,6 +354,7 @@
                             <option value="Renfo">Musculation</option>
                             <option value="Ski de fond classique">Ski de fond classique</option>
                             <option value="Ski de fond skate">Ski de fond skate</option>
+                            <option value="Kayak">Kayak de vitesse</option>
                             <option value="Repos">Repos</option>
                         </select>
                     </div>
@@ -1089,7 +1090,7 @@
 
         const SPORT_ICONS = {
             'Course': 'fa-person-running', 'Vélo': 'fa-bicycle', 'Renfo': 'fa-dumbbell',
-            'Ski de fond classique': 'fa-person-skiing-nordic', 'Ski de fond skate': 'fa-person-skiing-nordic', 'Repos': 'fa-bed'
+            'Ski de fond classique': 'fa-person-skiing-nordic', 'Ski de fond skate': 'fa-person-skiing-nordic', 'Kayak': 'fa-water', 'Repos': 'fa-bed'
         };
         // Couleur de chaque sport : bande latérale des cartes (card), pastille d'icône / badge (chip)
         const SPORT_STYLES = {
@@ -1098,6 +1099,7 @@
             'Renfo':                 { card: 'border-l-sport-gym', icon: 'text-sport-gym',  chip: 'bg-sport-gym/15 text-sport-gym border-sport-gym/30' },
             'Ski de fond classique': { card: 'border-l-sport-skic', icon: 'text-sport-skic', chip: 'bg-sport-skic/15 text-sport-skic border-sport-skic/30' },
             'Ski de fond skate':     { card: 'border-l-sport-skis', icon: 'text-sport-skis', chip: 'bg-sport-skis/15 text-sport-skis border-sport-skis/30' },
+            'Kayak':                 { card: 'border-l-sport-kayak', icon: 'text-sport-kayak', chip: 'bg-sport-kayak/15 text-sport-kayak border-sport-kayak/30' },
             'Repos':                 { card: 'border-l-sport-rest', icon: 'text-sport-rest', chip: 'bg-sport-rest/15 text-sport-rest border-sport-rest/30' }
         };
         const sportStyle = type => SPORT_STYLES[type] || SPORT_STYLES['Repos'];
@@ -1973,7 +1975,8 @@
             { key: 'Vélo', label: 'Vélo', icon: 'fa-bicycle' },
             { key: 'Renfo', label: 'Muscu', icon: 'fa-dumbbell' },
             { key: 'Ski de fond classique', label: 'Ski classique', icon: 'fa-person-skiing-nordic' },
-            { key: 'Ski de fond skate', label: 'Ski skate', icon: 'fa-person-skiing-nordic' }
+            { key: 'Ski de fond skate', label: 'Ski skate', icon: 'fa-person-skiing-nordic' },
+            { key: 'Kayak', label: 'Kayak', icon: 'fa-water' }
         ];
 
         // Objectifs communs à tous les sports -> catégories de training_bank par rôle de séance.
@@ -2080,7 +2083,8 @@
             'Vélo': { on: true, week: 1, we: 1 },
             'Renfo': { on: false, week: 0, we: 0 },
             'Ski de fond classique': { on: false, week: 0, we: 0 },
-            'Ski de fond skate': { on: false, week: 0, we: 0 }
+            'Ski de fond skate': { on: false, week: 0, we: 0 },
+            'Kayak': { on: false, week: 0, we: 0 }
         };
         try {
             const saved = JSON.parse(localStorage.getItem('gen-sports'));
@@ -2255,6 +2259,7 @@
             if (t === 'velo') return { sport: Sport.cycling, subSport: SubSport.generic };
             if (t === 'renfo') return { sport: Sport.training, subSport: SubSport.strength_training };
             if (t === 'course') return { sport: Sport.running, subSport: SubSport.generic };
+            if (t === 'kayak') return { sport: Sport.kayaking, subSport: SubSport.generic };
             return { sport: Sport.generic, subSport: SubSport.generic };
         }
 
@@ -2677,6 +2682,13 @@
                     warmup: `10 min skating souple`,
                     main: `40 min endurance fondamentale (Zone 2)`,
                     cooldown: `5 min retour au calme`
+                },
+                'Kayak': {
+                    type: 'Kayak',
+                    title: 'Kayak Endurance' + intensityTag,
+                    warmup: `10 min pagaie souple`,
+                    main: `40 min endurance fondamentale (Zone 2)`,
+                    cooldown: `5 min pagaie très souple`
                 }
             };
 

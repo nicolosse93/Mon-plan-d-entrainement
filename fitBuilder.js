@@ -6,7 +6,7 @@
 const MesgNum = { fileId: 0, workout: 26, workoutStep: 27 };
 const FileType = { workout: 5 };
 const Manufacturer = { development: 255 };
-const Sport = { generic: 0, running: 1, cycling: 2, training: 10, cross_country_skiing: 12 };
+const Sport = { generic: 0, running: 1, cycling: 2, training: 10, cross_country_skiing: 12, kayaking: 41 };
 const SubSport = { generic: 0, strength_training: 20, skate_skiing: 42 };
 const WktStepDuration = { time: 0, distance: 1, open: 5, repeatUntilStepsCmplt: 6 };
 // Valeurs de l'énumération wkt_step_target du profil FIT (open = sans cible)
