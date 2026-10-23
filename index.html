@@ -486,12 +486,7 @@
                     <span class="text-xs text-muted"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
                     <span id="detail-effort-wrap" class="hidden text-xs text-muted"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
                     <!-- Activité de la montre (fichier .FIT importé) rattachée à la séance -->
-                    <span id="detail-done" class="hidden basis-full text-xs font-semibold text-success"><i class="fa-solid fa-circle-check mr-1"></i><span id="detail-done-text"></span></span>
-                    <details id="detail-laps" class="hidden basis-full text-xs">
-                        <summary class="cursor-pointer text-muted hover:text-ink"><span id="detail-laps-count"></span></summary>
-                        <ol id="detail-laps-list" class="mt-1.5 space-y-0.5 text-ink tabular-nums"></ol>
-                    </details>
-                </div>
+                    <span id="detail-done" class="hidden basis-full text-xs font-semibold text-success"><i class="fa-solid fa-circle-check mr-1"></i><span id="detail-done-text"></span></span>                </div>
                 <button type="button" onclick="closeDetailsModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
@@ -568,6 +563,8 @@
                 </div>
                 <div id="detail-chart-chips" class="flex flex-wrap gap-1.5"></div>
                 <div id="detail-chart" class="relative overflow-hidden"></div>
+                <!-- Tours de la montre, liés à la courbe (toucher une ligne surligne le tour) -->
+                <div id="detail-laps-table" class="hidden"></div>
             </div>
             </div>
             </div>
@@ -764,7 +761,7 @@
     <!-- Encodeur FIT (expose window.FitModule). ?v= : à incrémenter quand fitBuilder.js change, pour contourner
          le cache du navigateur (GitHub Pages garde les fichiers 10 min) -->
     <script src="fitBuilder.js?v=3"></script>
-    <script src="fitParser.js?v=1"></script>
+    <script src="fitParser.js?v=2"></script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5GrtRyqg1LV-wDZpFUxEnw_FHTDWbux';
@@ -1501,7 +1498,7 @@
                     }
                     const lapPoints = points.slice(lapStart);
                     laps.push({
-                        timer: Math.round(duration), elapsed: Math.round(duration), distance: Math.round(speed * duration),
+                        start: Math.round(t), timer: Math.round(duration), elapsed: Math.round(duration), distance: Math.round(speed * duration),
                         avg_speed: speed, avg_hr: Math.round(lapPoints.reduce((s, p) => s + p.hr, 0) / Math.max(1, lapPoints.length)),
                         avg_power: bike ? Math.round(60 + level * 45) : null, step_index: index
                     });
@@ -1729,6 +1726,12 @@
             if (detailsModal.dataset.currentId != w.id || steps.length === 0) return;
             const zones = w.type === 'Course' ? getRunningPaceZones() : null;
             const pairs = alignLaps(plannedSequence(steps), Array.isArray(a.laps) ? a.laps : []);
+            // Étape suivie pendant chaque tour : teinte de zone des tours dans la courbe et le tableau
+            if (pairs && lapState && lapState.a === a && lapState.spans.length) {
+                pairs.forEach(p => lapState.steps.set(p.lap, p.planned.step));
+                renderLapsTable();
+                if (activityChart && activityChart.a === a) renderActivityChart();
+            }
             const list = document.getElementById('detail-compare-list');
             list.innerHTML = '';
             const plannedMin = Math.round(stepsTotalSec(steps) / 60);
@@ -1804,6 +1807,111 @@
         }
 
         let activityChart = null; // { a, w, metric } de la courbe affichée
+
+        // Tours de la sortie affichée : position sur l'axe du temps, étape prévue (séance .FIT suivie), tour choisi.
+        // paintBands (posé par la courbe) et rows (lignes du tableau) suivent la sélection sans tout redessiner
+        let lapState = null;
+        const ZONE_HEX = { 1: '#9ca3af', 2: '#3b82f6', 3: '#22c55e', 4: '#f59e0b', 5: '#ef4444' };
+
+        // [{ n, start, end, lap }] en secondes depuis le départ ; début enregistré par la montre, sinon durées
+        // cumulées (sorties importées avant). Moins de 2 tours : rien à montrer
+        function lapSpans(a) {
+            const laps = Array.isArray(a.laps) ? a.laps : [];
+            if (laps.length < 2) return [];
+            let cursor = 0;
+            const spans = laps.map((lap, i) => {
+                const start = Number.isFinite(lap.start) ? lap.start : cursor;
+                cursor = start + (lap.elapsed || lap.timer || 0);
+                return { n: i + 1, start, end: cursor, lap };
+            });
+            // Fin d'un tour = début du suivant quand il est connu (pauses comprises, comme les courbes)
+            spans.forEach((s, i) => { if (spans[i + 1] && Number.isFinite(spans[i + 1].lap.start)) s.end = spans[i + 1].start; });
+            return spans;
+        }
+
+        // Couleur de zone de l'étape suivie pendant ce tour (null : tour automatique, sans étape)
+        function lapZoneHex(lap) {
+            const step = lapState && lapState.steps.get(lap);
+            const m = step ? /zone-(\d)/.exec(stepInfo(step).color) : null;
+            return m ? ZONE_HEX[m[1]] : null;
+        }
+
+        // Tour choisi (tableau ou courbe) : bande et ligne surlignées ; même tour depuis le tableau = désélection
+        function selectLap(n) {
+            if (!lapState) return;
+            lapState.selected = n;
+            if (lapState.paintBands) lapState.paintBands();
+            lapState.rows.forEach((row, i) => {
+                const on = i + 1 === n;
+                row.classList.toggle('bg-accent/15', on);
+                row.setAttribute('aria-selected', on ? 'true' : 'false');
+            });
+        }
+
+        // Tableau des tours sous la courbe : durée, distance, allure ou vitesse, FC, puissance (colonnes sans
+        // aucune valeur masquées). Toucher une ligne surligne le tour dans la courbe ; la fenêtre ne défile pas
+        function renderLapsTable() {
+            const box = document.getElementById('detail-laps-table');
+            box.innerHTML = '';
+            if (!lapState || lapState.spans.length === 0) { box.classList.add('hidden'); return; }
+            const { spans, w } = lapState;
+            const run = w.type === 'Course';
+            const km = m => (m / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const cols = [
+                { label: 'Durée', value: l => (l.timer || l.elapsed) ? formatStepDuration(l.timer || l.elapsed) : '' },
+                { label: 'Dist.', value: l => l.distance > 0 ? `${km(l.distance)} km` : '' },
+                run
+                    ? { label: 'Allure', value: l => l.avg_speed > 0 ? paceText(l.avg_speed) : '' }
+                    : { label: 'Vitesse', value: l => l.avg_speed > 0 ? `${(l.avg_speed * 3.6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km/h` : '' },
+                { label: 'FC moy', value: l => l.avg_hr ? `${Math.round(l.avg_hr)}` : '' },
+                { label: 'Puiss.', value: l => l.avg_power ? `${Math.round(l.avg_power)} W` : '' }
+            ].filter(c => spans.some(s => c.value(s.lap)));
+
+            const wrap = document.createElement('div');
+            wrap.className = 'overflow-x-auto';
+            const table = document.createElement('table');
+            table.className = 'w-full text-xs tabular-nums';
+            const head = document.createElement('tr');
+            head.className = 'text-muted text-left';
+            ['Tour', ...cols.map(c => c.label)].forEach(label => {
+                const th = document.createElement('th');
+                th.className = 'font-semibold py-1 px-1.5';
+                th.textContent = label;
+                head.appendChild(th);
+            });
+            const thead = document.createElement('thead');
+            thead.appendChild(head);
+            const tbody = document.createElement('tbody');
+            lapState.rows = spans.map(s => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-t border-line cursor-pointer hover:bg-raised transition';
+                const first = document.createElement('td');
+                first.className = 'py-1.5 px-1.5 text-ink font-semibold whitespace-nowrap';
+                const hex = lapZoneHex(s.lap);
+                if (hex) {
+                    const dot = document.createElement('span');
+                    dot.className = 'inline-block w-2 h-2 rounded-sm mr-1.5 align-middle';
+                    dot.style.background = hex;
+                    first.appendChild(dot);
+                }
+                first.append(String(s.n));
+                tr.appendChild(first);
+                cols.forEach(c => {
+                    const td = document.createElement('td');
+                    td.className = 'py-1.5 px-1.5 text-ink whitespace-nowrap';
+                    td.textContent = c.value(s.lap) || '–';
+                    tr.appendChild(td);
+                });
+                tr.addEventListener('click', () => selectLap(lapState.selected === s.n ? null : s.n));
+                tbody.appendChild(tr);
+                return tr;
+            });
+            table.append(thead, tbody);
+            wrap.appendChild(table);
+            box.appendChild(wrap);
+            box.classList.remove('hidden');
+            selectLap(lapState.selected);
+        }
 
         function renderZones(a) {
             const box = document.getElementById('detail-zones');
@@ -1882,7 +1990,8 @@
             renderActivityChart();
         }
 
-        // Courbe d'une mesure dans le temps : trait 2 px + voile 10 %, grille fine, repère et bulle au survol
+        // Courbe d'une mesure dans le temps : trait 2 px + voile 10 %, grille fine, repère et bulle au survol.
+        // Tours : bandes (teinte de zone si l'étape est connue), séparateurs, numéros et palier de la moyenne du tour
         function renderActivityChart() {
             const box = document.getElementById('detail-chart');
             // Largeur lue avant de vider le cadre : lue après, le cadre vide raccourcit la fenêtre et la fait remonter
@@ -1905,8 +2014,10 @@
             lo -= pad;
             hi += pad;
 
-            const W = Math.max(220, boxWidth || 320), H = 170;
-            const left = 42, right = 8, top = 8, bottom = 22;
+            const spans = lapState && lapState.a === a ? lapState.spans : [];
+            const W = Math.max(220, boxWidth || 320), H = spans.length ? 180 : 170;
+            // Bande du haut réservée aux numéros des tours
+            const left = 42, right = 8, top = spans.length ? 18 : 8, bottom = 22;
             const tMax = t[t.length - 1] || 1;
             const x = sec => left + sec / tMax * (W - left - right);
             const y = v => {
@@ -1925,6 +2036,30 @@
             };
             const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${metric.label} au fil de la sortie` });
             svg.style.display = 'block';
+
+            // Tours, sous tout le reste : bande par tour, trait au début de chaque tour, numéro si la place le permet
+            const lapX = s => [x(Math.max(0, Math.min(tMax, s.start))), x(Math.max(0, Math.min(tMax, s.end)))];
+            const bands = spans.map((s, i) => {
+                const [x1, x2] = lapX(s);
+                const band = el('rect', { x: x1, y: top, width: Math.max(0, x2 - x1), height: H - top - bottom });
+                svg.appendChild(band);
+                if (i > 0) svg.appendChild(el('line', { x1, x2: x1, y1: top, y2: H - bottom, stroke: 'rgb(var(--muted) / 0.45)', 'stroke-width': 1, 'stroke-dasharray': '2 3' }));
+                if (x2 - x1 >= 16) {
+                    const num = el('text', { x: (x1 + x2) / 2, y: top - 6, 'text-anchor': 'middle', 'font-size': 9, fill: 'rgb(var(--muted))' });
+                    num.textContent = s.n;
+                    svg.appendChild(num);
+                }
+                return band;
+            });
+            const paintBands = () => bands.forEach((band, i) => {
+                const hex = lapZoneHex(spans[i].lap);
+                band.style.fill = spans[i].n === lapState.selected ? 'rgb(var(--accent) / 0.2)'
+                    : hex ? `${hex}24` : i % 2 ? 'rgb(var(--line) / 0.45)' : 'transparent';
+            });
+            if (spans.length) {
+                paintBands();
+                lapState.paintBands = paintBands;
+            }
 
             // Grille : 3 graduations horizontales, temps en bas
             for (let i = 0; i <= 2; i++) {
@@ -1965,6 +2100,25 @@
             svg.appendChild(el('path', { d: area, fill: 'rgb(var(--accent) / 0.1)', stroke: 'none' }));
             svg.appendChild(el('path', { d: line, fill: 'none', stroke: 'rgb(var(--accent))', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
 
+            // Palier de la moyenne de chaque tour (valeurs de la montre ; cadence moyennée sur la courbe ; pas d'altitude)
+            const lapAverage = s => {
+                const l = s.lap;
+                let v = metric.key === 'hr' ? l.avg_hr : metric.key === 'speed' ? l.avg_speed : metric.key === 'pwr' ? l.avg_power : null;
+                if (metric.key === 'cad') {
+                    const inLap = a.streams.cad.filter((c, i) => c > 0 && t[i] >= s.start && t[i] < s.end);
+                    v = inLap.length ? inLap.reduce((sum, c) => sum + c, 0) / inLap.length : null;
+                }
+                if (!(v > 0)) return null;
+                if (metric.transform) v = metric.transform(v);
+                return v !== null && Number.isFinite(v) ? v : null;
+            };
+            spans.forEach(s => {
+                const v = lapAverage(s);
+                const [x1, x2] = lapX(s);
+                if (v === null || x2 - x1 < 2) return;
+                svg.appendChild(el('line', { x1, x2, y1: y(v), y2: y(v), stroke: 'rgb(var(--ink) / 0.6)', 'stroke-width': 1.5, 'stroke-linecap': 'round' }));
+            });
+
             // Survol : repère vertical aimanté à la mesure la plus proche, point cerclé et bulle
             const cross = el('line', { y1: top, y2: H - bottom, stroke: 'rgb(var(--muted))', 'stroke-width': 1, visibility: 'hidden' });
             const dot = el('circle', { r: 4, fill: 'rgb(var(--accent))', stroke: 'rgb(var(--inset))', 'stroke-width': 2, visibility: 'hidden' });
@@ -1975,7 +2129,8 @@
 
             const hit = el('rect', { x: left, y: 0, width: W - left - right, height: H, fill: 'transparent' });
             svg.appendChild(hit);
-            const show = clientX => {
+            // pick : toucher / clic (pas le simple survol) choisit aussi le tour, surligné dans le tableau
+            const show = (clientX, pick = false) => {
                 const rect = svg.getBoundingClientRect();
                 const sec = (clientX - rect.left - left) / (W - left - right) * tMax;
                 let best = -1;
@@ -1990,9 +2145,21 @@
                 dot.setAttribute('cy', py);
                 cross.setAttribute('visibility', 'visible');
                 dot.setAttribute('visibility', 'visible');
-                tip.innerHTML = '<strong class="text-ink"></strong> <span class="text-muted"></span>';
-                tip.firstChild.textContent = metric.format(values[best]);
-                tip.lastChild.textContent = formatStepDuration(Math.round(t[best]));
+                tip.innerHTML = '<div><strong class="text-ink"></strong> <span class="text-muted"></span></div>';
+                tip.querySelector('strong').textContent = metric.format(values[best]);
+                tip.querySelector('span').textContent = formatStepDuration(Math.round(t[best]));
+                // Tour du point touché : numéro, durée et distance du tour
+                const span = spans.find(s => t[best] >= s.start && t[best] < s.end) || (t[best] >= tMax ? spans[spans.length - 1] : null);
+                if (span) {
+                    const lapLine = document.createElement('div');
+                    lapLine.className = 'text-muted';
+                    const time = span.lap.timer || span.lap.elapsed;
+                    lapLine.textContent = [`Tour ${span.n}`, time ? formatStepDuration(time) : '',
+                        span.lap.distance > 0 ? `${(span.lap.distance / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} km` : ''
+                    ].filter(Boolean).join(' · ');
+                    tip.appendChild(lapLine);
+                    if (pick && lapState.selected !== span.n) selectLap(span.n);
+                }
                 tip.classList.remove('hidden');
                 tip.style.left = `${Math.min(W - tip.offsetWidth - 2, Math.max(0, px - tip.offsetWidth / 2))}px`;
             };
@@ -2002,7 +2169,7 @@
                 tip.classList.add('hidden');
             };
             hit.addEventListener('pointermove', e => show(e.clientX));
-            hit.addEventListener('pointerdown', e => show(e.clientX));
+            hit.addEventListener('pointerdown', e => show(e.clientX, true));
             hit.addEventListener('pointerleave', hide);
         }
 
@@ -2072,8 +2239,8 @@
         // Détail d'une séance : activité importée (résumé, tours), prévu vs réalisé, zones, courbes et carte
         async function loadDetailActivity(w) {
             const box = document.getElementById('detail-done');
-            const lapsBox = document.getElementById('detail-laps');
-            ['detail-done', 'detail-laps', 'detail-compare', 'detail-activity'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            ['detail-done', 'detail-compare', 'detail-activity'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            lapState = null;
             if (detailMap) { detailMap.remove(); detailMap = null; }
             const { data, error } = await supabaseClient.from('activities').select('*').eq('workout_id', String(w.id)).limit(1);
             if (detailsModal.dataset.currentId != w.id) return;
@@ -2092,32 +2259,21 @@
             icon.className = 'fa-solid fa-heart-pulse mr-1';
             document.getElementById('detail-done-text').textContent = 'Réalisé avec la montre : ' + (describeActivity(a, w.type) || 'activité importée');
 
-            const hasDetail = (Array.isArray(a.time_in_zones) && a.time_in_zones.some(v => v > 0)) || a.streams || a.track || a.training_effect;
+            // Tours : dans la courbe et dans le tableau dessous ; étapes ajoutées par la comparaison (séance suivie)
+            lapState = { a, w, spans: lapSpans(a), steps: new Map(), selected: null, rows: [], paintBands: null };
+            const hasDetail = (Array.isArray(a.time_in_zones) && a.time_in_zones.some(v => v > 0)) || a.streams || a.track
+                || a.training_effect || lapState.spans.length > 0;
             if (hasDetail) {
                 document.getElementById('detail-activity').classList.remove('hidden');
                 renderZones(a);
                 updateActivityLayout();
                 updateDetailLayout();
                 renderChartChips(a, w);
+                renderLapsTable();
                 renderActivityMap(a, w);
             }
             if (w.type !== 'Repos') await renderComparison(w, a);
             if (detailsModal.dataset.currentId == w.id) updateDetailLayout();
-
-            const laps = Array.isArray(a.laps) ? a.laps : [];
-            if (laps.length < 2) return;
-            document.getElementById('detail-laps-count').textContent = `Voir les ${laps.length} tours`;
-            const list = document.getElementById('detail-laps-list');
-            list.innerHTML = '';
-            laps.forEach((lap, i) => {
-                const li = document.createElement('li');
-                li.textContent = `${i + 1}. ` + describeActivity({
-                    distance: lap.distance, timer_time: lap.timer, elapsed_time: lap.elapsed, avg_speed: lap.avg_speed,
-                    avg_heart_rate: lap.avg_hr, avg_power: lap.avg_power
-                }, w.type);
-                list.appendChild(li);
-            });
-            lapsBox.classList.remove('hidden');
         }
 
         // ==========================================

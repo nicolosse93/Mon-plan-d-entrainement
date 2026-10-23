@@ -219,6 +219,8 @@
             const laps = fit.laps
                 .filter(l => inSession(l.start_time))
                 .map(l => ({
+                    // Début du tour en secondes depuis le départ (même axe que les courbes)
+                    start: l.start_time - s.start_time,
                     elapsed: l.elapsed || null, timer: l.timer || null, distance: l.distance || null,
                     avg_speed: l.enhanced_avg_speed || l.avg_speed || null, avg_hr: l.avg_hr || null,
                     max_hr: l.max_hr || null, avg_power: l.avg_power || null, ascent: l.ascent || null,
