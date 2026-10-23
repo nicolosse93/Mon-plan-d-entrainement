@@ -99,7 +99,7 @@ fi
 
 printf '%s' "$TOKEN" | pbcopy
 echo
-printf "\033[36mJeton (déjà copié dans le presse-papiers) : colle-le dans l'app, Profil > Synchro de la montre.\033[0m\n"
+printf "\033[36mJeton (déjà copié dans le presse-papiers) : colle-le dans l'app : bouton « Montre », puis « Réglages du relais ».\033[0m\n"
 echo "$TOKEN"
 echo
 echo "Le relais démarrera tout seul à chaque ouverture de session."

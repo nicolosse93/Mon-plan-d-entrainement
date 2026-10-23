@@ -59,7 +59,7 @@ try {
 
 Set-Clipboard -Value $token
 Write-Host ''
-Write-Host 'Jeton (déjà copié dans le presse-papiers) : colle-le dans l''app, Profil > Montre.' -ForegroundColor Cyan
+Write-Host 'Jeton (déjà copié dans le presse-papiers) : colle-le dans l''app : bouton « Montre », puis « Réglages du relais ».' -ForegroundColor Cyan
 Write-Host $token
 Write-Host ''
 Write-Host 'Le relais démarrera tout seul à chaque ouverture de session Windows.'

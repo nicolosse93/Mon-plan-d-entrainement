@@ -8,7 +8,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 
 - **Compte utilisateur** : inscription / connexion par e-mail et mot de passe (Supabase Auth).
 - **Mode démo** (bouton « Essayer la démo » sur la page de connexion) : visite complète sans compte, avec une semaine d'exemple et un profil fictif. Séances et profil restent en mémoire : rien n'est écrit en base, tout disparaît en quittant ou en rechargeant. Seule la banque d'entraînements (publique) est lue.
-- **Calendrier hebdomadaire** : navigation semaine par semaine, glisser-déposer pour déplacer une séance, case à cocher « réalisée », suppression d'une séance ou de tout le calendrier.
+- **Calendrier hebdomadaire** : navigation semaine par semaine, glisser-déposer pour déplacer une séance, case à cocher « réalisée », suppression d'une séance.
 - **Séances structurées** : titre, date, type (Course à pied, Vélo / Gravel, Musculation, ski de fond, Kayak de vitesse, Repos) et trois blocs (échauffement, bloc principal, retour au calme).
 - **Ajouter une séance** (bouton « + » d'un jour), deux modes :
   - **Depuis la banque** : type de séance (clé, secondaire, endurance facile, sortie longue), énergie et objectif, avec les mêmes règles que le générateur ; évite les séances des 2 semaines précédentes ; bouton « Autre proposition ».
@@ -107,13 +107,13 @@ Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucu
 
 **Installation sur Windows (une fois par PC)**
 1. Double-cliquer sur [outils/installer-relais.cmd](outils/installer-relais.cmd), donner l'adresse du site (ex. `https://monsite.github.io`).
-2. Le jeton affiché est copié dans le presse-papiers : le coller dans l'app, **Profil → Synchro de la montre**, puis « Tester ».
+2. Le jeton affiché est copié dans le presse-papiers : le coller dans l'app : bouton **« Montre »** de l'en-tête, puis **« Réglages du relais »** en bas de la fenêtre, et « Tester ».
 3. Au premier clic, le navigateur peut demander l'autorisation d'accéder aux appareils du réseau local : accepter.
 
 **Installation sur Mac (une fois par Mac)**
 1. Installer [Homebrew](https://brew.sh) s'il n'y est pas.
 2. Double-cliquer sur [outils/installer-relais-mac.command](outils/installer-relais-mac.command) (si macOS le bloque : clic droit → Ouvrir, ou `bash outils/installer-relais-mac.command` dans le Terminal). Il installe libmtp (et Python 3 si besoin), demande l'adresse du site et lance le relais à chaque ouverture de session (LaunchAgent `com.monplan.relais`).
-3. Coller le jeton affiché (déjà dans le presse-papiers) dans l'app, **Profil → Synchro de la montre**, puis « Tester ».
+3. Coller le jeton affiché (déjà dans le presse-papiers) dans l'app : bouton **« Montre »** de l'en-tête, puis **« Réglages du relais »** en bas de la fenêtre, et « Tester ».
 4. Navigateur conseillé : Chrome ou Edge. Safari peut refuser qu'un site en ligne appelle `localhost`.
 
 **Utilisation** : brancher la montre (sur Windows, attendre qu'elle apparaisse dans l'Explorateur ; sur Mac, **fermer Garmin Express**, qui bloque l'accès à la montre), cliquer sur **« Montre »**. Puis débrancher la montre : elle intègre les nouvelles séances.

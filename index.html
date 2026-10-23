@@ -312,28 +312,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Relais montre : jeton du programme installé sur cet ordinateur (installer-relais.cmd sur Windows, installer-relais-mac.command sur Mac) -->
-                <div id="relay-section" class="rounded-lg border border-line p-3 space-y-2">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-arrows-rotate text-accent"></i>
-                        <p class="flex-1 font-semibold text-ink text-sm">Synchro de la montre (USB)</p>
-                        <span id="relay-state" class="text-xs text-muted"></span>
-                    </div>
-                    <p class="text-xs text-muted">Une fois sur cet ordinateur : lance <code>outils/installer-relais.cmd</code> (Windows) ou <code>outils/installer-relais-mac.command</code> (Mac), d'un double-clic, puis colle ici le jeton affiché. Ensuite, montre branchée, le bouton « Montre » de l'en-tête importe tes sorties et envoie les séances des 14 prochains jours.</p>
-                    <div class="flex gap-2">
-                        <input type="password" id="relay-token" autocomplete="off" spellcheck="false" placeholder="Jeton du relais" class="flex-1 min-w-0 bg-inset border border-line rounded-lg px-3 py-2 text-xs text-ink font-mono focus:outline-none focus:border-accent">
-                        <button type="button" onclick="saveRelayToken()" class="px-3 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition">Tester</button>
-                    </div>
-                </div>
-
-                <!-- Zone dangereuse, en bas de la partie qui défile (hors de la barre d'actions) -->
-                <div class="pt-4 border-t border-line">
-                    <button type="button" onclick="deleteAllWorkouts()" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 font-semibold py-2.5 rounded-lg transition text-sm flex items-center justify-center space-x-2">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>Réinitialiser tout le calendrier (Supprimer)</span>
-                    </button>
-                </div>
                 </div>
 
                 <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
@@ -470,9 +448,28 @@
             <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
                 <p class="text-sm text-muted">Chaque sortie coche la séance prévue le même jour pour le même sport. Une sortie non prévue est ajoutée au calendrier.</p>
                 <ul id="import-results" class="hidden space-y-1.5 text-sm"></ul>
+
+                <!-- Relais montre : jeton du programme installé sur cet ordinateur (installer-relais.cmd sur Windows,
+                     installer-relais-mac.command sur Mac). Ouvert d'office tant qu'aucun jeton n'est enregistré -->
+                <details id="relay-section" class="group rounded-lg border border-line">
+                    <summary class="flex items-center gap-2 p-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                        <i class="fa-solid fa-key text-accent"></i>
+                        <span class="flex-1 font-semibold text-ink text-sm">Réglages du relais</span>
+                        <span id="relay-state" class="text-xs text-muted"></span>
+                        <i class="fa-solid fa-chevron-down text-xs text-muted transition group-open:rotate-180"></i>
+                    </summary>
+                    <div class="px-3 pb-3 space-y-2">
+                        <p class="text-xs text-muted">Une fois sur cet ordinateur : lance <code>outils/installer-relais.cmd</code> (Windows) ou <code>outils/installer-relais-mac.command</code> (Mac), d'un double-clic, puis colle ici le jeton affiché. Ensuite, montre branchée, « Synchroniser » importe tes sorties et envoie les séances des 14 prochains jours.</p>
+                        <div class="flex gap-2">
+                            <input type="password" id="relay-token" autocomplete="off" spellcheck="false" placeholder="Jeton du relais" onkeydown="if (event.key === 'Enter') saveRelayToken()" class="flex-1 min-w-0 bg-inset border border-line rounded-lg px-3 py-2 text-xs text-ink font-mono focus:outline-none focus:border-accent">
+                            <button type="button" onclick="saveRelayToken()" class="px-3 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition">Tester</button>
+                        </div>
+                    </div>
+                </details>
             </div>
             <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
                 <button type="button" onclick="closeImportModal()" class="flex-1 bg-raised hover:bg-raised-hover text-ink font-semibold py-2.5 rounded-lg transition text-sm">Fermer</button>
+                <button type="button" onclick="syncWatch()" class="flex-1 bg-accent hover:bg-accent-hover text-white font-semibold py-2.5 rounded-lg transition text-sm"><i class="fa-solid fa-arrows-rotate mr-1.5"></i>Synchroniser</button>
             </div>
         </div>
     </div>
@@ -1139,9 +1136,6 @@
 
         function openProfileModal() {
             profileModal.classList.remove('hidden');
-            document.getElementById('relay-section').classList.toggle('hidden', demoMode);
-            document.getElementById('relay-token').value = getRelayToken();
-            document.getElementById('relay-state').textContent = getRelayToken() ? 'Jeton enregistré' : 'Non configurée';
         }
         function closeProfileModal() {
             profileModal.classList.add('hidden');
@@ -1153,6 +1147,12 @@
         function openImportModal() {
             document.getElementById('import-results').classList.add('hidden');
             document.getElementById('import-results').innerHTML = '';
+            // Réglages du relais : jeton de ce navigateur, dépliés tant qu'il n'y en a pas. Fenêtre déjà ouverte
+            // (bouton « Synchroniser ») : le champ garde ce qui y est saisi
+            const token = getRelayToken();
+            if (document.getElementById('import-modal').classList.contains('hidden')) document.getElementById('relay-token').value = token;
+            document.getElementById('relay-state').textContent = token ? 'Jeton enregistré' : 'Non configurée';
+            if (!token) document.getElementById('relay-section').open = true;
             document.getElementById('import-modal').classList.remove('hidden');
         }
         function closeImportModal() {
@@ -1233,7 +1233,7 @@
             } catch (e) {
                 throw new Error(`Relais introuvable : vérifie qu'il est installé (${RELAY_INSTALLER}) et que le navigateur a le droit d'accéder aux appareils du réseau local.`);
             }
-            if (res.status === 401) throw new Error('Jeton refusé : recolle le jeton du relais dans Profil > Synchro de la montre.');
+            if (res.status === 401) throw new Error('Jeton refusé : recolle le jeton du relais dans « Réglages du relais », en bas de cette fenêtre.');
             if (res.status === 403) throw new Error(`Le relais n'accepte pas cette adresse de site : relance ${RELAY_INSTALLER} avec la bonne adresse.`);
             if (!res.ok) {
                 let message = `erreur ${res.status}`;
@@ -1274,7 +1274,7 @@
             openImportModal();
             const ok = 'text-success', warn = 'text-amber-600 dark:text-amber-400';
             if (!getRelayToken()) {
-                importLine('fa-circle-info', 'text-accent', `Synchro pas encore configurée : installe le relais (${RELAY_INSTALLER}) puis colle son jeton dans Profil > Synchro de la montre.`);
+                importLine('fa-circle-info', 'text-accent', `Synchro pas encore configurée : installe le relais (${RELAY_INSTALLER}) puis colle son jeton dans « Réglages du relais », en bas de cette fenêtre.`);
                 return;
             }
             watchSyncing = true;
@@ -2544,22 +2544,6 @@
             } else {
                 closeDetailsModal();
                 fetchWorkouts();
-            }
-        }
-
-        async function deleteAllWorkouts() {
-            if(confirm("Es-tu sûr de vouloir supprimer TOUS tes entraînements ? Cette action est irréversible et videra tout le calendrier.")) {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if(!user) return;
-                
-                const { error } = await supabaseClient.from('workouts').delete().eq('user_id', user.id);
-                if (error) {
-                    alert("Erreur lors de la suppression : " + error.message);
-                } else {
-                    alert("Calendrier réinitialisé avec succès !");
-                    closeProfileModal();
-                    fetchWorkouts();
-                }
             }
         }
 
