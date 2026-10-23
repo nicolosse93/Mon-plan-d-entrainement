@@ -185,6 +185,10 @@
                 <i class="fa-solid fa-user-gear text-accent"></i>
                 <span class="hidden lg:inline">Profil</span>
             </button>
+            <button onclick="syncWatch()" title="Synchroniser la montre branchée en USB (sorties + séances à venir)" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-arrows-rotate text-accent"></i>
+                <span class="hidden lg:inline">Montre</span>
+            </button>
             <button onclick="openImportModal()" title="Importer mes activités (.FIT de la montre)" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
                 <i class="fa-solid fa-file-import text-success"></i>
                 <span class="hidden lg:inline">Importer</span>
@@ -311,6 +315,20 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Relais montre : jeton du programme installé sur ce PC (outils/installer-relais.cmd) -->
+                <div id="relay-section" class="rounded-lg border border-line p-3 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-rotate text-accent"></i>
+                        <p class="flex-1 font-semibold text-ink text-sm">Synchro de la montre (USB)</p>
+                        <span id="relay-state" class="text-xs text-muted"></span>
+                    </div>
+                    <p class="text-xs text-muted">Une fois sur ce PC : lance <code>outils/installer-relais.cmd</code> (double-clic), puis colle ici le jeton affiché. Ensuite, montre branchée, le bouton « Montre » de l'en-tête importe tes sorties et envoie les séances des 7 prochains jours.</p>
+                    <div class="flex gap-2">
+                        <input type="password" id="relay-token" autocomplete="off" spellcheck="false" placeholder="Jeton du relais" class="flex-1 min-w-0 bg-inset border border-line rounded-lg px-3 py-2 text-xs text-ink font-mono focus:outline-none focus:border-accent">
+                        <button type="button" onclick="saveRelayToken()" class="px-3 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-semibold transition">Tester</button>
+                    </div>
                 </div>
 
                 <!-- Zone dangereuse, en bas de la partie qui défile (hors de la barre d'actions) -->
@@ -1126,6 +1144,9 @@
 
         function openProfileModal() {
             profileModal.classList.remove('hidden');
+            document.getElementById('relay-section').classList.toggle('hidden', demoMode);
+            document.getElementById('relay-token').value = getRelayToken();
+            document.getElementById('relay-state').textContent = getRelayToken() ? 'Jeton enregistré' : 'Non configurée';
         }
         function closeProfileModal() {
             profileModal.classList.add('hidden');
@@ -1189,17 +1210,153 @@
         // Lit les fichiers (.fit ou .zip), enregistre chaque activité et la rattache à une séance :
         // la première du même jour et du même sport encore libre (non réalisée d'abord), sinon une séance
         // « libre » créée et cochée. Une activité déjà importée (même heure de départ) est ignorée
-        async function importFitFiles(fileList) {
+        // ==========================================
+        // SYNCHRO DE LA MONTRE (relais local outils/montre-relais.ps1)
+        // ==========================================
+        // Le navigateur ne peut pas lire une montre branchée en MTP : un petit serveur local (localhost) le fait.
+        // Son jeton reste dans ce navigateur (localStorage), jamais en base
+        const RELAY_URL = 'http://localhost:47812';
+
+        function getRelayToken() {
+            try { return localStorage.getItem('relay-token') || ''; } catch (e) { return ''; }
+        }
+        function readLocalJson(key, fallback) {
+            try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; }
+        }
+        function writeLocalJson(key, value) {
+            try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+        }
+
+        // Appel au relais ; erreurs traduites en messages clairs
+        async function relayFetch(path, options = {}) {
+            let res;
+            try {
+                res = await fetch(RELAY_URL + path, { ...options, headers: { 'X-Relais-Jeton': getRelayToken(), ...(options.headers || {}) } });
+            } catch (e) {
+                throw new Error("Relais introuvable : vérifie qu'il est installé (outils/installer-relais.cmd) et que le navigateur a le droit d'accéder aux appareils du réseau local.");
+            }
+            if (res.status === 401) throw new Error('Jeton refusé : recolle le jeton du relais dans Profil > Synchro de la montre.');
+            if (res.status === 403) throw new Error("Le relais n'accepte pas cette adresse de site : relance installer-relais.cmd avec la bonne adresse.");
+            if (!res.ok) {
+                let message = `erreur ${res.status}`;
+                try { message = (await res.json()).error || message; } catch (e) {}
+                throw new Error(message);
+            }
+            return res;
+        }
+
+        async function saveRelayToken() {
+            const token = document.getElementById('relay-token').value.trim();
+            try { localStorage.setItem('relay-token', token); } catch (e) {}
+            const state = document.getElementById('relay-state');
+            if (!token) { state.textContent = 'Non configurée'; return; }
+            state.textContent = 'Test…';
+            try {
+                const status = await (await relayFetch('/status')).json();
+                state.textContent = status.watch ? `Montre détectée : ${status.name}` : 'Relais OK · montre non branchée';
+            } catch (e) {
+                state.textContent = 'Échec';
+                alert(e.message);
+            }
+        }
+
+        // Un clic, montre branchée : 1) nouvelles sorties importées (pipeline d'import habituel) ;
+        // 2) séances de l'app datées d'avant aujourd'hui retirées de la montre ;
+        // 3) séances des 7 prochains jours (non réalisées) envoyées si nouvelles ou modifiées
+        let watchSyncing = false;
+        async function syncWatch() {
+            if (demoMode) {
+                alert("La synchro de la montre n'est pas disponible en mode démo.");
+                return;
+            }
+            if (watchSyncing) return;
+            openImportModal();
+            const ok = 'text-success', warn = 'text-amber-600 dark:text-amber-400';
+            if (!getRelayToken()) {
+                importLine('fa-circle-info', 'text-accent', 'Synchro pas encore configurée : installe le relais (outils/installer-relais.cmd) puis colle son jeton dans Profil > Synchro de la montre.');
+                return;
+            }
+            watchSyncing = true;
+            try {
+                importLine('fa-arrows-rotate', 'text-accent', 'Connexion à la montre…');
+                const status = await (await relayFetch('/status')).json();
+                if (!status.watch) {
+                    importLine('fa-plug-circle-xmark', warn, "Montre non détectée : branche-la et attends qu'elle apparaisse dans l'Explorateur Windows, puis recommence.");
+                    return;
+                }
+                importLine('fa-circle-check', ok, `Montre détectée : ${status.name}`);
+
+                // 1. Sorties des 30 derniers jours pas encore récupérées
+                const seen = new Set(readLocalJson('relay-seen', []));
+                const list = await (await relayFetch('/activities?days=30')).json();
+                const fresh = list.filter(f => !seen.has(f.name));
+                if (fresh.length === 0) {
+                    importLine('fa-circle-check', 'text-muted', 'Aucune nouvelle sortie sur la montre.');
+                } else {
+                    const files = [];
+                    for (const f of fresh) {
+                        const buffer = await (await relayFetch(`/activities/${encodeURIComponent(f.name)}`)).arrayBuffer();
+                        files.push(new File([buffer], f.name));
+                    }
+                    // Sorties notées comme récupérées seulement si l'import a pu se faire (table présente)
+                    if (await importFitFiles(files, true) !== false) {
+                        fresh.forEach(f => seen.add(f.name));
+                        writeLocalJson('relay-seen', [...seen].slice(-500));
+                    }
+                }
+
+                // 2. Ménage : séances passées retirées de la montre (déplacées sur le PC, pas effacées)
+                const todayStr = toDateStr(new Date());
+                const { removed } = await (await relayFetch(`/cleanup?before=${todayStr}`, { method: 'POST' })).json();
+                if (removed.length > 0) {
+                    importLine('fa-broom', ok, `${removed.length} séance${removed.length > 1 ? 's' : ''} passée${removed.length > 1 ? 's' : ''} retirée${removed.length > 1 ? 's' : ''} de la montre.`);
+                }
+
+                // 3. Séances des 7 prochains jours, envoyées si nouvelles ou modifiées depuis le dernier envoi
+                const end = new Date();
+                end.setDate(end.getDate() + 6);
+                const endStr = toDateStr(end);
+                const sent = readLocalJson('relay-sent', {});
+                Object.keys(sent).forEach(name => { if (name.slice(0, 10) < todayStr) delete sent[name]; });
+                const upcoming = workouts.filter(w => w.date >= todayStr && w.date <= endStr && !w.completed && w.type !== 'Repos');
+                let count = 0;
+                for (const w of upcoming) {
+                    const name = fitFileName(w);
+                    const fingerprint = [w.title, w.date, w.type, w.warmup, w.main_block, w.cooldown].join('|');
+                    if (sent[name] === fingerprint) continue;
+                    const bytes = await buildFitBytes(w);
+                    await relayFetch(`/workouts/${encodeURIComponent(name)}`, {
+                        method: 'POST', body: bytes, headers: { 'Content-Type': 'application/octet-stream' }
+                    });
+                    sent[name] = fingerprint;
+                    count++;
+                }
+                writeLocalJson('relay-sent', sent);
+                importLine('fa-paper-plane', ok, count > 0
+                    ? `${count} séance${count > 1 ? 's' : ''} envoyée${count > 1 ? 's' : ''} à la montre : elle${count > 1 ? 's' : ''} apparaîtr${count > 1 ? 'ont' : 'a'} après avoir débranché la montre.`
+                    : upcoming.length > 0 ? 'Séances des 7 prochains jours déjà sur la montre.' : 'Aucune séance prévue dans les 7 prochains jours.');
+            } catch (e) {
+                importLine('fa-triangle-exclamation', warn, e.message);
+            } finally {
+                watchSyncing = false;
+            }
+        }
+
+        // Ligne du compte rendu de la fenêtre d'import (texte inséré en texte brut)
+        function importLine(icon, color, text) {
             const results = document.getElementById('import-results');
             results.classList.remove('hidden');
-            results.innerHTML = '';
-            const addLine = (icon, color, text) => {
-                const li = document.createElement('li');
-                li.className = 'flex gap-2';
-                li.innerHTML = `<i class="fa-solid ${icon} ${color} mt-0.5 shrink-0"></i><span></span>`;
-                li.querySelector('span').textContent = text;
-                results.appendChild(li);
-            };
+            const li = document.createElement('li');
+            li.className = 'flex gap-2';
+            li.innerHTML = `<i class="fa-solid ${icon} ${color} mt-0.5 shrink-0"></i><span></span>`;
+            li.querySelector('span').textContent = text;
+            results.appendChild(li);
+        }
+
+        // append : compléter le compte rendu en cours (synchro montre) au lieu de le vider
+        async function importFitFiles(fileList, append = false) {
+            if (!append) document.getElementById('import-results').innerHTML = '';
+            const addLine = importLine;
             const warn = 'text-amber-600 dark:text-amber-400';
 
             const parsed = [];
@@ -1221,7 +1378,7 @@
             const { data: existing, error } = await supabaseClient.from('activities').select('id, start_time, workout_id');
             if (error) {
                 addLine('fa-triangle-exclamation', warn, "Import impossible : la table des activités n'existe pas encore dans Supabase (colle sql/activities.sql dans l'éditeur SQL).");
-                return;
+                return false;
             }
             const known = new Map((existing || []).map(a => [new Date(a.start_time).getTime(), a]));
             const taken = new Set((existing || []).map(a => a.workout_id).filter(Boolean).map(String));
@@ -1287,6 +1444,7 @@
                 lastDate = a.start_date_local;
             }
             if (lastDate) await refreshAndHighlightNew(beforeIds, lastDate);
+            return true;
         }
 
         document.getElementById('import-input').addEventListener('change', (e) => {
@@ -3509,14 +3667,20 @@
         }
 
         // Enregistre le fichier (date + titre sans accents ni caractères spéciaux) et renvoie son nom
+        // Nom du fichier d'une séance : date + jour + titre sans accents ni caractères spéciaux.
+        // La date en tête permet au relais montre de retirer les séances passées
+        function fitFileName(w) {
+            const slug = (w.title || 'seance').normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).toLowerCase();
+            return `${w.date}_${dayAbbr(w.date).toLowerCase()}_${slug || 'seance'}.fit`;
+        }
+
         function saveFitFile(bytes, w) {
             const blob = new Blob([bytes], { type: "application/vnd.ant.fit" });
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            const slug = (w.title || 'seance').normalize('NFD').replace(/[̀-ͯ]/g, '')
-                .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).toLowerCase();
-            link.setAttribute('download', `${w.date}_${dayAbbr(w.date).toLowerCase()}_${slug || 'seance'}.fit`);
+            link.setAttribute('download', fitFileName(w));
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

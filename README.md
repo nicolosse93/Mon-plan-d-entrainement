@@ -17,6 +17,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
   - **Prévu vs réalisé** : chaque effort comparé au tour correspondant (allure en course, zone de FC ailleurs ; durée ou distance), verdict « Tenu / Trop lent / Trop court… » et note de séance /10. Le détail par intervalle suppose d'avoir suivi la séance .FIT de l'app sur la montre (une étape = un tour).
   - **Charge & fatigue** : charge TRIMP (minutes × zone de FC ; estimée sans cardio) ; tuile « Charge 7 jours » du résumé avec le ratio sur la moyenne des 4 semaines et l'historique de 6 semaines ; le générateur propose « Fatigué » au-delà de 1,5×.
   - **Sortie réalisée** : temps par zone de FC (base FC seuil de la montre ou du profil, sinon FC max), Training Effect, courbes FC / allure ou vitesse / puissance / altitude / cadence avec survol, carte du parcours (Leaflet + OpenStreetMap).
+- **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 7 prochains jours.
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
 - **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
@@ -33,6 +34,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 | [index.html](index.html) | L'application complète : interface, logique, appels Supabase, générateur et export. |
 | [fitBuilder.js](fitBuilder.js) | Encodeur FIT minimal, sans dépendance, pour les fichiers d'entraînement Garmin (script classique qui expose `window.FitModule`). |
 | [fitParser.js](fitParser.js) | Lecteur FIT minimal, sans dépendance, pour les activités de la montre (résumé, tours, mesures seconde par seconde, zones, heure locale) et les .zip de Garmin Connect ; calcule temps par zone, charge, courbes réduites et tracé GPS (`window.FitParser`). |
+| [outils/](outils/) | Relais montre (Windows) : `montre-relais.ps1` (petit serveur local qui lit la montre branchée en USB, même en MTP), `installer-relais.cmd` / `desinstaller-relais.cmd`. |
 | [sql/activities.sql](sql/activities.sql) | Table `activities` (activités importées, rattachées aux séances : résumé, zones, charge, courbes, tracé) et ses règles d'accès. Relançable : ajoute les colonnes manquantes. |
 | [sql/seed_training_bank.sql](sql/seed_training_bank.sql) | Requête à coller dans l'éditeur SQL de Supabase : ~35 séances par sport dans `training_bank` (relançable sans doublons). |
 | [test-import.js](test-import.js) | Petit test de chargement du SDK FIT officiel de Garmin depuis un CDN. |
@@ -99,6 +101,24 @@ L'API officielle Garmin n'accepte pas de nouveaux développeurs (2026) et celle 
 3. Les glisser sur l'app (ou bouton « Importer »).
 
 Seules les activités sont lues : VO2max, prédictions, sommeil, Body Battery et VFC restent saisis à la main dans le profil.
+
+## Synchroniser la montre (Windows)
+
+Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucun navigateur ne peut la lire. Un petit relais PowerShell, sans logiciel à télécharger, le fait à sa place et ne répond qu'à l'app.
+
+**Installation (une fois par PC)**
+1. Double-cliquer sur [outils/installer-relais.cmd](outils/installer-relais.cmd), donner l'adresse du site (ex. `https://monsite.github.io`).
+2. Le jeton affiché est copié dans le presse-papiers : le coller dans l'app, **Profil → Synchro de la montre**, puis « Tester ».
+3. Au premier clic, le navigateur peut demander l'autorisation d'accéder aux appareils du réseau local : accepter.
+
+**Utilisation** : brancher la montre, attendre qu'elle apparaisse dans l'Explorateur, cliquer sur **« Montre »**. Puis débrancher la montre : elle intègre les nouvelles séances.
+- Sorties des 30 derniers jours pas encore récupérées → import habituel (rattachement aux séances, pas de doublon).
+- Séances de l'app datées d'avant aujourd'hui (fichiers `AAAA-MM-JJ_….fit` de `GARMIN/Workouts` et `GARMIN/NewFiles`) → déplacées dans `%APPDATA%\MonPlan\retires` (pas effacées). Les autres entraînements de la montre ne sont jamais touchés.
+- Séances des 7 prochains jours (non réalisées) → copiées dans `GARMIN/NewFiles`, seulement si nouvelles ou modifiées.
+
+**Sécurité** : le relais n'écoute que `localhost:47812`, exige le jeton secret (gardé dans ce navigateur, jamais en base), n'accepte que l'adresse du site et `localhost`, refuse tout nom de fichier contenant un chemin et tout fichier qui n'est pas un `.FIT`. Journal : `%APPDATA%\MonPlan\relais.log`.
+
+**Désinstallation** : double-cliquer sur [outils/desinstaller-relais.cmd](outils/desinstaller-relais.cmd).
 
 ## Importer une séance sur Garmin
 
