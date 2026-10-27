@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mes données Garmin</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3f2ee;
+  --surface: #fcfcfb;
+  --line: #e4e3de;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --muted: #8a8983;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --z1: #86b6ef; --z2: #5598e7; --z3: #2a78d6; --z4: #1c5cab; --z5: #104281;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --line: #2e2e2b;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8e86;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --z1: #86b6ef; --z2: #5598e7; --z3: #3987e5; --z4: #256abf; --z5: #184f95;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --line: #2e2e2b;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8e86;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --z1: #86b6ef; --z2: #5598e7; --z3: #3987e5; --z4: #256abf; --z5: #184f95;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+h1 { font-size: 26px; margin: 0; letter-spacing: -.01em; }
+h2 { font-size: 15px; margin: 0; font-weight: 600; }
+.sub { color: var(--text-2); font-size: 13px; }
+.filters { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.filters button { border: 0; background: none; color: var(--text-2); font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--text); color: var(--surface); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.tile, .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.tile .label { color: var(--text-2); font-size: 12px; }
+.tile .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; margin: 2px 0; }
+.tile .value small { font-size: 14px; font-weight: 400; color: var(--text-2); }
+.tile .note { font-size: 12px; color: var(--muted); }
+.status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-2); }
+.status i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; margin-bottom: 12px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.card-head button { border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-2); margin-bottom: 4px; min-height: 18px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart { position: relative; height: 210px; }
+.chart svg { display: block; overflow: visible; }
+.chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgb(0 0 0 / .12); white-space: nowrap; z-index: 2; display: none; }
+.tip b { display: block; margin-bottom: 3px; }
+.tip div { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+.tip div span:last-child { margin-left: auto; padding-left: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.tip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th { text-align: left; color: var(--text-2); font-weight: 500; border-bottom: 1px solid var(--line); padding: 6px 8px; white-space: nowrap; }
+td { border-bottom: 1px solid var(--line); padding: 6px 8px; }
+td.num, th.num { text-align: right; }
+.scroll { overflow-x: auto; max-height: 260px; overflow-y: auto; }
+.data-table { display: none; margin-top: 8px; }
+.zones { display: grid; gap: 8px; }
+.zone { display: grid; grid-template-columns: 88px 1fr 64px; align-items: center; gap: 10px; font-size: 13px; }
+.zone .bar { height: 14px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.zone .bar div { height: 100%; border-radius: 4px; }
+.zone .pct { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+select { font: inherit; font-size: 13px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.more { margin-top: 10px; border: 1px solid var(--line); background: none; color: var(--text); font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+td.name { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Mes données Garmin</h1>
+      <div class="sub" id="sous-titre"></div>
+    </div>
+    <div class="filters" role="group" aria-label="Période">
+      <button data-p="30">30 j</button>
+      <button data-p="90" aria-pressed="true">90 j</button>
+      <button data-p="365">1 an</button>
+      <button data-p="0">Tout</button>
+    </div>
+  </header>
+
+  <section class="tiles" id="tuiles" aria-label="Indicateurs du jour"></section>
+
+  <section class="grid">
+    <div class="card" data-chart="vfc"><div class="card-head"><h2>VFC nocturne (ms)</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+    <div class="card" data-chart="fcr"><div class="card-head"><h2>FC au repos (bpm)</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+    <div class="card" data-chart="sommeil"><div class="card-head"><h2>Sommeil (h)</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+    <div class="card" data-chart="bb"><div class="card-head"><h2>Body Battery (min → max)</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+    <div class="card" data-chart="stress"><div class="card-head"><h2>Stress moyen</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+    <div class="card" data-chart="pas"><div class="card-head"><h2>Pas</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+  </section>
+
+  <section class="tiles" id="records" aria-label="Records et totaux"></section>
+
+  <section class="grid">
+    <div class="card" data-chart="volume"><div class="card-head"><h2>Volume d'entraînement (h)</h2><button>Tableau</button></div><div class="legend"></div><div class="chart"></div><div class="data-table scroll"></div></div>
+    <div class="card">
+      <div class="card-head"><h2>Temps par zone FC</h2><span class="sub" id="zones-total"></span></div>
+      <div class="zones" id="zones"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Activités <span class="sub" id="nb-act"></span></h2>
+      <select id="filtre-sport" aria-label="Sport"><option value="">Tous les sports</option></select>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Date</th><th>Nom</th><th>Sport</th><th class="num">Dist.</th><th class="num">Durée</th><th class="num">Allure / vitesse</th><th class="num">FC moy.</th><th class="num">D+</th><th class="num">TE aéro.</th><th class="num">Charge</th></tr></thead>
+        <tbody id="act-body"></tbody>
+      </table>
+    </div>
+    <button class="more" id="plus">Afficher plus</button>
+  </section>
+</main>
+
+<script>
+const DATA = __DATA__;
+const SPORTS = ['Course', 'Vélo', 'Ski de fond', 'Autre'];
+const SPORT_VAR = { 'Course': '--s1', 'Vélo': '--s2', 'Ski de fond': '--s3', 'Autre': '--s4' };
+const HRV_STATUS = {
+  BALANCED: ['Équilibrée', '--good', '●'], UNBALANCED: ['Déséquilibrée', '--warning', '▲'],
+  LOW: ['Basse', '--serious', '▼'], POOR: ['Faible', '--critical', '■'],
+};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmtJour = d => new Date(d.slice(0, 10) + 'T12:00').toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' });
+const fmtJourAn = d => new Date(d.slice(0, 10) + 'T12:00').toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtNb = (v, dec = 0) => v == null || isNaN(v) ? '–' : v.toLocaleString('fr-CA', { maximumFractionDigits: dec, minimumFractionDigits: dec });
+const fmtH = h => h == null ? '–' : `${Math.floor(h)} h ${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+const fmtDuree = min => min >= 60 ? `${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, '0')}` : `${Math.round(min)} min`;
+const fmtAllure = sKm => `${Math.floor(sKm / 60)}:${String(Math.round(sKm % 60)).padStart(2, '0')}`;
+const moy = a => { const v = a.filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+
+let periode = 90;
+const dernierJour = DATA.jours[DATA.jours.length - 1].d;
+const depuis = p => {
+  if (!p) return '0000';
+  const d = new Date(dernierJour + 'T12:00'); d.setDate(d.getDate() - p + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/* Regroupe des jours en semaines (lundi) quand la période est longue, pour garder des barres lisibles */
+function parSemaine(jours, champs, mode = 'moy') {
+  const groupes = new Map();
+  for (const j of jours) {
+    const d = new Date(j.d + 'T12:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const k = d.toISOString().slice(0, 10);
+    if (!groupes.has(k)) groupes.set(k, []);
+    groupes.get(k).push(j);
+  }
+  return [...groupes].map(([d, js]) => {
+    const o = { d, semaine: true };
+    for (const c of champs) {
+      const v = js.map(j => j[c]).filter(x => x != null);
+      o[c] = v.length ? (mode === 'somme' ? v.reduce((a, b) => a + b, 0) : v.reduce((a, b) => a + b, 0) / v.length) : null;
+    }
+    return o;
+  });
+}
+
+/* ---------- Mini moteur de graphiques SVG ---------- */
+function niceTicks(min, max, n = 4) {
+  const span = max - min || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const ticks = [];
+  for (let v = Math.floor(min / step) * step; v <= max + step * 0.001; v += step) ticks.push(+v.toFixed(6));
+  if (ticks[ticks.length - 1] < max) ticks.push(ticks[ticks.length - 1] + step);
+  return ticks;
+}
+const roundTop = (x, y, w, h, r) => {
+  r = Math.min(r, w / 2, h);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+};
+const roundAll = (x, y, w, h, r) => {
+  r = Math.min(r, w / 2, h / 2);
+  return `M${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x + r}Q${x},${y + h} ${x},${y + h - r}V${y + r}Q${x},${y} ${x + r},${y}Z`;
+};
+
+/**
+ * cfg = { labels, series:[{nom, couleur, valeurs}], type:'line'|'bar'|'stack'|'range',
+ *         bande:[lo[], hi[]], fmt, zero:bool, extraTip:(i)=>[[nom,val]] }
+ */
+function dessiner(carte, cfg) {
+  const el = carte.querySelector('.chart'), leg = carte.querySelector('.legend');
+  const W = el.clientWidth, H = el.clientHeight, m = { l: 38, r: 6, t: 8, b: 22 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, n = cfg.labels.length;
+  const fmt = cfg.fmt || (v => fmtNb(v));
+
+  leg.innerHTML = cfg.series.length > 1 || cfg.bande
+    ? cfg.series.map(s => `<span><i style="background:${css(s.couleur)}"></i>${s.nom}</span>`).join('') +
+      (cfg.bande ? `<span><i style="background:${css(cfg.series[0].couleur)};opacity:.18"></i>Plage normale</span>` : '')
+    : '';
+
+  let vals = [];
+  if (cfg.type === 'stack') vals = cfg.labels.map((_, i) => cfg.series.reduce((s, se) => s + (se.valeurs[i] || 0), 0));
+  else cfg.series.forEach(s => vals.push(...s.valeurs));
+  if (cfg.bande) vals.push(...cfg.bande[0], ...cfg.bande[1]);
+  vals = vals.filter(v => v != null);
+  if (!vals.length) { el.innerHTML = '<p class="sub">Aucune donnée sur cette période.</p>'; return; }
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (cfg.zero !== false || cfg.type !== 'line') lo = Math.min(0, lo);
+  else { const pad = (hi - lo) * 0.15 || 2; lo -= pad; hi += pad; }
+  const ticks = niceTicks(lo, hi);
+  const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const Y = v => m.t + ih - (v - y0) / (y1 - y0) * ih;
+  const bw = iw / n, X = i => m.l + bw * i + bw / 2;
+  const gap = bw > 6 ? 2 : bw > 3 ? 1 : 0, barW = Math.max(1, bw - gap);
+  const surface = css('--surface');
+
+  let svg = `<svg width="${W}" height="${H}" role="img" aria-label="${carte.querySelector('h2').textContent}">`;
+  for (const t of ticks) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="${css('--line')}" stroke-width="1"/>` +
+    `<text x="${m.l - 6}" y="${Y(t) + 4}" text-anchor="end">${fmtNb(t, t % 1 ? 1 : 0)}</text>`;
+  const pas = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 70))));
+  for (let i = 0; i < n; i += pas) svg += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${fmtJour(cfg.labels[i])}</text>`;
+
+  if (cfg.bande) {
+    const [blo, bhi] = cfg.bande, pts = [];
+    for (let i = 0; i < n; i++) if (blo[i] != null && bhi[i] != null) pts.push([X(i), Y(bhi[i]), Y(blo[i])]);
+    if (pts.length) svg += `<path d="M${pts.map(p => `${p[0]},${p[1]}`).join('L')}L${pts.reverse().map(p => `${p[0]},${p[2]}`).join('L')}Z" fill="${css(cfg.series[0].couleur)}" opacity=".14"/>`;
+  }
+  if (cfg.type === 'line') {
+    for (const s of cfg.series) {
+      let d = '', ouvert = false;
+      s.valeurs.forEach((v, i) => { if (v == null) { ouvert = false; return; } d += `${ouvert ? 'L' : 'M'}${X(i)},${Y(v)}`; ouvert = true; });
+      svg += `<path d="${d}" fill="none" stroke="${css(s.couleur)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+  } else if (cfg.type === 'bar') {
+    const s = cfg.series[0];
+    s.valeurs.forEach((v, i) => { if (v) svg += `<path d="${roundTop(X(i) - barW / 2, Y(v), barW, Y(0) - Y(v), 4)}" fill="${css(s.couleur)}"/>`; });
+  } else if (cfg.type === 'stack') {
+    for (let i = 0; i < n; i++) {
+      let base = 0;
+      const segs = cfg.series.map(s => s.valeurs[i] || 0);
+      const dernier = segs.map(v => v > 0).lastIndexOf(true);
+      segs.forEach((v, k) => {
+        if (!v) return;
+        const yTop = Y(base + v), yBas = Y(base) - (base > 0 && gap ? 1 : 0);
+        const h = Math.max(0, yBas - yTop - (gap && k < dernier ? 1 : 0));
+        const yy = yBas - h;
+        svg += k === dernier
+          ? `<path d="${roundTop(X(i) - barW / 2, yy, barW, h, 4)}" fill="${css(cfg.series[k].couleur)}"/>`
+          : `<rect x="${X(i) - barW / 2}" y="${yy}" width="${barW}" height="${h}" fill="${css(cfg.series[k].couleur)}"/>`;
+        base += v;
+      });
+    }
+  } else if (cfg.type === 'range') {
+    const [a, b] = cfg.series;
+    for (let i = 0; i < n; i++) if (a.valeurs[i] != null && b.valeurs[i] != null)
+      svg += `<path d="${roundAll(X(i) - barW / 2, Y(b.valeurs[i]), barW, Math.max(2, Y(a.valeurs[i]) - Y(b.valeurs[i])), 4)}" fill="${css(b.couleur)}"/>`;
+  }
+  svg += `<line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" stroke="${css('--muted')}" stroke-width="1" visibility="hidden"/>`;
+  svg += `<g class="dots"></g><rect x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent"/></svg><div class="tip"></div>`;
+  el.innerHTML = svg;
+
+  const tip = el.querySelector('.tip'), cross = el.querySelector('.cross'), dots = el.querySelector('.dots');
+  el.querySelector('rect:last-of-type').addEventListener('mousemove', e => {
+    const r = el.getBoundingClientRect(), i = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left - m.l) / bw)));
+    cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('visibility', 'visible');
+    dots.innerHTML = cfg.type === 'line' ? cfg.series.filter(s => s.valeurs[i] != null)
+      .map(s => `<circle cx="${X(i)}" cy="${Y(s.valeurs[i])}" r="4.5" fill="${css(s.couleur)}" stroke="${surface}" stroke-width="2"/>`).join('') : '';
+    const lignes = cfg.series.map(s => [s.nom, fmt(s.valeurs[i]), css(s.couleur)]);
+    if (cfg.type === 'stack') lignes.push(['Total', fmt(cfg.series.reduce((t, s) => t + (s.valeurs[i] || 0), 0)), 'transparent']);
+    if (cfg.extraTip) lignes.push(...cfg.extraTip(i).map(([k, v]) => [k, v, 'transparent']));
+    tip.innerHTML = `<b>${cfg.semaine ? 'Sem. du ' : ''}${fmtJourAn(cfg.labels[i])}</b>` +
+      lignes.map(([k, v, c]) => `<div><i style="background:${c}"></i><span>${k}</span><span>${v}</span></div>`).join('');
+    tip.style.display = 'block';
+    const x = X(i) + 12, w = tip.offsetWidth;
+    tip.style.left = (x + w > W ? X(i) - w - 12 : x) + 'px';
+    tip.style.top = '4px';
+  });
+  el.querySelector('rect:last-of-type').addEventListener('mouseleave', () => {
+    tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); dots.innerHTML = '';
+  });
+
+  // Vue tableau (accessibilité / lecture des valeurs exactes)
+  const tbl = carte.querySelector('.data-table');
+  tbl.innerHTML = `<table><thead><tr><th>${cfg.semaine ? 'Semaine du' : 'Date'}</th>${cfg.series.map(s => `<th class="num">${s.nom}</th>`).join('')}</tr></thead><tbody>` +
+    cfg.labels.map((l, i) => `<tr><td>${fmtJourAn(l)}</td>${cfg.series.map(s => `<td class="num">${fmt(s.valeurs[i])}</td>`).join('')}</tr>`).reverse().join('') +
+    '</tbody></table>';
+}
+
+/* ---------- Sections ---------- */
+function carte(nom) { return document.querySelector(`[data-chart="${nom}"]`); }
+
+function tuiles() {
+  const j = DATA.jours, dernier = champ => [...j].reverse().find(x => x[champ] != null);
+  const moy30 = champ => moy(j.slice(-30).map(x => x[champ]));
+  const ecart = (v, ref) => {
+    if (v == null || ref == null) return '';
+    const d = v - ref;
+    return `${d >= 0 ? '+' : ''}${fmtNb(d, Math.abs(d) < 10 ? 1 : 0)} vs moy. 30 j`;
+  };
+  const hrv = dernier('hrv'), rhr = dernier('rhr'), sl = dernier('sDeep'), bb = dernier('bbMax'), st = dernier('steps'), stress = dernier('stress');
+  const total = x => x ? x.sDeep + x.sRem + x.sLight : null;
+  const statut = hrv && HRV_STATUS[hrv.hrvStatus];
+  document.getElementById('tuiles').innerHTML = [
+    ['VFC nuit dernière', hrv && `${hrv.hrv}<small> ms</small>`,
+      statut ? `<span class="status"><i style="background:var(${statut[1]})"></i>${statut[2]} ${statut[0]} · moy. 7 j ${hrv.hrvWeek} ms</span>` : ''],
+    ['FC au repos', rhr && `${rhr.rhr}<small> bpm</small>`, ecart(rhr?.rhr, moy30('rhr'))],
+    ['Sommeil', sl && fmtH(total(sl)), sl ? `Profond ${fmtH(sl.sDeep)} · paradoxal ${fmtH(sl.sRem)}` : ''],
+    ['Body Battery max', bb && `${bb.bbMax}<small> / 100</small>`, bb ? `Min ${bb.bbMin} · ${fmtJour(bb.d)}` : ''],
+    ['Stress moyen', stress && `${stress.stress}`, ecart(stress?.stress, moy30('stress'))],
+    ['Âge physique', DATA.fitnessAge && `${fmtNb(DATA.fitnessAge, 1)}<small> ans</small>`,
+      `Âge réel ${DATA.age} · atteignable ${fmtNb(DATA.fitnessAgeCible, 1)}`],
+  ].map(([l, v, n]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v || '–'}</div><div class="note">${n}</div></div>`).join('');
+}
+
+function sante() {
+  const jours = DATA.jours.filter(j => j.d >= depuis(periode));
+  const labels = jours.map(j => j.d), col = c => jours.map(j => j[c] ?? null);
+  const long = jours.length > 120;
+
+  dessiner(carte('vfc'), {
+    labels, type: 'line', zero: false, bande: [col('hrvLo'), col('hrvHi')],
+    series: [{ nom: 'VFC nocturne', couleur: '--s1', valeurs: col('hrv') }],
+    fmt: v => v == null ? '–' : `${v} ms`,
+    extraTip: i => [['Moy. 7 j', jours[i].hrvWeek ? `${jours[i].hrvWeek} ms` : '–'], ['Statut', HRV_STATUS[jours[i].hrvStatus]?.[0] || '–']],
+  });
+  dessiner(carte('fcr'), {
+    labels, type: 'line', zero: false,
+    series: [{ nom: 'FC repos', couleur: '--s1', valeurs: col('rhr') }], fmt: v => v == null ? '–' : `${v} bpm`,
+  });
+
+  const champsSommeil = ['sDeep', 'sRem', 'sLight', 'sAwake'];
+  const js = long ? parSemaine(jours, champsSommeil) : jours;
+  dessiner(carte('sommeil'), {
+    labels: js.map(j => j.d), type: 'stack', semaine: long, fmt: fmtH,
+    series: [['Profond', 'sDeep', '--s1'], ['Paradoxal', 'sRem', '--s2'], ['Léger', 'sLight', '--s3'], ['Éveillé', 'sAwake', '--s4']]
+      .map(([nom, c, couleur]) => ({ nom, couleur, valeurs: js.map(j => j[c] ?? null) })),
+  });
+
+  const jb = long ? parSemaine(jours, ['bbMin', 'bbMax']) : jours;
+  dessiner(carte('bb'), {
+    labels: jb.map(j => j.d), type: 'range', semaine: long, fmt: v => fmtNb(v),
+    series: [{ nom: 'Min', couleur: '--s1', valeurs: jb.map(j => j.bbMin ?? null) }, { nom: 'Max', couleur: '--s1', valeurs: jb.map(j => j.bbMax ?? null) }],
+  });
+  carte('bb').querySelector('.legend').innerHTML = '';
+
+  const jst = long ? parSemaine(jours, ['stress', 'steps']) : jours;
+  dessiner(carte('stress'), {
+    labels: jst.map(j => j.d), type: 'bar', semaine: long,
+    series: [{ nom: 'Stress moyen', couleur: '--s1', valeurs: jst.map(j => j.stress ?? null) }],
+  });
+  dessiner(carte('pas'), {
+    labels: jst.map(j => j.d), type: 'bar', semaine: long, fmt: v => fmtNb(v),
+    series: [{ nom: long ? 'Pas (moy. / jour)' : 'Pas', couleur: '--s1', valeurs: jst.map(j => j.steps ?? null) }],
+  });
+}
+
+function entrainement() {
+  const acts = DATA.activites.filter(a => a.d.slice(0, 10) >= depuis(periode));
+  // Regroupement : semaine jusqu'à 1 an, mois au-delà
+  const mensuel = !periode;
+  const cle = a => {
+    if (mensuel) return a.d.slice(0, 7) + '-01';
+    const d = new Date(a.d.slice(0, 10) + 'T12:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  };
+  const seaux = new Map();
+  // Crée tous les seaux de la période, même vides
+  const debut = new Date((periode ? depuis(periode) : DATA.activites[DATA.activites.length - 1].d.slice(0, 10)) + 'T12:00');
+  for (let d = new Date(debut); d <= new Date(dernierJour + 'T12:00'); d.setDate(d.getDate() + (mensuel ? 28 : 7))) {
+    const k = cle({ d: d.toISOString().slice(0, 10) });
+    if (!seaux.has(k)) seaux.set(k, Object.fromEntries(SPORTS.map(s => [s, 0])));
+  }
+  const kFin = cle({ d: dernierJour });
+  if (!seaux.has(kFin)) seaux.set(kFin, Object.fromEntries(SPORTS.map(s => [s, 0])));
+  for (const a of acts) { const k = cle(a); if (!seaux.has(k)) seaux.set(k, Object.fromEntries(SPORTS.map(s => [s, 0]))); seaux.get(k)[a.s] += a.min / 60; }
+  const ks = [...seaux.keys()].sort();
+  dessiner(carte('volume'), {
+    labels: ks, type: 'stack', semaine: !mensuel, fmt: v => v == null ? '–' : fmtH(v),
+    series: SPORTS.map(s => ({ nom: s, couleur: SPORT_VAR[s], valeurs: ks.map(k => seaux.get(k)[s] || null) })),
+  });
+  carte('volume').querySelector('h2').textContent = `Volume d'entraînement (h / ${mensuel ? 'mois' : 'semaine'})`;
+
+  // Zones FC
+  const z = DATA.zones, tot = [0, 0, 0, 0, 0];
+  acts.forEach(a => a.z.forEach((v, i) => tot[i] += v));
+  const somme = tot.reduce((a, b) => a + b, 0) || 1;
+  const bornes = [z.zone1Floor, z.zone2Floor, z.zone3Floor, z.zone4Floor, z.zone5Floor, z.maxHeartRateUsed];
+  document.getElementById('zones').innerHTML = tot.map((v, i) =>
+    `<div class="zone"><span><b>Z${i + 1}</b> <span class="sub">${bornes[i]}–${bornes[i + 1]}</span></span>` +
+    `<div class="bar" title="${fmtH(v / 3600)}"><div style="width:${v / somme * 100}%;background:var(--z${i + 1})"></div></div>` +
+    `<span class="pct">${fmtNb(v / somme * 100)} %</span></div>`).join('') +
+    `<p class="sub" style="margin:6px 0 0">FC max ${z.maxHeartRateUsed} · seuil lactique ${z.lactateThresholdHeartRateUsed} · repos ${z.restingHeartRateUsed} bpm</p>`;
+  document.getElementById('zones-total').textContent = `${fmtH(somme / 3600)} enregistrées`;
+
+  // Records et totaux sur la période
+  const courses = acts.filter(a => a.s === 'Course'), velos = acts.filter(a => a.s === 'Vélo');
+  const best5k = courses.filter(a => a.f5k).sort((a, b) => a.f5k - b.f5k)[0];
+  const plusLong = l => l.length ? l.reduce((a, b) => b.km > a.km ? b : a) : null;
+  const lc = plusLong(courses), lv = plusLong(velos);
+  const km = l => l.reduce((s, a) => s + a.km, 0);
+  document.getElementById('records').innerHTML = [
+    ['Activités', fmtNb(acts.length), `${fmtH(acts.reduce((s, a) => s + a.min, 0) / 60)} au total`],
+    ['Course', `${fmtNb(km(courses))}<small> km</small>`, `${courses.length} sorties`],
+    ['Vélo', `${fmtNb(km(velos))}<small> km</small>`, `${velos.length} sorties`],
+    ['Meilleur 5 km', best5k && fmtAllure(best5k.f5k), best5k ? fmtJourAn(best5k.d) : 'aucun sur la période'],
+    ['Plus longue course', lc && `${fmtNb(lc.km, 1)}<small> km</small>`, lc ? fmtJourAn(lc.d) : ''],
+    ['Plus longue sortie vélo', lv && `${fmtNb(lv.km, 1)}<small> km</small>`, lv ? fmtJourAn(lv.d) : ''],
+  ].map(([l, v, n]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v || '–'}</div><div class="note">${n}</div></div>`).join('');
+
+  table(acts);
+}
+
+let limite = 25;
+function table(acts) {
+  const s = document.getElementById('filtre-sport').value;
+  const liste = acts.filter(a => !s || a.s === s);
+  document.getElementById('nb-act').textContent = `· ${liste.length}`;
+  document.getElementById('act-body').innerHTML = liste.slice(0, limite).map(a => {
+    const vit = !a.v ? '–' : a.s === 'Course' ? `${fmtAllure(1000 / a.v)} /km` : `${fmtNb(a.v * 3.6, 1)} km/h`;
+    return `<tr><td>${fmtJourAn(a.d)}</td><td class="name" title="${a.n.replace(/"/g, '&quot;')}">${a.n}</td>` +
+      `<td><span class="status"><i style="background:var(${SPORT_VAR[a.s]})"></i>${a.s}</span></td>` +
+      `<td class="num">${a.km ? fmtNb(a.km, 1) + ' km' : '–'}</td><td class="num">${fmtDuree(a.min)}</td><td class="num">${vit}</td>` +
+      `<td class="num">${a.hr ? fmtNb(a.hr) : '–'}</td><td class="num">${a.dplus ? fmtNb(a.dplus) + ' m' : '–'}</td>` +
+      `<td class="num">${a.te ? fmtNb(a.te, 1) : '–'}</td><td class="num">${a.load ? fmtNb(a.load) : '–'}</td></tr>`;
+  }).join('');
+  document.getElementById('plus').style.display = liste.length > limite ? '' : 'none';
+}
+
+function tout() { sante(); entrainement(); }
+
+/* ---------- Initialisation ---------- */
+document.getElementById('sous-titre').textContent =
+  `${DATA.nom} · données jusqu'au ${fmtJourAn(dernierJour)} · ${DATA.activites.length} activités depuis ${fmtJourAn(DATA.activites[DATA.activites.length - 1].d)}`;
+document.getElementById('filtre-sport').innerHTML += SPORTS.map(s => `<option>${s}</option>`).join('');
+document.querySelectorAll('.filters button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.filters button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  periode = +b.dataset.p; limite = 25; tout();
+}));
+document.getElementById('filtre-sport').addEventListener('change', () => { limite = 25; entrainement(); });
+document.getElementById('plus').addEventListener('click', () => { limite += 50; entrainement(); });
+document.querySelectorAll('.card-head button').forEach(b => b.addEventListener('click', () => {
+  const t = b.closest('.card').querySelector('.data-table'), ouvert = t.style.display === 'block';
+  t.style.display = ouvert ? 'none' : 'block'; b.textContent = ouvert ? 'Tableau' : 'Graphique';
+  b.closest('.card').querySelector('.chart').style.display = ouvert ? '' : 'none';
+}));
+let attente;
+addEventListener('resize', () => { clearTimeout(attente); attente = setTimeout(tout, 150); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', tout);
+tuiles();
+tout();
+</script>
+</body>
+</html>

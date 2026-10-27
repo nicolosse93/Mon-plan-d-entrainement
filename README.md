@@ -37,6 +37,8 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 | [fitParser.js](fitParser.js) | Lecteur FIT minimal, sans dépendance, pour les activités de la montre (résumé, tours, mesures seconde par seconde, zones, heure locale) et les .zip de Garmin Connect ; calcule temps par zone, charge, courbes réduites et tracé GPS (`window.FitParser`). |
 | [outils/](outils/) | Relais montre, petit serveur local qui lit la montre branchée en USB, même en MTP. Windows : `montre-relais.ps1`, `installer-relais.cmd` / `desinstaller-relais.cmd`. Mac : `montre-relais-mac.py` (libmtp), `installer-relais-mac.command` / `desinstaller-relais-mac.command`. Mêmes routes, l'app ne voit pas la différence. |
 | [sql/activities.sql](sql/activities.sql) | Table `activities` (activités importées, rattachées aux séances : résumé, zones, charge, courbes, tracé) et ses règles d'accès. Relançable : ajoute les colonnes manquantes. |
+| [sql/garmin.sql](sql/garmin.sql) | Données Garmin Connect : colonnes Garmin de `activities`, tables `garmin_profile`, `garmin_daily`, `garmin_daily_detail`, `garmin_credentials` et leurs règles d'accès. Relançable. |
+| [supabase/functions/garmin-sync/](supabase/functions/garmin-sync/) | Fonction Supabase du bouton « Mettre à jour » de Mes données Garmin (Personal API de Garmin Connect). |
 | [sql/seed_training_bank.sql](sql/seed_training_bank.sql) | Requête à coller dans l'éditeur SQL de Supabase : ~35 séances par sport dans `training_bank` (relançable sans doublons). |
 | [test-import.js](test-import.js) | Petit test de chargement du SDK FIT officiel de Garmin depuis un CDN. |
 | [garmin-export-app/](garmin-export-app/) | Prototype autonome : un bouton qui télécharge une séance de fractionné codée en dur au format `.fit`. |
@@ -95,12 +97,27 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 
 ## Importer ses activités Garmin
 
-L'API officielle Garmin n'accepte pas de nouveaux développeurs (2026) et celle de Strava demande un abonnement : l'app lit donc directement les fichiers d'activité `.FIT`, gratuitement et sans mot de passe à confier.
+L'app lit directement les fichiers d'activité `.FIT` de la montre : courbes seconde par seconde, tours et tracé GPS, gratuitement et sans mot de passe à confier.
 
 1. Coller [sql/activities.sql](sql/activities.sql) dans l'éditeur SQL de Supabase (une seule fois).
 2. Installer le relais de la montre (voir [Synchroniser la montre](#synchroniser-la-montre-windows-et-mac)) : la synchro importe les nouvelles sorties du dossier `GARMIN/Activity`.
 
-Seules les activités sont lues : VO2max, prédictions, sommeil, Body Battery et VFC restent saisis à la main dans le profil.
+La montre ne donne que les activités. La santé (sommeil, Body Battery, VFC…) vient de Garmin Connect : voir [Mes données Garmin](#mes-données-garmin).
+
+## Mes données Garmin
+
+Bouton **« Données »** de l'en-tête : VFC nocturne et sa plage normale, FC au repos, sommeil par phase, Body Battery, stress, pas, âge physique, volume d'entraînement par sport, temps par zone FC, records (meilleur 5 km, plus longues sorties) et liste filtrable de toutes les activités, sur 30 jours, 90 jours, 1 an ou tout l'historique. Lu dans Supabase (tables `garmin_*` et `activities`).
+
+Depuis octobre 2026, Garmin Connect donne à chacun une **Personal API Key** pour lire ses propres données (lecture seule ; ~100 requêtes / minute).
+
+**Installation (une fois)**
+1. Coller [sql/garmin.sql](sql/garmin.sql) dans l'éditeur SQL de Supabase (relançable).
+2. Déployer la fonction [supabase/functions/garmin-sync/index.ts](supabase/functions/garmin-sync/index.ts) sous le nom `garmin-sync` : tableau de bord Supabase › Edge Functions › *Deploy a new function* › *Via Editor*, coller le fichier, déployer (ou `supabase functions deploy garmin-sync`).
+3. Créer la clé sur le site Garmin Connect (Paramètres › Personal API Key) et la coller dans l'app : bouton « Données » › « Clé Personal API Garmin ».
+
+**« Mettre à jour »** appelle `garmin-sync`, avec la session de l'utilisateur (ses règles d'accès s'appliquent) : profil et zones, santé depuis le dernier jour en base (28 jours au plus), détail intra-journée d'hier et d'aujourd'hui, nouvelles activités (rattachées aux séances comme l'import de la montre ; une sortie déjà importée par la montre reçoit seulement les infos Garmin). Si Garmin limite les requêtes, la synchro s'arrête proprement : relancer une minute plus tard.
+
+**Historique complet** (première fois, ou pour tout recharger) : [outils/garmin-export.py](outils/garmin-export.py) télécharge tout dans `garmin-data/` (non versionné : données de santé), [outils/garmin-supabase.py](outils/garmin-supabase.py) l'envoie dans Supabase (`SUPABASE_EMAIL` / `SUPABASE_PASSWORD` du compte de l'app et `GARMIN_PERSONAL_API_KEY` dans `.env`), [outils/garmin-page.py](outils/garmin-page.py) génère une page locale `garmin-data/tableau.html`. Python 3.12+ et `pip install garmin-connect-personal-api-python`.
 
 ## Synchroniser la montre (Windows et Mac)
 

@@ -137,7 +137,10 @@
         if (sport === 10 || (sport === 4 && subSport === 20)) return ['Renfo'];
         if (sport === 12) return subSport === 42 ? ['Ski de fond skate', 'Ski de fond classique'] : ['Ski de fond classique', 'Ski de fond skate'];
         if (sport === 41 || sport === 19) return ['Kayak'];
-        return [];
+        if (sport === 15 || (sport === 4 && subSport === 14)) return ['Aviron'];
+        if (sport === 11) return ['Marche'];
+        if (sport === 17) return ['Randonnée'];
+        return ['Autre'];
     }
 
     // Zone de FC (1 à 5) : base FC seuil (85/90/95/100 %) ou FC max (60/70/80/90 %)
