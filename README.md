@@ -21,7 +21,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 - **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows ou un Mac avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 14 prochains jours, dans l'ordre chronologique.
 - **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
-- **Export Garmin (.FIT)** : une séance (bouton « Garmin .FIT » de l'en-tête, ou détail d'une séance) ou **une semaine au choix** d'un coup (un fichier par séance, flèches pour changer de semaine). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
+- **Export Garmin (.FIT)** : les séances des 14 prochains jours partent sur la montre avec la synchro (bouton « Montre ») ; une séance seule se télécharge aussi depuis sa fiche (bouton « .FIT »). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
   - le nom « 10-22 Jeu - Titre » : mois-jour et jour abrégé, pour garder l'ordre chronologique sur la montre (fin décembre, quand les 14 jours de la synchro débordent sur janvier, l'année est ajoutée : « 26-12-29 Mar », « 27-01-03 Sam ») ;
   - les étapes et les répétitions, en **distance** quand le texte de la séance en donne une (« 5x 600m », pyramide « 200-400-600-400-200m ») ;
   - des **cibles d'allure** pour la course (calculées depuis les prédictions 5K / 10K du profil : allure de l'intervalle, endurance Z2 pour l'échauffement et le retour au calme, récup libre) ;
@@ -145,7 +145,7 @@ Une montre Garmin récente se branche en **MTP** (sans lettre de lecteur) : aucu
 
 ## Importer une séance sur Garmin
 
-Dans l'application, télécharge le fichier `.fit` : bouton **Garmin .FIT** de l'en-tête, ou **.FIT** dans le détail d'une séance. Ensuite, copie-le sur la montre par câble :
+La synchro de la montre (bouton **« Montre »**) le fait toute seule. Sans le relais : télécharge le fichier `.fit` avec le bouton **.FIT** du détail de la séance, puis copie-le sur la montre par câble :
 
 1. Branche la montre à l'ordinateur avec son câble USB.
 2. Ouvre l'Explorateur › *Ce PC* › ta montre (selon le modèle : un lecteur, ou un appareil avec *Internal Storage*).
