@@ -5,10 +5,12 @@ Connexion avec ton compte de l'app : SUPABASE_EMAIL et SUPABASE_PASSWORD dans .e
 Relançable : rien n'est dupliqué, une activité déjà en base (même heure de départ) garde sa séance liée.
 """
 import json
+import re
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
@@ -179,12 +181,25 @@ def quotidien(sb):
     print(f"Détail intra-journée : {len(detail)} courbes envoyées")
 
 
+def cle_titre(titre):
+    """Titre comparable : sans accents, casse, espaces ni ponctuation."""
+    return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFD", titre or "").lower())
+
+
+def seance_suivie(nom):
+    """Séance de l'app suivie sur la montre : la sortie en garde le nom « 10-29 Jeu - Titre » (tronqué à 47 car.).
+    Renvoie (clé du titre, tronqué ?) ou None."""
+    m = re.match(r"^(?:\d{2}-)?\d{2}-\d{2} \S+ - (.+)$", nom or "")
+    cle = cle_titre(m.group(1)) if m else ""
+    return (cle, len(nom) >= 47) if cle else None
+
+
 def activites(sb):
     zones = (lire("profil.json").get("zones_fc") or [{}])[0]
     base_zones = {"type": "max", "hr": zones["maxHeartRateUsed"]} if zones.get("maxHeartRateUsed") else None
     en_base = sb.tout_lire("activities", "id,start_time,workout_id")
     par_heure = {datetime.fromisoformat(a["start_time"]).timestamp(): a for a in en_base}
-    seances = sb.tout_lire("workouts", "id,date,type,completed")
+    seances = sb.tout_lire("workouts", "id,date,type,completed,title")
     prises = {str(a["workout_id"]) for a in en_base if a.get("workout_id")}
 
     nouvelles, existantes, a_cocher, vues = [], [], [], set()
@@ -219,10 +234,18 @@ def activites(sb):
         cadence = a.get("averageBikingCadenceInRevPerMinute") or (
             a.get("averageRunningCadenceInStepsPerMinute") and a["averageRunningCadenceInStepsPerMinute"] / 2)
 
-        # Même rattachement que l'import FIT de l'app : première séance libre du jour et du sport, non réalisée d'abord
-        candidates = [w for w in seances if w["date"] == garmin["start_date_local"] and w["type"] in types and str(w["id"]) not in prises]
+        # Même rattachement que l'import FIT de l'app : séance suivie sur la montre, retrouvée par son titre à 14 jours
+        # au plus (la plus proche) ; sinon première séance libre du jour et du sport, non réalisée d'abord
+        jour = date.fromisoformat(garmin["start_date_local"])
+        libres = [w for w in seances if w["type"] in types and str(w["id"]) not in prises]
+        ecart = lambda w: abs((date.fromisoformat(w["date"]) - jour).days)
+        suivie = seance_suivie(a.get("activityName"))
+        nommees = [w for w in libres if ecart(w) <= 14 and suivie and (
+            cle_titre(w.get("title")).startswith(suivie[0]) if suivie[1] else cle_titre(w.get("title")) == suivie[0])]
+        nommees.sort(key=lambda w: (ecart(w), bool(w["completed"])))
+        candidates = [w for w in libres if w["date"] == garmin["start_date_local"]]
         candidates.sort(key=lambda w: (bool(w["completed"]), types.index(w["type"])))
-        seance = candidates[0] if candidates else None
+        seance = (nommees or candidates or [None])[0]
         if seance:
             prises.add(str(seance["id"]))
             if not seance["completed"]:

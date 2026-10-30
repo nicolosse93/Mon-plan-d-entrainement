@@ -35,6 +35,7 @@
             0: ['lat', 1], 1: ['lon', 1], 2: ['alt', 5, 500], 78: ['ealt', 5, 500], 3: ['hr', 1], 4: ['cad', 1],
             5: ['dist', 100], 6: ['spd', 1000], 73: ['espd', 1000], 7: ['pwr', 1]
         },
+        26: { 8: ['wkt_name', 1] },                                             // workout (séance suivie, texte)
         34: { 5: ['local_timestamp', 1] }                                       // activity
     };
 
@@ -61,7 +62,7 @@
         const end = Math.min(buffer.byteLength, headerSize + view.getUint32(4, true));
 
         const definitions = {};
-        const out = { fileType: null, zones: {}, sessions: [], laps: [], records: [], activity: null };
+        const out = { fileType: null, zones: {}, sessions: [], laps: [], records: [], activity: null, workoutName: null };
         let lastTimestamp = null;
         let pos = headerSize;
         while (pos < end) {
@@ -105,8 +106,16 @@
             const msg = {};
             for (const f of def.fields) {
                 const base = BASE[f.base];
-                if (base && f.size === base[0]) {
-                    const spec = wanted && wanted[f.num];
+                const spec = wanted && wanted[f.num];
+                if (f.base === 7) {
+                    // Chaîne : octets jusqu'au premier 0
+                    if (spec) {
+                        const bytes = new Uint8Array(buffer, pos, f.size);
+                        const stop = bytes.indexOf(0);
+                        const text = new TextDecoder().decode(stop === -1 ? bytes : bytes.subarray(0, stop)).trim();
+                        if (text) msg[spec[0]] = text;
+                    }
+                } else if (base && f.size === base[0]) {
                     if (spec || f.num === 253) {
                         const raw = readValue(view, pos, base[1], def.little);
                         if (raw !== base[2] && raw !== null && !Number.isNaN(raw)) {
@@ -125,6 +134,7 @@
             else if (def.global === 18) out.sessions.push(msg);
             else if (def.global === 19) out.laps.push(msg);
             else if (def.global === 20 && msg.timestamp !== undefined) out.records.push(msg);
+            else if (def.global === 26 && msg.wkt_name) out.workoutName = msg.wkt_name;
             else if (def.global === 34) out.activity = msg;
         }
         return out;
@@ -233,6 +243,8 @@
                 types: appTypes(s.sport, s.sub_sport),
                 fit_sport: s.sport ?? null,
                 fit_sub_sport: s.sub_sport ?? null,
+                // Nom de la séance suivie sur la montre (« 10-29 Jeu - Titre » pour une séance envoyée par l'app)
+                workout_name: fit.workoutName,
                 start_time: new Date(startMs).toISOString(),
                 start_date_local: local.toISOString().slice(0, 10),
                 elapsed_time: Math.round(elapsed) || null,

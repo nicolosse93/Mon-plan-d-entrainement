@@ -603,7 +603,14 @@
                     <span class="text-xs text-muted"><i class="fa-regular fa-clock mr-1"></i><span id="detail-duration">-</span></span>
                     <span id="detail-effort-wrap" class="hidden text-xs text-muted"><i class="fa-solid fa-gauge mr-1"></i>Effort <span id="detail-effort">-</span>/10</span>
                     <!-- Activité de la montre (fichier .FIT importé) rattachée à la séance -->
-                    <span id="detail-done" class="hidden basis-full text-xs font-semibold text-success"><i class="fa-solid fa-circle-check mr-1"></i><span id="detail-done-text"></span></span>                </div>
+                    <span id="detail-done" class="hidden basis-full text-xs font-semibold text-success"><i class="fa-solid fa-circle-check mr-1"></i><span id="detail-done-text"></span><button type="button" id="detail-relink-btn" onclick="openRelink()" class="hidden ml-2 font-normal text-muted underline hover:text-accent transition">Pas la bonne séance ?</button></span>
+                    <!-- Sortie de la montre liée à la mauvaise séance : choix d'une autre séance proche du même sport -->
+                    <div id="detail-relink" class="hidden basis-full flex-wrap items-center gap-2 text-xs">
+                        <select id="detail-relink-select" aria-label="Séance à lier à cette sortie" class="flex-1 min-w-0 bg-inset border border-line rounded-lg px-2 py-1.5 text-ink focus:outline-none focus:border-accent"></select>
+                        <button type="button" onclick="applyRelink()" class="bg-accent hover:bg-accent-hover text-white font-semibold px-3 py-1.5 rounded-lg transition">Lier</button>
+                        <button type="button" onclick="closeRelink()" class="px-3 py-1.5 rounded-lg border border-line text-muted hover:text-ink transition">Annuler</button>
+                    </div>
+                </div>
                 <button type="button" onclick="closeDetailsModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
@@ -1710,13 +1717,17 @@
 
         // Colonnes enregistrées d'une activité lue. Sans FC, charge estimée : minutes × (effort de la séance de la
         // banque rattachée / 2, sinon 2), soit l'équivalent d'une zone de FC moyenne
+        function estimatedLoad(a, workout) {
+            const bank = workout ? getBankMatch(workout) : null;
+            const perMinute = bank && bank.effort_score ? bank.effort_score / 2 : 2;
+            return Math.round((a.timer_time || a.elapsed_time || 0) / 60 * perMinute);
+        }
+
         function activityRow(a, workout) {
             let load = a.load;
             let estimated = false;
             if (load === null) {
-                const bank = workout ? getBankMatch(workout) : null;
-                const perMinute = bank && bank.effort_score ? bank.effort_score / 2 : 2;
-                load = Math.round((a.timer_time || a.elapsed_time || 0) / 60 * perMinute);
+                load = estimatedLoad(a, workout);
                 estimated = true;
             }
             return {
@@ -1731,9 +1742,51 @@
             };
         }
 
+        // Titre d'une séance créée pour une sortie non prévue : « Course libre 8,5 km »
+        function freeWorkoutTitle(type, distance) {
+            return `${sportLabel(type)} libre` + (distance > 0 ? ` ${(distance / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km` : '');
+        }
+
+        // « jeu. 29 oct. » (date locale)
+        function formatShortDay(dateStr) {
+            const [y, m, d] = dateStr.split('-');
+            return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        // Titre comparable : sans accents, casse, espaces ni ponctuation (la montre ne garde que l'ASCII)
+        function titleKey(title) {
+            return String(title || '').normalize('NFD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        }
+
+        // Séance suivie sur la montre, d'après le nom qu'elle donne à la sortie : « 10-29 Jeu - Titre »
+        // (cf. buildFitBytes ; tronqué à 47 caractères). null pour une sortie libre ou un autre nom
+        function followedWorkoutKey(name) {
+            const m = String(name || '').match(/^(?:\d{2}-)?\d{2}-\d{2} \S+ - (.+)$/);
+            const key = m ? titleKey(m[1]) : '';
+            return key ? { key, truncated: name.length >= 47 } : null;
+        }
+
+        // Séance prévue d'une sortie, parmi celles du même sport pas déjà liées (taken) :
+        // 1) celle suivie sur la montre, retrouvée par son titre à 14 jours au plus (la plus proche), même
+        //    déplacée ou faite un autre jour que prévu ; 2) sinon la première du même jour (non réalisée d'abord)
+        function findPlannedWorkout(a, taken) {
+            const free = workouts.filter(w => a.types.includes(w.type) && !taken.has(String(w.id)));
+            const followed = followedWorkoutKey(a.workout_name);
+            if (followed) {
+                const gap = w => Math.abs(new Date(w.date) - new Date(a.start_date_local)) / 86400000;
+                const sameTitle = w => followed.truncated ? titleKey(w.title).startsWith(followed.key) : titleKey(w.title) === followed.key;
+                const named = free.filter(w => gap(w) <= 14 && sameTitle(w))
+                    .sort((p, q) => gap(p) - gap(q) || Number(p.completed) - Number(q.completed))[0];
+                if (named) return named;
+            }
+            return free
+                .filter(w => w.date === a.start_date_local)
+                .sort((p, q) => Number(p.completed) - Number(q.completed) || a.types.indexOf(p.type) - a.types.indexOf(q.type))[0];
+        }
+
         // Lit les fichiers (.fit ou .zip), enregistre chaque activité et la rattache à une séance :
-        // la première du même jour et du même sport encore libre (non réalisée d'abord), sinon une séance
-        // « libre » créée et cochée. Une activité déjà importée (même heure de départ) est ignorée
+        // celle suivie sur la montre, sinon la première du même jour et du même sport (findPlannedWorkout),
+        // sinon une séance « libre » créée et cochée. Une activité déjà importée (même heure de départ) est ignorée
         // ==========================================
         // SYNCHRO DE LA MONTRE (relais local outils/montre-relais.ps1)
         // ==========================================
@@ -1944,9 +1997,7 @@
             parsed.sort((x, y) => x.start_time.localeCompare(y.start_time));
             for (const a of parsed) {
                 const type = a.types[0] || null;
-                const [y, m, d] = a.start_date_local.split('-');
-                const day = new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-                const label = `${type ? sportLabel(type) : 'Activité'} du ${day}`;
+                const label = `${type ? sportLabel(type) : 'Activité'} du ${formatShortDay(a.start_date_local)}`;
                 const summary = describeActivity(a, type);
                 const already = known.get(new Date(a.start_time).getTime());
                 if (already) {
@@ -1964,18 +2015,15 @@
                 let workoutId = null;
                 let linkedWorkout = null;
                 let outcome;
-                const match = workouts
-                    .filter(w => w.date === a.start_date_local && a.types.includes(w.type) && !taken.has(String(w.id)))
-                    .sort((p, q) => Number(p.completed) - Number(q.completed) || a.types.indexOf(p.type) - a.types.indexOf(q.type))[0];
+                const match = findPlannedWorkout(a, taken);
                 if (match) {
                     workoutId = String(match.id);
                     linkedWorkout = match;
                     if (!match.completed) await supabaseClient.from('workouts').update({ completed: true }).eq('id', match.id);
-                    outcome = `séance « ${match.title} » cochée`;
+                    outcome = `séance « ${match.title} » cochée` + (match.date !== a.start_date_local ? ` (prévue le ${formatShortDay(match.date)})` : '');
                 } else if (type) {
-                    const title = `${sportLabel(type)} libre` + (a.distance > 0 ? ` ${(a.distance / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km` : '');
                     const { data: created, error: createError } = await supabaseClient.from('workouts').insert([{
-                        title, date: a.start_date_local, type, warmup: '', main_block: summary, cooldown: '',
+                        title: freeWorkoutTitle(type, a.distance), date: a.start_date_local, type, warmup: '', main_block: summary, cooldown: '',
                         completed: true, user_id: user.id
                     }]).select();
                     if (!createError && created && created[0]) {
@@ -2772,6 +2820,9 @@
         async function loadDetailActivity(w) {
             const box = document.getElementById('detail-done');
             ['detail-done', 'detail-compare', 'detail-activity'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById('detail-relink-btn').classList.add('hidden');
+            closeRelink();
+            relinkState = null;
             lapState = null;
             if (detailMap) { detailMap.remove(); detailMap = null; }
             const { data, error } = await supabaseClient.from('activities').select('*').eq('workout_id', String(w.id)).limit(1);
@@ -2790,6 +2841,8 @@
             box.className = 'basis-full text-xs font-semibold text-success';
             icon.className = 'fa-solid fa-heart-pulse mr-1';
             document.getElementById('detail-done-text').textContent = 'Réalisé avec la montre : ' + (describeActivity(a, w.type) || 'activité importée');
+            relinkState = { a, w };
+            document.getElementById('detail-relink-btn').classList.remove('hidden');
 
             // Tours : dans la courbe et dans le tableau dessous ; étapes ajoutées par la comparaison (séance suivie)
             lapState = { a, w, spans: lapSpans(a), steps: new Map(), selected: null, rows: [], paintBands: null };
@@ -2806,6 +2859,104 @@
             }
             if (w.type !== 'Repos') await renderComparison(w, a);
             if (detailsModal.dataset.currentId == w.id) updateDetailLayout();
+        }
+
+        // ==========================================
+        // CHANGER LA SÉANCE LIÉE À UNE SORTIE
+        // ==========================================
+        let relinkState = null; // { a, w } : sortie affichée dans la fiche et séance à laquelle elle est liée
+        const RELINK_NEW = 'new';
+
+        // Séance « libre » créée par l'import pour une sortie non prévue (titre et contenu de l'import)
+        function isAutoFreeWorkout(w) {
+            return / libre( [\d,]+ km)?$/.test(w.title || '') && !w.warmup && !w.cooldown;
+        }
+
+        // Choix : séances du même sport à 7 jours au plus de la sortie (la plus proche d'abord), ou une séance libre
+        function openRelink() {
+            if (!relinkState) return;
+            const { a, w } = relinkState;
+            const types = new Set([a.sport, w.type].filter(Boolean));
+            if ([...types].some(t => t.startsWith('Ski de fond'))) ['Ski de fond classique', 'Ski de fond skate'].forEach(t => types.add(t));
+            const gap = x => Math.abs(new Date(x.date) - new Date(a.start_date_local)) / 86400000;
+            const select = document.getElementById('detail-relink-select');
+            select.innerHTML = '';
+            workouts
+                .filter(x => String(x.id) !== String(w.id) && types.has(x.type) && gap(x) <= 7)
+                .sort((p, q) => gap(p) - gap(q) || p.date.localeCompare(q.date))
+                .forEach(x => select.appendChild(new Option(`${formatShortDay(x.date)} · ${x.title}`
+                    + (linkedWorkoutIds.has(String(x.id)) ? ' (déjà liée : échange)' : ''), String(x.id))));
+            if (!isAutoFreeWorkout(w)) {
+                select.appendChild(new Option(`Aucune : séance non prévue (${formatShortDay(a.start_date_local)})`, RELINK_NEW));
+            }
+            if (select.options.length === 0) {
+                alert('Aucune autre séance du même sport à 7 jours de cette sortie.');
+                return;
+            }
+            const panel = document.getElementById('detail-relink');
+            panel.classList.remove('hidden');
+            panel.classList.add('flex');
+            select.focus();
+        }
+
+        function closeRelink() {
+            const panel = document.getElementById('detail-relink');
+            panel.classList.add('hidden');
+            panel.classList.remove('flex');
+        }
+
+        // La sortie passe à la séance choisie (cochée). La séance quittée reprend en échange la sortie de la
+        // séance choisie si elle en avait une ; sinon elle redevient à faire, ou est supprimée si l'import l'avait
+        // créée pour cette sortie. Rien n'est changé sans confirmation ; les synchros suivantes gardent ce choix
+        async function applyRelink() {
+            if (!relinkState) return;
+            const { a, w } = relinkState;
+            const value = document.getElementById('detail-relink-select').value;
+            const target = value === RELINK_NEW ? null : workouts.find(x => String(x.id) === value);
+            if (value !== RELINK_NEW && !target) return;
+
+            let swap = null;
+            if (target) {
+                const { data, error } = await supabaseClient.from('activities')
+                    .select('id, timer_time, elapsed_time, load_estimated').eq('workout_id', String(target.id)).limit(1);
+                if (error) { alert('Changement impossible : ' + error.message); return; }
+                swap = (data && data[0]) || null;
+            }
+            const dropOld = !swap && isAutoFreeWorkout(w);
+            const message = [
+                target ? `Lier cette sortie à « ${target.title} » (${formatShortDay(target.date)}) et la cocher.`
+                    : `Lier cette sortie à une nouvelle séance libre le ${formatShortDay(a.start_date_local)}.`,
+                swap ? `« ${w.title} » prendra en échange la sortie liée à « ${target.title} ».`
+                    : dropOld ? `« ${w.title} », créée à l'import pour cette sortie, sera supprimée.`
+                    : `« ${w.title} » redeviendra à faire.`
+            ].join('\n');
+            if (!confirm(message)) return;
+
+            let dest = target;
+            if (!dest) {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                const type = a.sport || w.type;
+                const { data: created, error } = await supabaseClient.from('workouts').insert([{
+                    title: freeWorkoutTitle(type, a.distance), date: a.start_date_local, type, warmup: '',
+                    main_block: describeActivity(a, type), cooldown: '', completed: true, user_id: user.id
+                }]).select();
+                if (error || !created || !created[0]) { alert('Création de la séance impossible' + (error ? ' : ' + error.message : '')); return; }
+                dest = created[0];
+            }
+            // Charge estimée (sans FC) : recalculée avec l'effort de la nouvelle séance
+            const linkTo = (act, workout) => supabaseClient.from('activities')
+                .update({ workout_id: String(workout.id), ...(act.load_estimated ? { load: estimatedLoad(act, workout) } : {}) })
+                .eq('id', act.id);
+            const { error } = await linkTo(a, dest);
+            if (error) { alert('Changement impossible : ' + error.message); return; }
+            if (swap) await linkTo(swap, w);
+            else if (dropOld) await supabaseClient.from('workouts').delete().eq('id', w.id);
+            else await supabaseClient.from('workouts').update({ completed: false }).eq('id', w.id);
+            if (!dest.completed) await supabaseClient.from('workouts').update({ completed: true }).eq('id', dest.id);
+
+            closeRelink();
+            await fetchWorkouts();
+            openDetails(dest.id);
         }
 
         // ==========================================

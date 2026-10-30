@@ -44,6 +44,14 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; };
 const positif = (v: unknown) => typeof v === 'number' && v >= 0 ? v : null;
 const entier = (v: unknown) => typeof v === 'number' ? Math.round(v) : null;
+// Titre comparable : sans accents, casse, espaces ni ponctuation
+const cleTitre = (t: unknown) => String(t || '').normalize('NFD').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+// Séance de l'app suivie sur la montre : la sortie en garde le nom « 10-29 Jeu - Titre » (tronqué à 47 caractères)
+const seanceSuivie = (nom: unknown) => {
+  const m = String(nom || '').match(/^(?:\d{2}-)?\d{2}-\d{2} \S+ - (.+)$/);
+  const cle = m ? cleTitre(m[1]) : '';
+  return cle ? { cle, tronque: String(nom).length >= 47 } : null;
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -171,8 +179,9 @@ Deno.serve(async (req) => {
         .gte('start_time', new Date(new Date(plusAncien).getTime() - 86_400_000).toISOString());
       const parId = new Set((enBase || []).map(a => String(a.garmin_activity_id)));
       const parHeure = new Map((enBase || []).map(a => [new Date(a.start_time).getTime(), a]));
-      const { data: seances } = await sb.from('workouts').select('id, date, type, completed')
-        .gte('date', plusAncien.slice(0, 10));
+      // 14 jours plus tôt : séance suivie sur la montre mais faite après la date prévue
+      const { data: seances } = await sb.from('workouts').select('id, date, type, completed, title')
+        .gte('date', iso(addDays(new Date(plusAncien), -14)));
       const prises = new Set((enBase || []).filter(a => a.workout_id).map(a => String(a.workout_id)));
       const { data: prof } = await sb.from('garmin_profile').select('hr_zones').eq('user_id', user.id).maybeSingle();
       const z = (prof?.hr_zones || [])[0] || {};
@@ -207,11 +216,17 @@ Deno.serve(async (req) => {
         const cadence = a.averageBikingCadenceInRevPerMinute ||
           (a.averageRunningCadenceInStepsPerMinute ? a.averageRunningCadenceInStepsPerMinute / 2 : null);
 
-        // Même rattachement que l'import FIT : séance libre du jour et du sport (non réalisée d'abord),
+        // Même rattachement que l'import FIT (findPlannedWorkout de l'app) : séance suivie sur la montre, retrouvée
+        // par son titre à 14 jours au plus ; sinon séance libre du jour et du sport (non réalisée d'abord) ;
         // sinon séance « libre » réalisée ajoutée au calendrier
-        const seance = (seances || [])
-          .filter(w => w.date === dateLocale && types.includes(w.type) && !prises.has(String(w.id)))
-          .sort((p, q) => Number(p.completed) - Number(q.completed) || types.indexOf(p.type) - types.indexOf(q.type))[0];
+        const libres = (seances || []).filter(w => types.includes(w.type) && !prises.has(String(w.id)));
+        const suivie = seanceSuivie(a.activityName);
+        const ecart = (w: Json) => Math.abs(Date.parse(w.date) - Date.parse(dateLocale)) / 86_400_000;
+        const seance = (suivie && libres
+          .filter(w => ecart(w) <= 14 && (suivie.tronque ? cleTitre(w.title).startsWith(suivie.cle) : cleTitre(w.title) === suivie.cle))
+          .sort((p, q) => ecart(p) - ecart(q) || Number(p.completed) - Number(q.completed))[0])
+          || libres.filter(w => w.date === dateLocale)
+            .sort((p, q) => Number(p.completed) - Number(q.completed) || types.indexOf(p.type) - types.indexOf(q.type))[0];
         let workoutId: string | null = null;
         let issue: string;
         if (seance) {
