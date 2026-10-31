@@ -127,6 +127,8 @@ Depuis octobre 2026, Garmin Connect donne à chacun une **Personal API Key** pou
 
 **« Mettre à jour »** appelle `garmin-sync`, avec la session de l'utilisateur (ses règles d'accès s'appliquent) : profil et zones, santé depuis le dernier jour en base (28 jours au plus), détail intra-journée d'hier et d'aujourd'hui, nouvelles activités (rattachées aux séances comme l'import de la montre ; une sortie déjà importée par la montre reçoit seulement les infos Garmin). Si Garmin limite les requêtes, la synchro s'arrête proprement : relancer une minute plus tard.
 
+**Mise à jour automatique** : connecté, l'app lance elle-même cette synchro si la dernière ne date pas d'aujourd'hui (vérifié à l'ouverture, au retour sur l'app et toutes les heures si elle reste ouverte). Au moins une par jour, donc, dès que l'app est ouverte ; les nouvelles activités sont signalées par une notification.
+
 **Historique complet** (première fois, ou pour tout recharger) : [outils/garmin-export.py](outils/garmin-export.py) télécharge tout dans `garmin-data/` (non versionné : données de santé), [outils/garmin-supabase.py](outils/garmin-supabase.py) l'envoie dans Supabase (`SUPABASE_EMAIL` / `SUPABASE_PASSWORD` du compte de l'app et `GARMIN_PERSONAL_API_KEY` dans `.env`), [outils/garmin-page.py](outils/garmin-page.py) génère une page locale `garmin-data/tableau.html`. Python 3.12+ et `pip install garmin-connect-personal-api-python`.
 
 ## Synchroniser la montre (Windows et Mac)

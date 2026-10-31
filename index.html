@@ -1125,7 +1125,8 @@
                 authScreen.classList.add('hidden');
                 appContent.classList.remove('hidden');
                 userEmailDisplay.textContent = session.user.email;
-                fetchWorkouts();
+                // Synchro auto après le calendrier : seules les séances qu'elle ajoute sont mises en évidence
+                fetchWorkouts().then(autoSyncGarmin);
                 fetchProfile();
             } else {
                 authScreen.classList.remove('hidden');
@@ -1893,7 +1894,8 @@
         }
 
         let garminSyncing = false;
-        async function syncGarmin() {
+        // auto : lancée par autoSyncGarmin, page Garmin fermée en général
+        async function syncGarmin(auto = false) {
             if (garminSyncing) return;
             garminSyncing = true;
             const btn = document.getElementById('gd-sync-btn'), status = document.getElementById('gd-sync-status');
@@ -1916,8 +1918,11 @@
                     (acts.length ? ` : ${acts.map(a => `${gdEsc(a.label)} (${gdEsc(a.issue)})`).join(', ')}` : '') + '.' +
                     (data.erreur ? `<br><i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1.5"></i>${gdEsc(data.erreur)}` : '') +
                     (data.partiel && !data.erreur ? `<br><i class="fa-solid fa-hourglass-half text-amber-500 mr-1.5"></i>Garmin limite le nombre de requêtes : relance dans une minute pour la suite.` : '');
-                await loadGarminData();
+                // Page Garmin fermée : graphiques redessinés à son ouverture (cachés, ils n'ont pas de largeur)
+                if (document.getElementById('garmin-modal').classList.contains('hidden')) gdData = null;
+                else await loadGarminData();
                 if (acts.length) await refreshAndHighlightNew(beforeIds, null);
+                if (auto && acts.length) showToast(`<strong>Garmin</strong> : ${acts.length} nouvelle${acts.length > 1 ? 's' : ''} activité${acts.length > 1 ? 's' : ''} importée${acts.length > 1 ? 's' : ''}.`, 6000);
             } catch (e) {
                 status.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1.5"></i>${gdEsc(e.message)}`;
             } finally {
@@ -1927,6 +1932,29 @@
                 btn.querySelector('span').textContent = 'Mettre à jour';
             }
         }
+
+        // Au moins une mise à jour Garmin par jour quand on est connecté : vérifiée à la connexion, au retour sur
+        // l'app et toutes les heures si elle reste ouverte ; lancée si la dernière ne date pas d'aujourd'hui
+        // 15 min au moins entre deux essais : une synchro en échec n'est pas relancée à chaque retour sur l'app
+        let garminAutoChecking = false, garminAutoLast = 0;
+        async function autoSyncGarmin() {
+            if (demoMode || garminSyncing || garminAutoChecking || appContent.classList.contains('hidden')) return;
+            if (Date.now() - garminAutoLast < 15 * 60 * 1000) return;
+            garminAutoChecking = true;
+            try {
+                const { data } = await supabaseClient.from('garmin_credentials').select('api_key, last_sync_at').maybeSingle();
+                if (!data?.api_key) return;
+                if (data.last_sync_at && toDateStr(new Date(data.last_sync_at)) === toDateStr(new Date())) return;
+                garminAutoLast = Date.now();
+                await syncGarmin(true);
+            } catch (e) {
+                // hors connexion ou table absente : nouvel essai au prochain passage
+            } finally {
+                garminAutoChecking = false;
+            }
+        }
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') autoSyncGarmin(); });
+        setInterval(autoSyncGarmin, 60 * 60 * 1000);
 
         document.querySelectorAll('[data-gd-period]').forEach(b => b.addEventListener('click', () => {
             gdPeriod = Number(b.dataset.gdPeriod);
