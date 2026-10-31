@@ -50,6 +50,8 @@
                         success: themeVar('--success'),
                         // Une couleur par sport (bande latérale des cartes, icônes)
                         sport: { run: '#f97316', bike: '#22c55e', gym: '#a78bfa', skic: '#06b6d4', skis: '#14b8a6', kayak: '#6366f1', walk: '#eab308', hike: '#a16207', row: '#0ea5e9', other: '#ec4899', rest: '#6b7280' },
+                        // Jour de course (séance « Objectif … » du générateur) : couleur réservée, aucun sport ne l'utilise
+                        race: '#dc2626',
                         // Zones d'intensité façon Garmin : gris, bleu, vert, orange, rouge
                         zone: { 1: '#9ca3af', 2: '#3b82f6', 3: '#22c55e', 4: '#f59e0b', 5: '#ef4444' }
                     }
@@ -3585,6 +3587,8 @@
             'Repos':                { card: 'border-l-sport-rest', icon: 'text-sport-rest', chip: 'bg-sport-rest/15 text-sport-rest border-sport-rest/30' }
         };
         const sportStyle = type => SPORT_STYLES[type] || SPORT_STYLES['Repos'];
+        // Course objectif ajoutée par le générateur le jour J (« Objectif 10 km - 49:10 »)
+        const isRaceWorkout = w => w.type === 'Course' && /^Objectif \d/.test(w.title || '');
 
         // Séance de la banque correspondante (si déjà chargée), pour la durée et l'effort
         function getBankMatch(w) {
@@ -3691,9 +3695,10 @@
                 const dayWorkouts = weeklyWorkouts.filter(w => w.date === dateStr);
                 // Mobile : un jour sans séance tient sur une seule ligne
                 const compactEmpty = !isGridView && dayWorkouts.length === 0;
+                const raceDay = dayWorkouts.some(isRaceWorkout);
 
                 const dayCell = document.createElement('div');
-                dayCell.className = `${isActiveWeek ? 'bg-accent/[0.07]' : 'bg-inset'} border border-line rounded-lg ${compactEmpty ? 'px-3 py-1.5 flex-row items-center' : 'p-2 flex-col'} ${isGridView ? 'min-h-0 overflow-y-auto' : ''} flex transition hover:border-accent/60 relative group ${isToday ? 'border-accent/60' : ''} ${isPast && !isToday ? 'opacity-80' : ''}`;
+                dayCell.className = `${raceDay ? 'bg-race/10 ring-2 ring-race/70' : isActiveWeek ? 'bg-accent/[0.07]' : 'bg-inset'} border border-line rounded-lg ${compactEmpty ? 'px-3 py-1.5 flex-row items-center' : 'p-2 flex-col'} ${isGridView ? 'min-h-0 overflow-y-auto' : ''} flex transition hover:border-accent/60 relative group ${isToday ? 'border-accent/60' : ''} ${isPast && !isToday ? 'opacity-80' : ''}`;
                 dayCell.dataset.date = dateStr;
                 dayCell.setAttribute('ondragover', 'allowDrop(event)');
                 dayCell.setAttribute('ondrop', `dropWorkout(event, '${dateStr}')`);
@@ -3706,6 +3711,7 @@
                         <span class="flex items-center justify-center w-6 h-6 text-xs ${isToday ? 'bg-accent text-white font-bold rounded-full' : 'text-ink font-semibold'}">${dayDate.getDate()}</span>
                         ${(isGridView && (dayDate.getDate() === 1 || i === 0)) || !isGridView ? `<span class="text-[10px] font-semibold uppercase tracking-wider ${dayDate.getDate() === 1 ? 'text-accent' : 'text-muted'}">${monthNames[dayDate.getMonth()].slice(0, 4)}.</span>` : ''}
                         ${compactEmpty ? '<span class="text-xs text-muted ml-2">Repos</span>' : ''}
+                        ${raceDay ? '<span class="text-[10px] font-bold uppercase tracking-wider text-race whitespace-nowrap"><i class="fa-solid fa-flag-checkered mr-1"></i>Jour J</span>' : ''}
                     </div>
                     <button onclick="openModalForDate('${dateStr}')" aria-label="Ajouter une séance le ${dateStr}" class="sm:[@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus:opacity-100 text-muted hover:text-accent transition p-1 rounded-lg"><i class="fa-solid fa-plus text-xs"></i></button>
                 `;
@@ -3715,13 +3721,15 @@
                 workoutsContainer.className = compactEmpty ? 'hidden' : 'space-y-1.5 flex-1';
 
                 dayWorkouts.forEach(w => {
-                    const style = sportStyle(w.type);
+                    const race = isRaceWorkout(w);
+                    // Course objectif : couleur et drapeau réservés à la place de ceux du sport
+                    const style = race ? { card: 'border-l-race', icon: 'text-race' } : sportStyle(w.type);
                     const minutes = getWorkoutMinutes(w);
                     const bank = getBankMatch(w);
 
                     // Carte neutre + bande de couleur du sport à gauche ; séance réalisée = coche verte, carte atténuée
                     const workoutCard = document.createElement('div');
-                    workoutCard.className = `workout-card rounded-md border border-line border-l-[3px] ${style.card} bg-surface hover:bg-raised p-2 cursor-grab active:cursor-grabbing transition text-xs ${w.completed ? 'opacity-60' : ''}`;
+                    workoutCard.className = `workout-card rounded-md border ${race ? 'border-race/60 border-l-4 bg-race/10 hover:bg-race/15' : 'border-line border-l-[3px] bg-surface hover:bg-raised'} ${style.card} p-2 cursor-grab active:cursor-grabbing transition text-xs ${w.completed ? 'opacity-60' : ''}`;
                     workoutCard.draggable = true;
                     workoutCard.addEventListener('dragstart', (event) => drag(event, w.id));
                     if (newWorkoutIds.has(String(w.id))) {
@@ -3737,7 +3745,7 @@
                         <!-- Une seule ligne ; dans une pastille étroite (iPad portrait), la durée se masque (.card-duration) pour laisser la place à ✓ / poubelle -->
                         <div class="flex items-center gap-1.5 mb-1 text-muted">
                             <span class="flex items-center gap-1.5 min-w-0 overflow-hidden">
-                                <i class="fa-solid ${SPORT_ICONS[w.type] || 'fa-circle'} text-[11px] ${style.icon}"></i>
+                                <i class="fa-solid ${race ? 'fa-flag-checkered' : SPORT_ICONS[w.type] || 'fa-circle'} text-[11px] ${style.icon}"></i>
                                 <span data-field="type" class="sm:hidden font-semibold text-[10px] uppercase tracking-wider truncate"></span>
                                 ${minutes > 0 ? `<span class="card-duration text-[11px] font-medium whitespace-nowrap">${formatDuration(minutes)}</span>` : ''}
                                 ${bank && bank.effort_score ? `<span class="hidden lg:inline text-[11px] font-medium whitespace-nowrap" title="Effort ${bank.effort_score}/10"><i class="fa-solid fa-gauge text-[9px] mr-0.5"></i>${bank.effort_score}</span>` : ''}
