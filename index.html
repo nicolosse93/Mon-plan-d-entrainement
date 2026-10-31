@@ -1944,7 +1944,15 @@
             try {
                 const { data } = await supabaseClient.from('garmin_credentials').select('api_key, last_sync_at').maybeSingle();
                 if (!data?.api_key) return;
-                if (data.last_sync_at && toDateStr(new Date(data.last_sync_at)) === toDateStr(new Date())) return;
+                const today = toDateStr(new Date());
+                if (data.last_sync_at && toDateStr(new Date(data.last_sync_at)) === today) {
+                    // Déjà faite aujourd'hui : relancée (au plus une fois par heure) tant que la nuit n'est pas arrivée,
+                    // la montre l'envoyant à Garmin Connect au réveil ; Garmin date la nuit du jour du lever
+                    if (Date.now() - new Date(data.last_sync_at).getTime() < 60 * 60 * 1000) return;
+                    const { data: night } = await supabaseClient.from('garmin_daily')
+                        .select('sleep_deep_seconds').eq('date', today).not('sleep_deep_seconds', 'is', null).maybeSingle();
+                    if (night) return;
+                }
                 garminAutoLast = Date.now();
                 await syncGarmin(true);
             } catch (e) {
