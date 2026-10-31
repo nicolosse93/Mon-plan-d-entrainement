@@ -23,6 +23,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre la semaine jour par jour ; le bouton **Info** explique le moteur.
   - **Forme** : à l'ouverture, VFC (statut Garmin), sommeil (score moyen des 3 dernières nuits), FC au repos (vs moyenne) et charge 7 jours proposent le niveau d'énergie (« Fatigué » sur un signal de fatigue ou deux de vigilance, « Pêche d'enfer » retirée sur un seul) ; les signaux s'affichent sous le choix.
   - **Cycle** : type de semaine automatique, semaine de récup après 3 semaines chargées d'affilée (≥ 80 % de la moyenne des 8 précédentes) : séances plus courtes, clé à effort ≤ 7, secondaire en endurance. Forçable en charge ou récup.
+  - **Objectif de course** (Mon profil : date, distance, allure visée, temps calculé ; colonnes ajoutées par [sql/objectif.sql](sql/objectif.sql)) : bloc spécifique les 4 semaines avant l'affûtage (clés de course selon la distance, pas de semaine de récup), affûtage 1 semaine (2 dès 30 km), semaine de course (séances courtes, veille très facile, récup après) et la course ajoutée au calendrier le jour J (« Objectif 10 km - 49:10 »).
   - **Placement** : toutes les répartitions sur les jours cochés sont essayées ; celle retenue évite deux séances dures d'affilée (tous sports), puis le même sport deux jours de suite. L'aperçu prévient si c'est impossible avec les jours choisis.
 - **Export Garmin (.FIT)** : les séances des 14 prochains jours partent sur la montre avec la synchro (bouton « Montre ») ; une séance seule se télécharge aussi depuis sa fiche (bouton « .FIT »). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
   - le nom « 10-22 Jeu - Titre » : mois-jour et jour abrégé, pour garder l'ordre chronologique sur la montre (fin décembre, quand les 14 jours de la synchro débordent sur janvier, l'année est ajoutée : « 26-12-29 Mar », « 27-01-03 Sam ») ;
@@ -40,6 +41,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
 | [fitParser.js](fitParser.js) | Lecteur FIT minimal, sans dépendance, pour les activités de la montre (résumé, tours, mesures seconde par seconde, zones, heure locale) et les .zip de Garmin Connect ; calcule temps par zone, charge, courbes réduites et tracé GPS (`window.FitParser`). |
 | [outils/](outils/) | Relais montre, petit serveur local qui lit la montre branchée en USB, même en MTP. Windows : `montre-relais.ps1`, `installer-relais.cmd` / `desinstaller-relais.cmd`. Mac : `montre-relais-mac.py` (libmtp), `installer-relais-mac.command` / `desinstaller-relais-mac.command`. Mêmes routes, l'app ne voit pas la différence. |
 | [sql/activities.sql](sql/activities.sql) | Table `activities` (activités importées, rattachées aux séances : résumé, zones, charge, courbes, tracé) et ses règles d'accès. Relançable : ajoute les colonnes manquantes. |
+| [sql/objectif.sql](sql/objectif.sql) | Colonnes de l'objectif de course dans `user_profiles` (date, distance, allure visée). Relançable. |
 | [sql/garmin.sql](sql/garmin.sql) | Données Garmin Connect : colonnes Garmin de `activities`, tables `garmin_profile`, `garmin_daily`, `garmin_daily_detail`, `garmin_credentials` et leurs règles d'accès. Relançable. |
 | [supabase/functions/garmin-sync/](supabase/functions/garmin-sync/) | Fonction Supabase du bouton « Mettre à jour » de Mes données Garmin (Personal API de Garmin Connect). |
 | [sql/seed_training_bank.sql](sql/seed_training_bank.sql) | Requête à coller dans l'éditeur SQL de Supabase : ~35 séances par sport dans `training_bank` (relançable sans doublons). |
@@ -100,6 +102,7 @@ L'URL du projet et la clé publique (*publishable*) sont écrites en dur au déb
 | `vo2max` | `numeric` | |
 | `threshold_pace` | `text` | ex. `4:15 /km` |
 | `threshold_hr` | `text` | ex. `178 bpm` |
+| `race_date`, `race_distance`, `race_pace` | `date`, `numeric`, `text` | objectif de course : ex. `2026-11-14`, `10`, `4:55 /km` ([sql/objectif.sql](sql/objectif.sql)) |
 | `updated_at` | `timestamptz` | |
 
 > La clé publique est faite pour être visible côté navigateur. La sécurité repose sur la **Row Level Security** :

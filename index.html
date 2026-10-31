@@ -352,6 +352,33 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- Objectif de course : le générateur prépare le pic de forme pour cette date (sql/objectif.sql) -->
+                <section class="border border-line rounded-lg p-3 space-y-3" aria-label="Objectif de course">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-semibold text-ink"><i class="fa-solid fa-flag-checkered text-accent mr-1.5"></i>Objectif de course</p>
+                        <button type="button" id="prof-race-clear" class="text-xs text-muted hover:text-ink underline">Effacer</button>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div>
+                            <label for="prof-race-date" class="block text-[11px] uppercase tracking-wider text-muted font-semibold mb-1">Date</label>
+                            <input type="date" id="prof-race-date" class="w-full bg-inset border border-line rounded-lg px-2 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
+                        </div>
+                        <div>
+                            <label for="prof-race-distance" class="block text-[11px] uppercase tracking-wider text-muted font-semibold mb-1">Distance (km)</label>
+                            <input type="number" id="prof-race-distance" min="1" max="100" step="0.1" list="race-distances" placeholder="10" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
+                            <datalist id="race-distances"><option value="5"><option value="10"><option value="21.1"><option value="42.2"></datalist>
+                        </div>
+                        <div>
+                            <label for="prof-race-pace" class="block text-[11px] uppercase tracking-wider text-muted font-semibold mb-1">Allure visée</label>
+                            <input type="text" id="prof-race-pace" placeholder="4:55" inputmode="numeric" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
+                        </div>
+                        <div>
+                            <label for="prof-race-time" class="block text-[11px] uppercase tracking-wider text-muted font-semibold mb-1">Temps (calculé)</label>
+                            <input type="text" id="prof-race-time" readonly tabindex="-1" class="w-full bg-page border border-line rounded-lg px-2 py-1.5 text-xs text-accent font-mono italic">
+                        </div>
+                    </div>
+                    <p id="prof-race-note" class="text-xs text-muted">Le générateur prépare ta semaine en fonction : bloc spécifique à la distance, affûtage, puis la course placée dans ton calendrier le jour J.</p>
+                </section>
                 <p class="text-xs text-muted"><i class="fa-solid fa-heart-pulse mr-1 text-accent"></i>FC au seuil, FC max, FC de repos, zones de FC et meilleurs temps récents viennent automatiquement de Garmin : voir <button type="button" onclick="closeProfileModal(); openGarminModal()" class="underline hover:text-accent">Données Garmin</button>.</p>
                 </div>
 
@@ -811,6 +838,10 @@
                             <p class="font-semibold text-ink mb-0.5">4. Placement sur tes jours</p>
                             <p>Il essaie toutes les répartitions possibles sur les jours cochés et garde celle qui <b>évite deux séances dures d'affilée</b> (<i class="fa-solid fa-fire text-orange-500"></i>, tous sports confondus), puis deux fois le même sport d'affilée. Si c'est impossible avec tes jours, l'aperçu te prévient.</p>
                         </div>
+                        <div>
+                            <p class="font-semibold text-ink mb-0.5">6. Objectif de course (Mon profil)</p>
+                            <p>Avec une date, une distance et une allure visée, les semaines suivent ta course : <b>bloc spécifique</b> les 4 semaines avant l'affûtage (clés de course orientées vers ta distance : 5K/VO2max, 10K/seuil, seuil pour un semi, endurance pour un marathon ; pas de semaine de récup), <b>affûtage</b> la semaine d'avant (2 semaines dès 30 km : séances courtes, clé à effort ≤ 8), puis <b>semaine de course</b> : séances courtes, veille très facile, récup après, et la course ajoutée au calendrier le jour J avec ton temps visé.</p>
+                        </div>
                         <div class="sm:col-span-2 lg:col-span-1">
                             <p class="font-semibold text-ink mb-0.5">5. Choix dans ta banque</p>
                             <p>Pour chaque séance, il cherche dans ta banque une séance qui correspond à la catégorie et à l'effort (sinon l'effort seul, sinon la catégorie seule), en écartant celles des 2 dernières semaines et celles déjà placées, puis tire au hasard. Sortie longue : parmi les 3 plus longues ; semaine de récup : parmi la moitié la plus courte. Si rien ne correspond, une séance de base est créée.</p>
@@ -1263,6 +1294,32 @@
         document.getElementById('prof-p5k-time').addEventListener('input', calculatePaces);
         document.getElementById('prof-p10k-time').addEventListener('input', calculatePaces);
 
+        // Objectif de course : allure « 4:55 » ou « 4:55 /km » -> secondes par km ; temps « 49:10 » ou « 1:43:41 »
+        const racePaceSec = text => timeToSeconds(String(text || '').replace(/\s*\/\s*km\s*$/i, '').trim());
+        function formatRaceTime(sec) {
+            sec = Math.round(sec);
+            const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = String(sec % 60).padStart(2, '0');
+            return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+        }
+        // Objectif du profil, ou null s'il est incomplet : { date, km, paceSec, timeSec }
+        function raceGoal(profile = userProfile) {
+            const km = parseFloat(profile && profile.race_distance), paceSec = racePaceSec(profile && profile.race_pace);
+            if (!profile || !profile.race_date || !(km > 0) || !(paceSec > 0)) return null;
+            return { date: profile.race_date, km, paceSec, timeSec: paceSec * km };
+        }
+        function calculateRaceTime() {
+            const goal = raceGoal({
+                race_date: document.getElementById('prof-race-date').value || '0000-00-00',
+                race_distance: document.getElementById('prof-race-distance').value,
+                race_pace: document.getElementById('prof-race-pace').value
+            });
+            document.getElementById('prof-race-time').value = goal ? formatRaceTime(goal.timeSec) : '';
+        }
+        ['prof-race-distance', 'prof-race-pace'].forEach(id => document.getElementById(id).addEventListener('input', calculateRaceTime));
+        document.getElementById('prof-race-clear').addEventListener('click', () => {
+            ['prof-race-date', 'prof-race-distance', 'prof-race-pace', 'prof-race-time'].forEach(id => { document.getElementById(id).value = ''; });
+        });
+
         async function fetchProfile() {
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return;
@@ -1280,6 +1337,10 @@
                 calculatePaces(); // Calculate on load
                 document.getElementById('prof-vo2max').value = data.vo2max || '';
                 document.getElementById('prof-threshold-pace').value = data.threshold_pace || '';
+                document.getElementById('prof-race-date').value = data.race_date || '';
+                document.getElementById('prof-race-distance').value = data.race_distance ?? '';
+                document.getElementById('prof-race-pace').value = (data.race_pace || '').replace(/\s*\/\s*km\s*$/i, '');
+                calculateRaceTime();
             }
             // Zones de FC de Garmin (FC au seuil, max, repos) : table absente si sql/garmin.sql n'a pas été exécuté
             try {
@@ -1311,14 +1372,35 @@
                 threshold_pace: document.getElementById('prof-threshold-pace').value,
                 updated_at: new Date()
             };
+            // Objectif de course : complet (date, distance, allure) ou vide
+            const raceDate = document.getElementById('prof-race-date').value;
+            const raceKm = parseFloat(document.getElementById('prof-race-distance').value);
+            const racePace = racePaceSec(document.getElementById('prof-race-pace').value);
+            const anyRace = raceDate || document.getElementById('prof-race-distance').value || document.getElementById('prof-race-pace').value;
+            if (anyRace && !(raceDate && raceKm > 0 && racePace > 0)) {
+                alert("Objectif de course incomplet : il faut la date, la distance et l'allure visée (ex. 4:55), ou bouton « Effacer ».");
+                return;
+            }
+            const raceData = {
+                race_date: raceDate || null,
+                race_distance: raceKm > 0 ? raceKm : null,
+                race_pace: racePace > 0 ? secondsToPace(racePace) : null
+            };
 
-            const { error } = await supabaseClient
+            let { error } = await supabaseClient
                 .from('user_profiles')
-                .upsert(profileData, { onConflict: 'user_id' });
+                .upsert({ ...profileData, ...raceData }, { onConflict: 'user_id' });
+            // Colonnes de l'objectif absentes (sql/objectif.sql pas encore exécuté) : le reste du profil est enregistré
+            const missingRaceColumns = error && /race_(date|distance|pace)/.test(error.message);
+            if (missingRaceColumns) {
+                ({ error } = await supabaseClient.from('user_profiles').upsert(profileData, { onConflict: 'user_id' }));
+            }
             if (!error) {
-                userProfile = { ...userProfile, ...profileData };
+                userProfile = { ...userProfile, ...profileData, ...(missingRaceColumns ? {} : raceData) };
                 closeProfileModal();
-                alert("Profil mis à jour avec succès !");
+                alert(missingRaceColumns
+                    ? "Profil mis à jour, sauf l'objectif de course : colle sql/objectif.sql dans l'éditeur SQL de Supabase, puis enregistre à nouveau."
+                    : "Profil mis à jour avec succès !");
             } else {
                 alert("Erreur lors de la sauvegarde : " + error.message);
             }
@@ -4483,12 +4565,23 @@
             return [...weekRoles, ...weRoles];
         }
 
+        // Catégories de la séance clé de course selon la distance de l'objectif
+        function raceKeyCats(km) {
+            if (km <= 7) return ['5k', 'vo2max'];
+            if (km <= 15) return ['10k', 'seuil'];
+            if (km <= 30) return ['seuil', 'endurance'];
+            return ['endurance', 'seuil'];
+        }
+
         // Catégories et fourchette d'effort d'un rôle, selon l'objectif, le niveau d'énergie et le type de semaine.
-        // Semaine de récup : volume réduit (séances plus courtes, pas de sortie la plus longue), la clé reste mais
-        // plafonnée à 7, la secondaire devient de l'endurance
-        function getRoleSpec(role, sportKey, goalKey, energy, week = 'charge') {
+        // Semaines de récup, d'affûtage et de course : volume réduit (séances plus courtes, pas de sortie la plus
+        // longue), la clé reste mais plafonnée (7, 8 à l'affûtage), la secondaire devient de l'endurance.
+        // raceKm : objectif de course proche -> la clé de course vise cette distance. Rôles 'veille' et 'apres' :
+        // séance très facile autour du jour J
+        function getRoleSpec(role, sportKey, goalKey, energy, week = 'charge', raceKm = null) {
+            if (role === 'veille' || role === 'apres') return { cats: ['recuperation', 'endurance'], min: 0, max: 3, short: true };
             const goal = GEN_GOALS[goalKey];
-            const keyCats = (sportKey === 'Course' && goal.course) ? goal.course.key : goal.key;
+            const keyCats = sportKey === 'Course' && raceKm ? raceKeyCats(raceKm) : (sportKey === 'Course' && goal.course) ? goal.course.key : goal.key;
             let spec;
             if (role === 'cle') spec = { cats: keyCats, min: 6, max: 10 };
             else if (role === 'secondaire') spec = { cats: goal.second, min: 5, max: 10 };
@@ -4503,8 +4596,9 @@
             } else if (energy === 'haute' && (role === 'cle' || role === 'secondaire')) {
                 spec.min = 7;
             }
-            if (week === 'recup' && energy !== 'fatigue') {
-                if (role === 'cle') spec = { ...spec, min: Math.min(spec.min, 6), max: 7 };
+            if ((week === 'recup' || week === 'affutage' || week === 'course') && energy !== 'fatigue') {
+                const max = week === 'affutage' ? 8 : 7;
+                if (role === 'cle') spec = { ...spec, min: Math.min(spec.min, week === 'course' ? 5 : 6), max };
                 else if (role === 'secondaire') spec = { cats: ['endurance', 'technique'], min: 0, max: 5 };
                 else if (role === 'longue') spec = { cats: ['endurance'], min: 0, max: 5 };
                 spec.short = true;
@@ -4542,6 +4636,8 @@
             if (role === 'cle') return `clé ${cats}${short}`;
             if (role === 'secondaire') return spec.min >= 5 ? `secondaire ${cats}` : `endurance${short}`;
             if (role === 'longue') return spec.longest ? 'sortie longue' : `sortie endurance${short}`;
+            if (role === 'veille') return 'veille de course : très facile';
+            if (role === 'apres') return 'récup après la course';
             return `endurance${short}`;
         }
 
@@ -4593,8 +4689,9 @@
         // Séances de la semaine (sport, rôle, jour) : rôles de chaque sport (clé, secondaire, endurance en semaine ;
         // longue le week-end), puis répartition sur les jours qui évite deux séances dures d'affilée (tous sports),
         // puis deux fois le même sport d'affilée ; à égalité, la clé avant la secondaire et l'ordre alterné habituel
-        function planWeek(activeSports, weekdays, weekends, goal, energy, week) {
-            const hardOf = (sport, role) => isHardSpec(getRoleSpec(role, sport, goal, energy, week));
+        function planWeek(activeSports, weekdays, weekends, goal, energy, week, race = null) {
+            const raceKm = race && race.phase !== 'base' ? race.km : null;
+            const hardOf = (sport, role) => isHardSpec(getRoleSpec(role, sport, goal, energy, week, raceKm));
             const items = slot => {
                 // Ordre alterné de départ (course, vélo, course…) : sert de départage
                 const lists = activeSports.map(s => {
@@ -4627,16 +4724,49 @@
                     if (!best || sc < best.score) best = { slots, score: sc };
                 }
             }
-            const slots = best ? best.slots : [];
+            let slots = best ? best.slots : [];
+            // Semaine de course : pas d'autre séance le jour J, veille très facile, récup les jours suivants
+            if (race && race.phase === 'course') {
+                slots = slots.filter(it => it.slotDay !== race.day).map(it => {
+                    const role = it.slotDay === race.day - 1 ? 'veille' : it.slotDay > race.day ? 'apres' : it.role;
+                    return role === it.role ? it : { ...it, role, hard: false };
+                });
+            }
             const backToBack = slots.filter((it, i) => i > 0 && it.hard && slots[i - 1].hard && it.slotDay - slots[i - 1].slotDay === 1);
             return { slots, backToBack };
         }
 
         // Type de semaine choisi (Automatique -> d'après les semaines passées)
+        // Objectif de course : phase de la semaine du lundi donné. 'course' (semaine du jour J), 'affutage' (1 semaine
+        // avant, 2 pour 30 km et plus), 'specifique' (les 4 semaines d'avant), 'base' (plus tôt) ; null sans objectif
+        // ou course passée. day : jour de la course dans la semaine (0 = lundi)
+        function racePhase(monday) {
+            const goal = raceGoal();
+            if (!goal) return null;
+            const [y, m, d] = goal.date.split('-');
+            const raceDate = new Date(y, m - 1, d, 12);
+            const weeks = Math.round((getMonday(raceDate) - getMonday(monday)) / (7 * 86400000));
+            if (weeks < 0) return null;
+            const taper = goal.km >= 30 ? 2 : 1;
+            const phase = weeks === 0 ? 'course' : weeks <= taper ? 'affutage' : weeks <= taper + 4 ? 'specifique' : 'base';
+            return { ...goal, weeks, phase, day: (raceDate.getDay() + 6) % 7 };
+        }
+
+        // Type de semaine choisi (Automatique -> phase de l'objectif de course, sinon d'après les semaines passées)
         function getGenWeek(monday) {
             const choice = document.getElementById('gen-week').value;
-            const auto = autoWeekType(monday);
-            return { type: choice === 'auto' ? auto.type : choice, auto };
+            const race = racePhase(monday);
+            let auto = autoWeekType(monday);
+            if (race) {
+                const km = race.km.toLocaleString('fr-FR');
+                const when = `${km} km le ${new Date(race.date + 'T12:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}, objectif ${formatRaceTime(race.timeSec)}`;
+                const inWeeks = `dans ${race.weeks} semaine${race.weeks > 1 ? 's' : ''}`;
+                if (race.phase === 'course') auto = { type: 'course', reason: `Semaine de course (${when}) : affûtage, course ajoutée le jour J.` };
+                else if (race.phase === 'affutage') auto = { type: 'affutage', reason: `Affûtage, course ${inWeeks} (${when}) : volume réduit, intensité spécifique gardée.` };
+                else if (race.phase === 'specifique') auto = { type: 'charge', reason: `Bloc spécifique ${km} km, course ${inWeeks} (${when}) : clés de course orientées vers ta distance, pas de semaine de récup.` };
+                else auto = { ...auto, reason: `${auto.reason} Course objectif ${inWeeks}.` };
+            }
+            return { type: choice === 'auto' ? auto.type : choice, auto, race };
         }
 
         // Aperçu de la semaine : jour par jour (rôle de chaque séance, séances dures marquées) si les jours collent,
@@ -4654,11 +4784,19 @@
 
             let lines;
             if (active.length && getDaysCheck().ok) {
-                const plan = planWeek(active, target.weekdays, target.weekends, goalKey, energy, week.type);
-                lines = plan.slots.map(it => {
+                const raceKm = week.race && week.race.phase !== 'base' ? week.race.km : null;
+                const plan = planWeek(active, target.weekdays, target.weekends, goalKey, energy, week.type, week.race);
+                const slots = [...plan.slots];
+                if (week.race && week.race.phase === 'course') slots.push({ race: true, slotDay: week.race.day });
+                slots.sort((a, b) => a.slotDay - b.slotDay);
+                lines = slots.map(it => {
                     const day = new Date(target.monday);
                     day.setDate(day.getDate() + it.slotDay);
-                    const label = describeRole(it.role, getRoleSpec(it.role, it.sport, goalKey, energy, week.type));
+                    if (it.race) {
+                        return `<p class="flex items-baseline gap-1.5"><span class="w-16 shrink-0 tabular-nums first-letter:uppercase">${day.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}</span>` +
+                            `<span class="text-accent font-semibold"><i class="fa-solid fa-flag-checkered mr-1"></i>Course ${week.race.km.toLocaleString('fr-FR')} km · objectif ${formatRaceTime(week.race.timeSec)}</span></p>`;
+                    }
+                    const label = describeRole(it.role, getRoleSpec(it.role, it.sport, goalKey, energy, week.type, raceKm));
                     return `<p class="flex items-baseline gap-1.5"><span class="w-16 shrink-0 tabular-nums first-letter:uppercase">${day.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}</span>` +
                         `<span><span class="text-ink font-semibold">${sportLabel(it.sport)}</span> · ${label}${it.hard ? ' <i class="fa-solid fa-fire text-orange-500" title="Séance dure"></i>' : ''}</span></p>`;
                 });
@@ -4669,7 +4807,7 @@
                 lines = active.map(s => {
                     const counts = new Map();
                     getSportRoles(s.key, s.week, s.we).forEach(role => {
-                        const label = describeRole(role, getRoleSpec(role, s.key, goalKey, energy, week.type));
+                        const label = describeRole(role, getRoleSpec(role, s.key, goalKey, energy, week.type, week.race && week.race.phase !== 'base' ? week.race.km : null));
                         counts.set(label, (counts.get(label) || 0) + 1);
                     });
                     const parts = [...counts].map(([label, n]) => n > 1 ? `${n}× ${label}` : label);
@@ -4678,6 +4816,8 @@
             }
             if (energy === 'fatigue') lines.push('<p class="text-amber-600 dark:text-amber-400">• Fatigué : toutes les séances à effort ≤ 4</p>');
             else if (week.type === 'recup') lines.push('<p class="text-accent">• Semaine de récup : séances plus courtes, une seule séance intense par sport (effort ≤ 7)</p>');
+            else if (week.type === 'affutage') lines.push('<p class="text-accent">• Affûtage : séances plus courtes, la clé garde l\'intensité de course (effort ≤ 8)</p>');
+            else if (week.type === 'course') lines.push('<p class="text-accent">• Semaine de course : séances courtes, veille très facile, récup après</p>');
             if (energy === 'haute') lines.push('<p class="text-accent">• Pêche d\'enfer : séances clé et secondaire à effort ≥ 7</p>');
             document.getElementById('gen-goal-preview').innerHTML = lines.join('') || '<p>Sélectionne au moins un sport.</p>';
         }
@@ -5339,7 +5479,8 @@
 
             // Semaine visée, jours retenus et type de semaine (charge / récup), comme dans l'aperçu
             const { monday, weekdays: chosenWeekdays, weekends: chosenWeekends } = getGenTarget();
-            const weekType = getGenWeek(monday).type;
+            const { type: weekType, race } = getGenWeek(monday);
+            const raceKm = race && race.phase !== 'base' ? race.km : null;
             const intensityTag = energy === 'fatigue' || weekType === 'recup' ? ' (Allégé - Récup)' : '';
 
             // Calculate easy pace (roughly 1 minute slower than 5k pace or 45s slower than 10k pace)
@@ -5424,7 +5565,7 @@
             async function pickFromBank(sport, role, fallback) {
                 const sessions = await getBankSessionsForSport(sport);
                 // Éviter les séances des 2 dernières semaines et celles déjà placées cette semaine
-                const s = pickBankSession(sessions, getRoleSpec(role, sport, goal, energy, weekType), recentTitles);
+                const s = pickBankSession(sessions, getRoleSpec(role, sport, goal, energy, weekType, raceKm), recentTitles);
                 if (!s) return fallback;
                 recentTitles.push(s.title);
                 return { type: s.sport, title: s.title, warmup: s.warmup, main: s.main_block, cooldown: s.cooldown };
@@ -5448,7 +5589,7 @@
             }
 
             // Rôle et jour de chaque séance : séances dures espacées, sports alternés (voir planWeek)
-            const scheduledSlots = planWeek(activeSports, chosenWeekdays, chosenWeekends, goal, energy, weekType).slots;
+            const scheduledSlots = planWeek(activeSports, chosenWeekdays, chosenWeekends, goal, energy, weekType, race).slots;
 
             for (const item of scheduledSlots) {
                 let targetDate = new Date(monday);
@@ -5472,6 +5613,22 @@
                     completed: false,
                     user_id: user.id
                 });
+            }
+
+            // Semaine de course : la course elle-même le jour J (une seule fois, même si la semaine est régénérée)
+            if (race && race.phase === 'course' && !workouts.some(w => w.date === race.date && /^Objectif /.test(w.title || ''))) {
+                const km = race.km.toLocaleString('fr-FR');
+                inserts.push({
+                    title: `Objectif ${km} km - ${formatRaceTime(race.timeSec)}`,
+                    type: 'Course',
+                    warmup: '15 min footing progressif + 3 lignes droites',
+                    main_block: `${km} km à ${secondsToPace(race.paceSec)} (objectif ${formatRaceTime(race.timeSec)})`,
+                    cooldown: '10 min retour au calme',
+                    date: race.date,
+                    completed: false,
+                    user_id: user.id
+                });
+                inserts.sort((a, b) => a.date.localeCompare(b.date));
             }
 
             const beforeIds = new Set(workouts.map(w => String(w.id)));
