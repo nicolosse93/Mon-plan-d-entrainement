@@ -10,6 +10,9 @@
     <title>Mon Plan d'Entraînement Intelligent</title>
     <!-- Favicon : profil d'intervalles (couleurs des zones) sur fond graphite -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2315181d'/%3E%3Crect x='9' y='38' width='8' height='16' rx='2' fill='%239ca3af'/%3E%3Crect x='20' y='26' width='7' height='28' rx='2' fill='%233b82f6'/%3E%3Crect x='30' y='14' width='7' height='40' rx='2' fill='%23ef4444'/%3E%3Crect x='40' y='30' width='7' height='24' rx='2' fill='%2322c55e'/%3E%3Crect x='50' y='20' width='6' height='34' rx='2' fill='%23f59e0b'/%3E%3C/svg%3E">
+    <!-- Web app installable (Brave, Chrome, Edge : « Installer ») ; icône d'écran d'accueil sur iPhone / iPad -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#15181d" media="(prefers-color-scheme: dark)">
     <!-- Thème = réglage clair / sombre de l'appareil, appliqué avant l'affichage (pas de flash) et suivi en direct -->
@@ -119,10 +122,13 @@
             --gd-s1: #2a78d6; --gd-s2: #eb6834; --gd-s3: #1baf7a; --gd-s4: #eda100;
             --gd-z1: #86b6ef; --gd-z2: #5598e7; --gd-z3: #2a78d6; --gd-z4: #1c5cab; --gd-z5: #104281;
             --gd-good: #0ca30c; --gd-warning: #fab219; --gd-serious: #ec835a; --gd-critical: #d03b3b;
+            /* Phases du sommeil et Body Battery : teintes de Garmin Connect */
+            --gd-deep: #1f4fa8; --gd-light: #5aaef0; --gd-rem: #a64dc0; --gd-awake: #ef8fbd; --gd-bb: #1e88e5;
         }
         .dark {
             --gd-s1: #3987e5; --gd-s2: #d95926; --gd-s3: #199e70; --gd-s4: #c98500;
             --gd-z3: #3987e5; --gd-z4: #256abf; --gd-z5: #184f95;
+            --gd-deep: #4a6fd6; --gd-light: #6cb8f5; --gd-rem: #b968d1; --gd-awake: #f2a3c9; --gd-bb: #42a0f0;
         }
         .gd-card { background: rgb(var(--surface)); border: 1px solid rgb(var(--line)); border-radius: .75rem; padding: .75rem 1rem; }
         .gd-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; margin-bottom: .25rem; }
@@ -145,7 +151,11 @@
         .gd-table th, .gd-table td, .gd-act-table th, .gd-act-table td { border-bottom: 1px solid rgb(var(--line)); padding: .3rem .5rem; text-align: left; white-space: nowrap; }
         .gd-table th, .gd-act-table th { color: rgb(var(--muted)); font-weight: 500; }
         .gd-table .num, .gd-act-table .num { text-align: right; }
+        /* Graphique « jour par jour » cliquable (sommeil, Body Battery) : le jour choisi s'affiche à côté */
+        .gd-pick .gd-hit { cursor: pointer; }
         .gd-act-table td.gd-name { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; }
+        .gd-link { color: inherit; text-align: left; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: inherit; }
+        .gd-link:hover { color: rgb(var(--accent)); text-decoration: underline; }
         /* Champs numériques du générateur : on masque les flèches natives au profit des boutons */
         .gen-stepper input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         .gen-stepper input[type=number]::-webkit-inner-spin-button,
@@ -214,7 +224,7 @@
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
                 <span class="hidden md:inline">Générer un plan</span>
             </button>
-            <button onclick="openProfileModal()" title="Profil & Garmin" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
+            <button onclick="openProfileModal()" title="Mon profil (prédictions, VO2max, allure seuil)" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
                 <i class="fa-solid fa-user-gear text-accent"></i>
                 <span class="hidden lg:inline">Profil</span>
             </button>
@@ -289,7 +299,7 @@
             <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
                 <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-user-gear text-accent"></i>
-                    <span class="truncate">Profil & Métriques Garmin</span>
+                    <span class="truncate">Mon profil</span>
                 </h3>
                 <button type="button" onclick="closeProfileModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
@@ -298,7 +308,7 @@
 
             <form id="profile-form" class="flex-1 min-h-0 flex flex-col">
                 <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 space-y-4">
-                <p class="text-xs text-muted">Mets à jour tes prédictions Garmin. Le coach expert s'en servira pour calculer tes allures précises dans chaque bloc d'intervalle.</p>
+                <p class="text-xs text-muted">À saisir toi-même : Garmin ne partage pas ces valeurs avec l'app (tu les trouves sur ta montre ou dans Garmin Connect › Performances). Elles servent à calculer tes allures cibles dans chaque bloc d'intervalle.</p>
                 <div class="border border-line rounded-lg overflow-hidden">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
@@ -334,17 +344,15 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td class="p-3 font-medium text-ink">Seuil Lactique</td>
-                                <td class="p-3">
+                                <td class="p-3 font-medium text-ink">Allure seuil lactique</td>
+                                <td colspan="2" class="p-3">
                                     <input type="text" id="prof-threshold-pace" placeholder="4:15 /km" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
-                                </td>
-                                <td class="p-3">
-                                    <input type="text" id="prof-threshold-hr" placeholder="178 bpm" class="w-full bg-inset border border-line rounded-lg px-3 py-1.5 text-xs text-ink focus:outline-none focus:border-accent">
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
+                <p class="text-xs text-muted"><i class="fa-solid fa-heart-pulse mr-1 text-accent"></i>FC au seuil, FC max, FC de repos, zones de FC et meilleurs temps récents viennent automatiquement de Garmin : voir <button type="button" onclick="closeProfileModal(); openGarminModal()" class="underline hover:text-accent">Données Garmin</button>.</p>
                 </div>
 
                 <div class="shrink-0 flex gap-3 px-4 sm:px-5 py-3 border-t border-line">
@@ -522,10 +530,10 @@
                     <p id="gd-sub" class="text-xs text-muted truncate"></p>
                 </div>
                 <div class="order-3 flex rounded-lg border border-line bg-inset p-0.5 text-xs" role="group" aria-label="Période">
+                    <button type="button" data-gd-period="7" class="px-2.5 py-1 rounded-md">7 j</button>
                     <button type="button" data-gd-period="30" class="px-2.5 py-1 rounded-md">30 j</button>
                     <button type="button" data-gd-period="90" class="px-2.5 py-1 rounded-md">90 j</button>
                     <button type="button" data-gd-period="365" class="px-2.5 py-1 rounded-md">1 an</button>
-                    <button type="button" data-gd-period="0" class="px-2.5 py-1 rounded-md">Tout</button>
                 </div>
                 <button type="button" id="gd-sync-btn" onclick="syncGarmin()" class="order-4 bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-wait text-white h-8 px-3 rounded-lg text-sm font-semibold transition flex items-center gap-1.5">
                     <i class="fa-solid fa-arrows-rotate"></i><span>Mettre à jour</span>
@@ -556,22 +564,46 @@
 
                 <div id="gd-empty" class="hidden text-center text-sm text-muted py-10"></div>
                 <div id="gd-content" class="space-y-3">
-                    <section id="gd-tiles" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2" aria-label="Indicateurs du jour"></section>
-                    <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        <div class="gd-card" data-gd-chart="hrv"><div class="gd-card-head"><h4>VFC nocturne (ms)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
-                        <div class="gd-card" data-gd-chart="rhr"><div class="gd-card-head"><h4>FC au repos (bpm)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
-                        <div class="gd-card" data-gd-chart="sleep"><div class="gd-card-head"><h4>Sommeil (h)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
-                        <div class="gd-card" data-gd-chart="bb"><div class="gd-card-head"><h4>Body Battery (min → max)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
-                        <div class="gd-card" data-gd-chart="stress"><div class="gd-card-head"><h4>Stress moyen</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
-                        <div class="gd-card" data-gd-chart="steps"><div class="gd-card-head"><h4>Pas</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                    <section id="gd-tiles" class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2" aria-label="Indicateurs de la période"></section>
+                    <!-- Sommeil puis Body Battery, comme Garmin Connect : le jour choisi (le dernier, ou celui touché dans
+                         le graphique) détaillé à gauche, la période à droite -->
+                    <section class="gd-card gd-pick" data-gd-chart="sleep" aria-label="Sommeil">
+                        <div class="gd-card-head"><h4><i class="fa-solid fa-moon mr-1.5" style="color:var(--gd-rem)"></i>Sommeil</h4><button type="button">Tableau</button></div>
+                        <div class="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4">
+                            <div id="gd-sleep-day"></div>
+                            <div class="min-w-0"><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                        </div>
                     </section>
-                    <section id="gd-records" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2" aria-label="Records et totaux"></section>
+                    <section class="gd-card gd-pick" data-gd-chart="bb" aria-label="Body Battery">
+                        <div class="gd-card-head"><h4><i class="fa-solid fa-battery-three-quarters mr-1.5" style="color:var(--gd-bb)"></i>Body Battery</h4><button type="button">Tableau</button></div>
+                        <div class="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-4">
+                            <div id="gd-bb-day"></div>
+                            <div class="min-w-0"><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                        </div>
+                    </section>
                     <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <div class="gd-card" data-gd-chart="volume"><div class="gd-card-head"><h4>Volume d'entraînement (h)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
                         <div class="gd-card">
                             <div class="gd-card-head"><h4>Temps par zone FC</h4><span id="gd-zones-total" class="text-xs text-muted"></span></div>
                             <div id="gd-zones" class="space-y-2"></div>
                         </div>
+                    </section>
+                    <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div class="gd-card" data-gd-chart="hrv"><div class="gd-card-head"><h4>VFC nocturne (ms)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                        <div class="gd-card" data-gd-chart="rhr"><div class="gd-card-head"><h4>FC au repos (bpm)</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                        <div class="gd-card" data-gd-chart="stress"><div class="gd-card-head"><h4>Stress moyen</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                        <div class="gd-card" data-gd-chart="steps"><div class="gd-card-head"><h4>Pas</h4><button type="button">Tableau</button></div><div class="gd-legend"></div><div class="gd-chart"></div><div class="gd-table"></div></div>
+                    </section>
+                    <section id="gd-records" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2" aria-label="Records et totaux"></section>
+                    <!-- Repères course venus de Garmin (6 dernières semaines, quelle que soit la période) ; les prédictions,
+                         le VO2max et l'allure seuil, que Garmin ne partage pas, se saisissent dans Mon profil -->
+                    <section class="gd-card space-y-2" aria-label="Repères course">
+                        <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                            <h4 class="text-sm font-semibold">Repères course <span class="text-xs font-normal text-muted">· 6 dernières semaines</span></h4>
+                            <button type="button" id="gd-to-profile" onclick="garminTimesToProfile()" class="hidden text-xs text-muted underline hover:text-accent">Reporter les temps dans mon profil</button>
+                        </div>
+                        <div id="gd-benchmarks" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-4 gap-y-3"></div>
+                        <p class="text-xs text-muted">5 km et 10 km : meilleurs passages réellement courus dans tes sorties, pas des prédictions. Reporte-les dans ton profil si tu veux qu'ils servent d'allures cibles.</p>
                     </section>
                     <section class="gd-card">
                         <div class="gd-card-head">
@@ -674,7 +706,7 @@
                     <span id="detail-compare-score" class="text-xs font-semibold text-ink"></span>
                 </div>
                 <p id="detail-compare-summary" class="text-xs text-muted"></p>
-                <ol id="detail-compare-list" class="grid md:grid-cols-2 gap-x-6 gap-y-1.5 text-xs"></ol>
+                <ol id="detail-compare-list" class="grid lg:grid-cols-2 gap-x-6 gap-y-1.5 text-xs"></ol>
             </div>
 
             <!-- Sortie réalisée : temps par zone de FC et tracé GPS côte à côte, courbes en dessous -->
@@ -832,7 +864,13 @@
     <!-- Encodeur FIT (expose window.FitModule). ?v= : à incrémenter quand fitBuilder.js change, pour contourner
          le cache du navigateur (GitHub Pages garde les fichiers 10 min) -->
     <script src="fitBuilder.js?v=3"></script>
-    <script src="fitParser.js?v=3"></script>
+    <script src="fitParser.js?v=4"></script>
+    <script>
+        // Service worker (sw.js) : rend l'app installable ; seulement en HTTPS ou sur localhost, pas en ouvrant le fichier
+        if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+        }
+    </script>
     <script>
         const SUPABASE_URL = 'https://dopgoecbdssvxexanavs.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_5GrtRyqg1LV-wDZpFUxEnw_FHTDWbux';
@@ -929,6 +967,7 @@
         let isSignUp = false;
         let workouts = [];
         let userProfile = {};
+        let garminHrZones = null; // zones de FC de Garmin (garmin_profile.hr_zones[0])
         let currentDateView = new Date();
 
         async function checkSupabaseConnection() {
@@ -1071,6 +1110,7 @@
             demoStore.activities = [];
             workouts = [];
             userProfile = {};
+            garminHrZones = null;
             document.getElementById('profile-form').reset();
             document.getElementById('demo-badge').classList.add('hidden');
             hideToast();
@@ -1182,8 +1222,20 @@
                 calculatePaces(); // Calculate on load
                 document.getElementById('prof-vo2max').value = data.vo2max || '';
                 document.getElementById('prof-threshold-pace').value = data.threshold_pace || '';
-                document.getElementById('prof-threshold-hr').value = data.threshold_hr || '';
             }
+            // Zones de FC de Garmin (FC au seuil, max, repos) : table absente si sql/garmin.sql n'a pas été exécuté
+            try {
+                const { data: garmin, error: garminError } = await supabaseClient.from('garmin_profile').select('hr_zones').maybeSingle();
+                garminHrZones = !garminError && garmin && Array.isArray(garmin.hr_zones) ? garmin.hr_zones[0] || null : null;
+            } catch (e) {
+                garminHrZones = null;
+            }
+        }
+
+        // FC au seuil lactique : celle de Garmin, sinon l'ancienne saisie du profil (avant la synchro Garmin)
+        function thresholdHeartRate() {
+            return (garminHrZones && garminHrZones.lactateThresholdHeartRateUsed)
+                || parseInt(userProfile && userProfile.threshold_hr) || null;
         }
 
         document.getElementById('profile-form').addEventListener('submit', async (e) => {
@@ -1199,7 +1251,6 @@
                 p10k_pace: document.getElementById('prof-p10k-pace').value,
                 vo2max: parseFloat(document.getElementById('prof-vo2max').value) || null,
                 threshold_pace: document.getElementById('prof-threshold-pace').value,
-                threshold_hr: document.getElementById('prof-threshold-hr').value,
                 updated_at: new Date()
             };
 
@@ -1207,9 +1258,9 @@
                 .from('user_profiles')
                 .upsert(profileData, { onConflict: 'user_id' });
             if (!error) {
-                userProfile = profileData;
+                userProfile = { ...userProfile, ...profileData };
                 closeProfileModal();
-                alert("Profil Garmin mis à jour avec succès !");
+                alert("Profil mis à jour avec succès !");
             } else {
                 alert("Erreur lors de la sauvegarde : " + error.message);
             }
@@ -1258,7 +1309,8 @@
         ];
         const gdGroup = sport => GD_GROUPS.find(g => g.sports && g.sports.includes(sport)) || GD_GROUPS[GD_GROUPS.length - 1];
         let gdData = null;
-        let gdPeriod = 90;
+        let gdPeriod = 7;
+        let gdPicked = { sleep: null, bb: null }; // jour détaillé à côté des graphiques Sommeil et Body Battery (null : le dernier)
         let gdLimit = 25;
 
         const gdCss = v => v.startsWith('--') ? getComputedStyle(document.documentElement).getPropertyValue(v).trim() : v;
@@ -1269,7 +1321,11 @@
         const gdNum = (v, dec = 0) => v == null || isNaN(v) ? '–' : v.toLocaleString('fr-FR', { maximumFractionDigits: dec, minimumFractionDigits: dec });
         const gdHours = h => h == null ? '–' : `${Math.floor(h)} h ${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
         const gdMinutes = min => min >= 60 ? `${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, '0')}` : `${Math.round(min)} min`;
-        const gdPace = sec => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+        // Allure ou temps : « 4:38 », « 59:24 », « 1:04:50 » au-delà d'une heure
+        const gdPace = sec => {
+            const s = Math.round(sec), h = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = String(s % 60).padStart(2, '0');
+            return h ? `${h}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+        };
         const gdMean = list => { const v = list.filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
         const gdEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -1290,11 +1346,16 @@
             document.getElementById('gd-sub').textContent = 'Chargement…';
             const [daily, profile, acts, cred] = await Promise.all([
                 fetchAllRows(() => supabaseClient.from('garmin_daily')
-                    .select('date, resting_hr, hrv_last_night, hrv_weekly_avg, hrv_baseline_low, hrv_baseline_high, hrv_status, sleep_deep_seconds, sleep_light_seconds, sleep_rem_seconds, sleep_awake_seconds, body_battery_min, body_battery_max, stress_avg, steps')
+                    .select('date, resting_hr, hrv_last_night, hrv_weekly_avg, hrv_baseline_low, hrv_baseline_high, hrv_status, ' +
+                        'sleep_deep_seconds, sleep_light_seconds, sleep_rem_seconds, sleep_awake_seconds, sleep_avg_hr, sleep_avg_respiration, sleep_avg_stress, ' +
+                        'sleep_score:raw->sleep->sleepScores->overall->value, sleep_quality:raw->sleep->sleepScores->overall->>qualifierKey, ' +
+                        'sleep_start:raw->sleep->sleepStartTimestampLocal, sleep_end:raw->sleep->sleepEndTimestampLocal, sleep_need:raw->sleep->sleepNeed->actual, ' +
+                        'body_battery_min, body_battery_max, body_battery_charged, body_battery_drained, stress_avg, steps, step_goal, ' +
+                        'intensity_minutes_moderate, intensity_minutes_vigorous')
                     .order('date')),
                 supabaseClient.from('garmin_profile').select('hr_zones, fitness_age').maybeSingle(),
                 fetchAllRows(() => supabaseClient.from('activities')
-                    .select('id, start_date_local, sport, name, distance, timer_time, elapsed_time, avg_speed, avg_heart_rate, total_ascent, training_effect, load, time_in_zones, f5k:garmin_summary->fastestSplit_5000')
+                    .select('id, workout_id, garmin_activity_id, start_date_local, sport, name, distance, timer_time, elapsed_time, avg_speed, avg_heart_rate, total_ascent, training_effect, load, time_in_zones, f5k:garmin_summary->fastestSplit_5000, f10k:garmin_summary->fastestSplit_10000')
                     .order('start_time', { ascending: false }).order('id')),
                 supabaseClient.from('garmin_credentials').select('api_key, last_sync_at').maybeSingle()
             ]);
@@ -1309,19 +1370,25 @@
                 jours: daily.data.map(j => ({
                     d: j.date, rhr: j.resting_hr, hrv: j.hrv_last_night, hrvWeek: j.hrv_weekly_avg, hrvLo: j.hrv_baseline_low,
                     hrvHi: j.hrv_baseline_high, hrvStatus: j.hrv_status, sDeep: h(j.sleep_deep_seconds), sRem: h(j.sleep_rem_seconds),
-                    sLight: h(j.sleep_light_seconds), sAwake: h(j.sleep_awake_seconds), bbMin: j.body_battery_min, bbMax: j.body_battery_max,
-                    stress: j.stress_avg, steps: j.steps
+                    sLight: h(j.sleep_light_seconds), sAwake: h(j.sleep_awake_seconds), sHr: j.sleep_avg_hr, sResp: j.sleep_avg_respiration,
+                    sStress: j.sleep_avg_stress, sScore: j.sleep_score, sQuality: j.sleep_quality, sStart: j.sleep_start, sEnd: j.sleep_end,
+                    sNeed: j.sleep_need, bbMin: j.body_battery_min, bbMax: j.body_battery_max, bbUp: j.body_battery_charged,
+                    bbDown: j.body_battery_drained, stress: j.stress_avg, steps: j.steps, stepGoal: j.step_goal,
+                    // Minutes intensives à la Garmin : les vigoureuses comptent double
+                    im: j.intensity_minutes_moderate == null && j.intensity_minutes_vigorous == null ? null
+                        : (j.intensity_minutes_moderate || 0) + 2 * (j.intensity_minutes_vigorous || 0)
                 })),
                 activites: acts.data.map(a => ({
-                    d: a.start_date_local, n: a.name || sportLabel(a.sport) || 'Activité', s: a.sport || 'Autre', g: gdGroup(a.sport).nom,
+                    id: a.id, w: a.workout_id, gid: a.garmin_activity_id, d: a.start_date_local, n: a.name || sportLabel(a.sport) || 'Activité', s: a.sport || 'Autre', g: gdGroup(a.sport).nom,
                     km: (a.distance || 0) / 1000, min: (a.timer_time || a.elapsed_time || 0) / 60, v: a.avg_speed, hr: a.avg_heart_rate,
-                    dplus: a.total_ascent, te: a.training_effect, load: a.load, f5k: a.f5k, z: a.time_in_zones || [0, 0, 0, 0, 0]
+                    dplus: a.total_ascent, te: a.training_effect, load: a.load, f5k: a.f5k, f10k: a.f10k, z: a.time_in_zones || [0, 0, 0, 0, 0]
                 })),
                 zones: (profile.data?.hr_zones || [])[0] || null,
                 fitnessAge: profile.data?.fitness_age || null,
                 hasKey: !!cred.data?.api_key,
                 lastSync: cred.data?.last_sync_at || null
             };
+            garminHrZones = gdData.zones; // FC au seuil à jour pour les prochains imports
             renderGarmin();
         }
 
@@ -1357,6 +1424,48 @@
             renderGarminTiles();
             renderGarminHealth();
             renderGarminTraining();
+            renderGarminBenchmarks();
+        }
+
+        // Repères course : meilleurs 5 et 10 km des 6 dernières semaines (passages mesurés par Garmin) et FC de référence
+        let gdBest = { p5k: null, p10k: null };
+        function renderGarminBenchmarks() {
+            const since = new Date();
+            since.setDate(since.getDate() - 42);
+            const recent = gdData.activites.filter(a => a.s === 'Course' && a.d >= toDateStr(since));
+            const best = (list, key) => list.filter(a => a[key] > 0).sort((a, b) => a[key] - b[key])[0] || null;
+            const b5 = best(recent, 'f5k'), b10 = best(recent, 'f10k');
+            gdBest = { p5k: b5 && gdPace(b5.f5k), p10k: b10 && gdPace(b10.f10k) };
+            // Record de tout l'historique sous le temps récent ; rien depuis 6 semaines : le record seul, grisé
+            // (jamais reporté dans le profil)
+            const all = gdData.activites.filter(a => a.s === 'Course');
+            const z = gdData.zones;
+            const item = (label, value, note, old) => `<div><div class="text-xs text-muted">${label}</div>` +
+                `<div class="text-lg font-semibold tabular-nums${old ? ' text-muted' : ''}">${value || '–'}</div><div class="text-xs text-muted">${note || ''}</div></div>`;
+            const time = (a, key, km) => {
+                const rec = best(all, key);
+                const recNote = rec && gdLink(rec, `<i class="fa-solid fa-trophy mr-1"></i>record ${gdPace(rec[key])} · ${gdPace(rec[key] / km)} /km · ${gdDayYear(rec.d)}`);
+                if (a) return [gdLink(a, gdPace(a[key])), gdLink(a, `${gdPace(a[key] / km)} /km · ${gdDay(a.d)}`) + (rec && rec !== a ? `<br>${recNote}` : ' · <i class="fa-solid fa-trophy"></i> record')];
+                return rec ? [gdLink(rec, gdPace(rec[key])), `aucun en 6 sem.<br>${recNote}`, true] : [null, 'aucun'];
+            };
+            const bpm = v => v ? `${v}<span class="text-xs font-normal text-muted"> bpm</span>` : null;
+            document.getElementById('gd-benchmarks').innerHTML = [
+                item('Meilleur 5 km', ...time(b5, 'f5k', 5)),
+                item('Meilleur 10 km', ...time(b10, 'f10k', 10)),
+                item('FC au seuil', bpm(z && z.lactateThresholdHeartRateUsed), 'base des zones de FC'),
+                item('FC max', bpm(z && z.maxHeartRateUsed), ''),
+                item('FC de repos', bpm(z && z.restingHeartRateUsed), '')
+            ].join('');
+            document.getElementById('gd-to-profile').classList.toggle('hidden', !gdBest.p5k && !gdBest.p10k);
+        }
+
+        // Ouvre Mon profil avec les meilleurs temps récents pré-remplis : rien n'est enregistré sans « Enregistrer »
+        function garminTimesToProfile() {
+            closeGarminModal();
+            openProfileModal();
+            if (gdBest.p5k) document.getElementById('prof-p5k-time').value = gdBest.p5k;
+            if (gdBest.p10k) document.getElementById('prof-p10k-time').value = gdBest.p10k;
+            calculatePaces();
         }
 
         const gdLastDay = () => gdData.jours.length ? gdData.jours[gdData.jours.length - 1].d : toDateStr(new Date());
@@ -1383,7 +1492,9 @@
             });
         }
 
-        // Mini moteur SVG : type 'line' | 'bar' | 'stack' | 'range' ; survol = repère + bulle ; vue tableau
+        // Mini moteur SVG : type 'line' | 'bar' | 'stack' | 'range' ; survol = repère + bulle ; vue tableau.
+        // Options : topLabel(i) texte au-dessus de chaque barre (14 barres au plus), selected (colonne surlignée),
+        // onSelect(i) au clic ou au toucher d'une colonne
         function gdNiceTicks(min, max, n = 4) {
             const step0 = (max - min || 1) / n, mag = 10 ** Math.floor(Math.log10(step0));
             const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
@@ -1398,8 +1509,9 @@
         function gdDraw(name, cfg) {
             const card = document.querySelector(`[data-gd-chart="${name}"]`);
             const el = card.querySelector('.gd-chart'), legend = card.querySelector('.gd-legend');
-            const W = el.clientWidth, H = el.clientHeight, m = { l: 38, r: 6, t: 8, b: 22 };
-            const iw = W - m.l - m.r, ih = H - m.t - m.b, n = cfg.labels.length;
+            const n = cfg.labels.length, labelled = cfg.topLabel && n <= 14;
+            const W = el.clientWidth, H = el.clientHeight, m = { l: 38, r: 6, t: labelled ? 20 : 8, b: 22 };
+            const iw = W - m.l - m.r, ih = H - m.t - m.b;
             const fmt = cfg.fmt || (v => gdNum(v));
             const color = s => gdCss(s.couleur);
 
@@ -1429,7 +1541,12 @@
                     `<text x="${m.l - 6}" y="${Y(t) + 4}" text-anchor="end">${gdNum(t, t % 1 ? 1 : 0)}</text>`;
             });
             const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 70))));
-            for (let i = 0; i < n; i += every) svg += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${gdDay(cfg.labels[i])}</text>`;
+            // 7 jours : jour de la semaine sous chaque barre, comme Garmin
+            const xLabel = d => n <= 7 && !cfg.weekly ? new Date(d + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) : gdDay(d);
+            for (let i = 0; i < n; i += every) svg += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${xLabel(cfg.labels[i])}</text>`;
+            if (cfg.selected != null && cfg.selected >= 0) {
+                svg += `<rect x="${X(cfg.selected) - bw / 2}" y="${m.t - (labelled ? 16 : 0)}" width="${bw}" height="${ih + (labelled ? 16 : 0)}" rx="4" fill="${gdTheme('--accent')}" fill-opacity=".1"/>`;
+            }
             if (cfg.band) {
                 const pts = [];
                 for (let i = 0; i < n; i++) if (cfg.band[0][i] != null && cfg.band[1][i] != null) pts.push([X(i), Y(cfg.band[1][i]), Y(cfg.band[0][i])]);
@@ -1464,15 +1581,24 @@
                 for (let i = 0; i < n; i++) if (a.valeurs[i] != null && b.valeurs[i] != null)
                     svg += `<path d="${gdRoundAll(X(i) - barW / 2, Y(b.valeurs[i]), barW, Math.max(2, Y(a.valeurs[i]) - Y(b.valeurs[i])), 4)}" fill="${color(b)}"/>`;
             }
+            if (labelled) {
+                const top = i => cfg.type === 'stack' ? cfg.series.reduce((s, se) => s + (se.valeurs[i] || 0), 0)
+                    : Math.max(...cfg.series.map(s => s.valeurs[i] ?? -Infinity));
+                for (let i = 0; i < n; i++) {
+                    const text = cfg.topLabel(i), t = top(i);
+                    if (text != null && Number.isFinite(t)) svg += `<text x="${X(i)}" y="${Y(t) - 5}" text-anchor="middle" style="fill:${gdTheme('--ink')};font-weight:600">${gdEsc(text)}</text>`;
+                }
+            }
             svg += `<line class="gd-cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" stroke="${gdTheme('--muted')}" stroke-width="1" visibility="hidden"/>` +
                 `<g class="gd-dots"></g><rect class="gd-hit" x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent"/></svg><div class="gd-tip"></div>`;
             el.innerHTML = svg;
 
             const tip = el.querySelector('.gd-tip'), cross = el.querySelector('.gd-cross'), dots = el.querySelector('.gd-dots');
             const hit = el.querySelector('.gd-hit'), surface = gdTheme('--surface');
+            const index = clientX => Math.max(0, Math.min(n - 1, Math.floor((clientX - el.getBoundingClientRect().left - m.l) / bw)));
+            if (cfg.onSelect) hit.addEventListener('click', e => cfg.onSelect(index(e.clientX)));
             const show = clientX => {
-                const r = el.getBoundingClientRect();
-                const i = Math.max(0, Math.min(n - 1, Math.floor((clientX - r.left - m.l) / bw)));
+                const i = index(clientX);
                 cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('visibility', 'visible');
                 dots.innerHTML = cfg.type === 'line' ? cfg.series.filter(s => s.valeurs[i] != null)
                     .map(s => `<circle cx="${X(i)}" cy="${Y(s.valeurs[i])}" r="4.5" fill="${color(s)}" stroke="${surface}" stroke-width="2"/>`).join('') : '';
@@ -1500,32 +1626,145 @@
                 '</tbody></table>';
         }
 
+        // Lien vers une activité : sa séance du calendrier si elle est rattachée, sinon Garmin Connect
+        const gdLinkedWorkout = a => a.w && workouts.find(w => String(w.id) === String(a.w));
+        function gdLink(a, html) {
+            if (!a || (!gdLinkedWorkout(a) && !a.gid)) return html;
+            const title = gdLinkedWorkout(a) ? 'Ouvrir la séance' : 'Ouvrir dans Garmin Connect';
+            return `<button type="button" class="gd-link" data-gd-act="${gdEsc(a.id)}" title="${title}">${html}</button>`;
+        }
+        function gdOpenActivity(id) {
+            const a = gdData.activites.find(x => String(x.id) === String(id));
+            if (!a) return;
+            const w = gdLinkedWorkout(a);
+            if (w) openDetails(w.id); // s'ouvre par-dessus la page Garmin ; la fermer y ramène
+            else if (a.gid) window.open(`https://connect.garmin.com/modern/activity/${a.gid}`, '_blank', 'noopener');
+        }
+        document.getElementById('garmin-modal').addEventListener('click', e => {
+            const link = e.target.closest('[data-gd-act]');
+            if (link) gdOpenActivity(link.dataset.gdAct);
+        });
+
         function gdTile(label, value, note) {
             return `<div class="gd-card"><div class="text-xs text-muted">${label}</div>` +
                 `<div class="text-2xl font-semibold tabular-nums my-0.5">${value || '–'}</div><div class="text-xs text-muted">${note || ''}</div></div>`;
         }
 
+        // Qualité du sommeil selon Garmin (score sur 100) : libellé et couleur de statut
+        const GD_SLEEP_QUALITY = {
+            EXCELLENT: ['Excellent', '--gd-good'], GOOD: ['Bon', '--gd-good'], FAIR: ['Passable', '--gd-warning'], POOR: ['Mauvais', '--gd-critical']
+        };
+        const GD_SLEEP_STAGES = [['Profond', 'sDeep', '--gd-deep'], ['Léger', 'sLight', '--gd-light'], ['Paradoxal', 'sRem', '--gd-rem'], ['Éveillé', 'sAwake', '--gd-awake']];
+        // Heure locale de Garmin (millisecondes « locales » : heure murale lue en UTC) -> « 23:31 »
+        const gdClock = ms => ms == null ? '–' : new Date(ms).toISOString().slice(11, 16);
+        const gdWeekday = d => new Date(d + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        const gdUnit = u => `<span class="text-sm font-normal text-muted"> ${u}</span>`;
+
+        // Anneau de score (sommeil, Body Battery) à la Garmin
+        function gdRing(value, max, color) {
+            const r = 30, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, (value || 0) / max));
+            return `<svg width="76" height="76" viewBox="0 0 76 76" class="shrink-0" aria-hidden="true">` +
+                `<circle cx="38" cy="38" r="${r}" fill="none" stroke="${gdTheme('--raised')}" stroke-width="7"/>` +
+                `<circle cx="38" cy="38" r="${r}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${f * c} ${c}" transform="rotate(-90 38 38)"/>` +
+                `<text x="38" y="45" text-anchor="middle" style="fill:${gdTheme('--ink')};font-size:21px;font-weight:700">${Math.round(value)}</text></svg>`;
+        }
+
         function renderGarminTiles() {
-            const j = gdData.jours, latest = f => [...j].reverse().find(x => x[f] != null);
-            const vs30 = (v, f) => {
-                const ref = gdMean(j.slice(-30).map(x => x[f]));
-                if (v == null || ref == null) return '';
+            // Moyennes de la période choisie, comparées à la période précédente de même durée
+            const since = gdSince(gdPeriod), before = new Date(since + 'T12:00');
+            before.setDate(before.getDate() - gdPeriod);
+            const j = gdData.jours.filter(x => x.d >= since);
+            const prev = gdData.jours.filter(x => x.d >= toDateStr(before) && x.d < since);
+            const per = gdPeriod === 365 ? '1 an' : `${gdPeriod} j`;
+            const label = nom => `${nom} <span class="whitespace-nowrap">· ${per}</span>`;
+            const mean = (list, f) => gdMean(list.map(x => x[f]));
+            const has = (list, f) => list.filter(x => x[f] != null).length;
+            const vsPrev = f => {
+                const v = mean(j, f), ref = mean(prev, f);
+                // Pas de comparaison si la période précédente est trop peu remplie
+                if (v == null || ref == null || has(prev, f) < has(j, f) / 2) return '';
                 const diff = v - ref;
-                return `${diff >= 0 ? '+' : ''}${gdNum(diff, Math.abs(diff) < 10 ? 1 : 0)} vs moy. 30 j`;
+                return `${diff >= 0 ? '+' : ''}${gdNum(diff, Math.abs(diff) < 10 ? 1 : 0)} vs ${per} préc.`;
             };
-            const hrv = latest('hrv'), rhr = latest('rhr'), sl = latest('sDeep'), bb = latest('bbMax'), stress = latest('stress');
-            const st = hrv && GD_HRV_STATUS[hrv.hrvStatus];
+            const score = mean(j, 'sScore'), bbMax = mean(j, 'bbMax'), hrv = mean(j, 'hrv'), rhr = mean(j, 'rhr');
+            const stress = mean(j, 'stress'), steps = mean(j, 'steps');
+            const asleep = gdMean(j.map(x => x.sDeep == null && x.sLight == null && x.sRem == null ? null : (x.sDeep || 0) + (x.sLight || 0) + (x.sRem || 0)));
+            const q = score == null ? null : GD_SLEEP_QUALITY[score >= 90 ? 'EXCELLENT' : score >= 80 ? 'GOOD' : score >= 60 ? 'FAIR' : 'POOR'];
+            const lastHrv = [...j].reverse().find(x => x.hrv != null);
+            const st = lastHrv && GD_HRV_STATUS[lastHrv.hrvStatus];
+            const goalDays = j.filter(x => x.steps != null && x.stepGoal), reached = goalDays.filter(x => x.steps >= x.stepGoal).length;
             const fa = gdData.fitnessAge;
+            // Minutes intensives cumulées (objectif OMS de Garmin : 150 par semaine, ramené à la période)
+            const im = j.reduce((s, x) => s + (x.im || 0), 0);
+            const imGoal = Math.round(150 * gdPeriod / 7);
             document.getElementById('gd-tiles').innerHTML = [
-                gdTile('VFC nuit dernière', hrv && `${hrv.hrv}<span class="text-sm font-normal text-muted"> ms</span>`,
-                    st ? `<i class="fa-solid ${st[2]}" style="color:var(${st[1]})"></i> ${st[0]} · moy. 7 j ${hrv.hrvWeek ?? '–'} ms` : ''),
-                gdTile('FC au repos', rhr && `${rhr.rhr}<span class="text-sm font-normal text-muted"> bpm</span>`, vs30(rhr?.rhr, 'rhr')),
-                gdTile('Sommeil', sl && gdHours(sl.sDeep + sl.sRem + sl.sLight), sl ? `Profond ${gdHours(sl.sDeep)} · paradoxal ${gdHours(sl.sRem)}` : ''),
-                gdTile('Body Battery max', bb && `${bb.bbMax}<span class="text-sm font-normal text-muted"> / 100</span>`, bb ? `Min ${bb.bbMin ?? '–'} · ${gdDay(bb.d)}` : ''),
-                gdTile('Stress moyen', stress && `${stress.stress}`, vs30(stress?.stress, 'stress')),
-                gdTile('Âge physique', fa?.fitnessAge && `${gdNum(fa.fitnessAge, 1)}<span class="text-sm font-normal text-muted"> ans</span>`,
+                gdTile(label('Sommeil'), score != null ? `${gdNum(score)}${gdUnit('/ 100')}` : asleep != null && gdHours(asleep),
+                    asleep != null ? `${q ? `<b style="color:var(${q[1]})">${q[0]}</b> · ` : ''}${gdHours(asleep)} / nuit` : ''),
+                gdTile(label('Body Battery'), bbMax != null && `${gdNum(bbMax)}${gdUnit('/ 100')}`,
+                    bbMax != null ? `Bas ${gdNum(mean(j, 'bbMin'))} · +${gdNum(mean(j, 'bbUp'))} / −${gdNum(mean(j, 'bbDown'))}` : ''),
+                gdTile(label('VFC nuit'), hrv != null && `${gdNum(hrv)}${gdUnit('ms')}`,
+                    st ? `<i class="fa-solid ${st[2]}" style="color:var(${st[1]})"></i> ${st[0]} · ${vsPrev('hrv') || `dernière ${lastHrv.hrv}`}` : vsPrev('hrv')),
+                gdTile(label('FC au repos'), rhr != null && `${gdNum(rhr)}${gdUnit('bpm')}`, vsPrev('rhr')),
+                gdTile(label('Stress moyen'), stress != null && gdNum(stress), vsPrev('stress')),
+                gdTile(label('Pas / jour'), steps != null && gdNum(steps),
+                    goalDays.length ? `objectif atteint ${reached} / ${goalDays.length} j` : vsPrev('steps')),
+                gdTile(label('Minutes intensives'), j.length ? gdNum(im) : null, `objectif ${gdNum(imGoal)} (150 / sem.)`),
+                gdTile('Âge physique', fa?.fitnessAge && `${gdNum(fa.fitnessAge, 1)}${gdUnit('ans')}`,
                     fa ? `Âge réel ${fa.chronologicalAge ?? '–'} · atteignable ${gdNum(fa.achievableFitnessAge, 1)}` : '')
             ].join('');
+        }
+
+        // Nuit détaillée à côté du graphique : score, durée, coucher → lever, phases, FC / respiration / stress / VFC
+        function renderSleepDay(j) {
+            const box = document.getElementById('gd-sleep-day');
+            if (!j) { box.innerHTML = '<p class="text-xs text-muted">Aucune nuit enregistrée sur cette période.</p>'; return; }
+            const q = GD_SLEEP_QUALITY[j.sQuality];
+            const asleep = (j.sDeep || 0) + (j.sLight || 0) + (j.sRem || 0);
+            const inBed = GD_SLEEP_STAGES.reduce((s, [, f]) => s + (j[f] || 0), 0) || 1;
+            const extra = [
+                j.sHr && `<span><i class="fa-solid fa-heart-pulse mr-1"></i>FC moy. <b class="text-ink">${gdNum(j.sHr)}</b> bpm</span>`,
+                j.sResp && `<span><i class="fa-solid fa-lungs mr-1"></i>Resp. <b class="text-ink">${gdNum(j.sResp)}</b> /min</span>`,
+                j.sStress != null && `<span><i class="fa-solid fa-bolt mr-1"></i>Stress <b class="text-ink">${gdNum(j.sStress)}</b></span>`,
+                j.hrv && `<span><i class="fa-solid fa-wave-square mr-1"></i>VFC <b class="text-ink">${j.hrv}</b> ms</span>`
+            ].filter(Boolean);
+            box.innerHTML = `<div class="text-xs text-muted first-letter:uppercase">Nuit du ${gdWeekday(j.d)}</div>
+                <div class="flex items-center gap-3 mt-1">
+                    ${j.sScore != null ? gdRing(j.sScore, 100, gdCss(q ? q[1] : '--gd-s1')) : ''}
+                    <div class="min-w-0">
+                        <div class="text-2xl font-semibold tabular-nums">${gdHours(asleep)}</div>
+                        <div class="text-xs text-muted">${q ? `<b style="color:var(${q[1]})">${q[0]}</b>` : ''}${q && j.sStart ? ' · ' : ''}${j.sStart ? `${gdClock(j.sStart)} → ${gdClock(j.sEnd)}` : ''}</div>
+                        ${j.sNeed ? `<div class="text-xs text-muted">Besoin : ${gdHours(j.sNeed / 60)}</div>` : ''}
+                    </div>
+                </div>
+                <div class="flex h-2.5 rounded-full overflow-hidden gap-px mt-3">${GD_SLEEP_STAGES.map(([, f, c]) => j[f] ? `<span style="width:${j[f] / inBed * 100}%;background:var(${c})"></span>` : '').join('')}</div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs">${GD_SLEEP_STAGES.map(([nom, f, c]) =>
+                    `<div class="flex items-center gap-1.5 min-w-0"><i class="w-2 h-2 rounded-sm shrink-0" style="background:var(${c})"></i><span class="text-muted truncate">${nom}</span>` +
+                    `<span class="ml-auto tabular-nums whitespace-nowrap">${j[f] != null ? gdHours(j[f]) : '–'} <span class="text-muted">${gdNum((j[f] || 0) / inBed * 100)} %</span></span></div>`).join('')}</div>
+                ${extra.length ? `<div class="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-2 border-t border-line text-xs text-muted">${extra.join('')}</div>` : ''}`;
+        }
+
+        // Journée détaillée à côté du graphique Body Battery : plus haut / plus bas, rechargé / dépensé
+        function renderBbDay(j) {
+            const box = document.getElementById('gd-bb-day');
+            if (!j || j.bbMax == null) { box.innerHTML = '<p class="text-xs text-muted">Aucune donnée Body Battery sur cette période.</p>'; return; }
+            const lo = j.bbMin ?? j.bbMax;
+            const context = [
+                j.sScore != null && `<span><i class="fa-solid fa-moon mr-1"></i>Sommeil <b class="text-ink">${j.sScore}</b></span>`,
+                j.stress != null && `<span><i class="fa-solid fa-bolt mr-1"></i>Stress moyen <b class="text-ink">${j.stress}</b></span>`,
+                j.steps != null && `<span><i class="fa-solid fa-shoe-prints mr-1"></i><b class="text-ink">${gdNum(j.steps)}</b> pas</span>`
+            ].filter(Boolean);
+            box.innerHTML = `<div class="text-xs text-muted first-letter:uppercase">${gdWeekday(j.d)}</div>
+                <div class="flex items-center gap-3 mt-1">
+                    ${gdRing(j.bbMax, 100, gdCss('--gd-bb'))}
+                    <div class="min-w-0 space-y-1">
+                        <div class="text-xs text-muted">Plus haut <b class="text-ink text-sm">${j.bbMax}</b> · plus bas <b class="text-ink text-sm">${j.bbMin ?? '–'}</b></div>
+                        <div class="text-xs"><span style="color:var(--gd-good)"><i class="fa-solid fa-arrow-up mr-0.5"></i><b>+${j.bbUp ?? '–'}</b></span> <span class="text-muted">rechargé</span></div>
+                        <div class="text-xs"><span style="color:var(--gd-serious)"><i class="fa-solid fa-arrow-down mr-0.5"></i><b>−${j.bbDown ?? '–'}</b></span> <span class="text-muted">dépensé</span></div>
+                    </div>
+                </div>
+                <div class="relative h-2.5 rounded-full bg-raised mt-3" title="De ${lo} à ${j.bbMax}"><span class="absolute inset-y-0 rounded-full" style="left:${lo}%;width:${Math.max(2, j.bbMax - lo)}%;background:var(--gd-bb)"></span></div>
+                <div class="flex justify-between text-[11px] text-muted mt-0.5"><span>0</span><span>100</span></div>
+                ${context.length ? `<div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-line text-xs text-muted">${context.join('')}</div>` : ''}`;
         }
 
         function renderGarminHealth() {
@@ -1539,38 +1778,56 @@
             });
             gdDraw('rhr', { labels, type: 'line', series: [{ nom: 'FC repos', couleur: '--gd-s1', valeurs: col('rhr') }], fmt: v => v == null ? '–' : `${v} bpm` });
 
-            const js = weekly ? gdWeekly(jours, ['sDeep', 'sRem', 'sLight', 'sAwake']) : jours;
+            // Jour détaillé : celui touché dans le graphique s'il est dans la période, sinon le dernier renseigné.
+            // Par semaine (1 an) : pas de choix, la dernière nuit / journée
+            const pick = (key, has) => {
+                const all = gdData.jours;
+                const chosen = weekly ? -1 : jours.findIndex(j => j.d === gdPicked[key] && has(j));
+                if (chosen >= 0) return { i: chosen, day: jours[chosen] };
+                const day = [...all].reverse().find(has) || null;
+                return { i: weekly || !day ? -1 : jours.indexOf(day), day };
+            };
+            const select = key => weekly ? null : i => { gdPicked[key] = jours[i].d; renderGarminHealth(); };
+
+            const sleepDay = pick('sleep', j => j.sDeep != null || j.sScore != null);
+            const js = weekly ? gdWeekly(jours, ['sDeep', 'sRem', 'sLight', 'sAwake', 'sScore']) : jours;
             gdDraw('sleep', {
-                labels: js.map(j => j.d), type: 'stack', weekly, fmt: gdHours,
-                series: [['Profond', 'sDeep', '--gd-s1'], ['Paradoxal', 'sRem', '--gd-s2'], ['Léger', 'sLight', '--gd-s3'], ['Éveillé', 'sAwake', '--gd-s4']]
-                    .map(([nom, f, couleur]) => ({ nom, couleur, valeurs: js.map(j => j[f] ?? null) }))
+                labels: js.map(j => j.d), type: 'stack', weekly, fmt: gdHours, selected: sleepDay.i, onSelect: select('sleep'),
+                series: GD_SLEEP_STAGES.map(([nom, f, couleur]) => ({ nom, couleur, valeurs: js.map(j => j[f] ?? null) })),
+                topLabel: i => js[i].sScore != null ? gdNum(js[i].sScore) : null,
+                extraTip: i => [['Score', js[i].sScore != null ? `${gdNum(js[i].sScore)}${weekly ? ' (moy.)' : GD_SLEEP_QUALITY[js[i].sQuality] ? ` · ${GD_SLEEP_QUALITY[js[i].sQuality][0]}` : ''}` : '–']]
             });
-            const jb = weekly ? gdWeekly(jours, ['bbMin', 'bbMax', 'stress', 'steps']) : jours;
+            renderSleepDay(sleepDay.day);
+
+            const bbDay = pick('bb', j => j.bbMax != null);
+            const jb = weekly ? gdWeekly(jours, ['bbMin', 'bbMax', 'bbUp', 'bbDown', 'stress', 'steps']) : jours;
             gdDraw('bb', {
-                labels: jb.map(j => j.d), type: 'range', weekly, noLegend: true, fmt: v => gdNum(v),
-                series: [{ nom: 'Min', couleur: '--gd-s1', valeurs: jb.map(j => j.bbMin ?? null) }, { nom: 'Max', couleur: '--gd-s1', valeurs: jb.map(j => j.bbMax ?? null) }]
+                labels: jb.map(j => j.d), type: 'range', weekly, noLegend: true, fmt: v => v == null ? '–' : gdNum(v),
+                selected: bbDay.i, onSelect: select('bb'), topLabel: i => jb[i].bbMax != null ? gdNum(jb[i].bbMax) : null,
+                series: [{ nom: 'Plus bas', couleur: '--gd-bb', valeurs: jb.map(j => j.bbMin ?? null) }, { nom: 'Plus haut', couleur: '--gd-bb', valeurs: jb.map(j => j.bbMax ?? null) }],
+                extraTip: i => [['Rechargé', jb[i].bbUp != null ? `+${gdNum(jb[i].bbUp)}` : '–'], ['Dépensé', jb[i].bbDown != null ? `−${gdNum(jb[i].bbDown)}` : '–']]
             });
+            renderBbDay(bbDay.day);
             gdDraw('stress', { labels: jb.map(j => j.d), type: 'bar', weekly, series: [{ nom: 'Stress moyen', couleur: '--gd-s1', valeurs: jb.map(j => j.stress ?? null) }] });
             gdDraw('steps', { labels: jb.map(j => j.d), type: 'bar', weekly, series: [{ nom: weekly ? 'Pas (moy. / jour)' : 'Pas', couleur: '--gd-s1', valeurs: jb.map(j => j.steps ?? null) }] });
         }
 
         function renderGarminTraining() {
             const acts = gdData.activites.filter(a => a.d >= gdSince(gdPeriod));
-            // Volume : par semaine jusqu'à 1 an, par mois au-delà ; toutes les périodes affichées, même vides
-            const monthly = !gdPeriod;
-            const key = d => monthly ? d.slice(0, 7) + '-01' : gdMonday(d);
+            // Volume : par jour jusqu'à 30 jours, par semaine au-delà ; toutes les périodes affichées, même vides
+            const daily = gdPeriod <= 30;
+            const key = d => daily ? d.slice(0, 10) : gdMonday(d);
             const empty = () => Object.fromEntries(GD_GROUPS.map(g => [g.nom, 0]));
             const buckets = new Map();
-            const oldest = gdPeriod ? gdSince(gdPeriod) : (gdData.activites[gdData.activites.length - 1]?.d || gdLastDay());
-            for (let d = new Date(oldest + 'T12:00'); toDateStr(d) <= gdLastDay(); d.setDate(d.getDate() + (monthly ? 28 : 7))) {
+            for (let d = new Date(gdSince(gdPeriod) + 'T12:00'); toDateStr(d) <= gdLastDay(); d.setDate(d.getDate() + (daily ? 1 : 7))) {
                 if (!buckets.has(key(toDateStr(d)))) buckets.set(key(toDateStr(d)), empty());
             }
             if (!buckets.has(key(gdLastDay()))) buckets.set(key(gdLastDay()), empty());
             acts.forEach(a => { const k = key(a.d); if (!buckets.has(k)) buckets.set(k, empty()); buckets.get(k)[a.g] += a.min / 60; });
             const keys = [...buckets.keys()].sort();
-            document.querySelector('[data-gd-chart="volume"] h4').textContent = `Volume d'entraînement (h / ${monthly ? 'mois' : 'semaine'})`;
+            document.querySelector('[data-gd-chart="volume"] h4').textContent = `Volume d'entraînement (h / ${daily ? 'jour' : 'semaine'})`;
             gdDraw('volume', {
-                labels: keys, type: 'stack', weekly: !monthly, monthly, fmt: v => v == null ? '–' : gdHours(v),
+                labels: keys, type: 'stack', weekly: !daily, fmt: v => v == null ? '–' : gdHours(v),
                 series: GD_GROUPS.map(g => ({ nom: g.nom, couleur: g.couleur, valeurs: keys.map(k => buckets.get(k)[g.nom] || null) }))
             });
 
@@ -1582,23 +1839,21 @@
             document.getElementById('gd-zones').innerHTML = total.map((v, i) =>
                 `<div class="grid grid-cols-[6.5rem_1fr_3rem] items-center gap-2 text-sm"><span><b>Z${i + 1}</b> <span class="text-xs text-muted">${z ? `${bounds[i]}–${bounds[i + 1]}` : ''}</span></span>` +
                 `<div class="h-3.5 rounded bg-raised overflow-hidden" title="${gdHours(v / 3600)}"><div class="h-full rounded" style="width:${v / sum * 100}%;background:var(--gd-z${i + 1})"></div></div>` +
-                `<span class="text-right text-xs text-muted tabular-nums">${gdNum(v / sum * 100)} %</span></div>`).join('') +
-                (z ? `<p class="text-xs text-muted pt-1">FC max ${z.maxHeartRateUsed} · seuil lactique ${z.lactateThresholdHeartRateUsed} · repos ${z.restingHeartRateUsed} bpm</p>` : '');
+                `<span class="text-right text-xs text-muted tabular-nums">${gdNum(v / sum * 100)} %</span></div>`).join('');
             document.getElementById('gd-zones-total').textContent = `${gdHours(sum / 3600)} enregistrées`;
 
-            // Records et totaux de la période
+            // Totaux de la période ; plus longues sorties sur tout l'historique (records 5 et 10 km : Repères course)
             const runs = acts.filter(a => a.s === 'Course'), rides = acts.filter(a => a.s === 'Vélo');
-            const best5k = runs.filter(a => a.f5k).sort((a, b) => a.f5k - b.f5k)[0];
+            const allRuns = gdData.activites.filter(a => a.s === 'Course'), allRides = gdData.activites.filter(a => a.s === 'Vélo');
             const longest = list => list.length ? list.reduce((a, b) => b.km > a.km ? b : a) : null;
-            const lr = longest(runs), lb = longest(rides), km = list => list.reduce((s, a) => s + a.km, 0);
+            const lr = longest(allRuns), lb = longest(allRides), km = list => list.reduce((s, a) => s + a.km, 0);
             const unit = u => `<span class="text-sm font-normal text-muted"> ${u}</span>`;
             document.getElementById('gd-records').innerHTML = [
                 gdTile('Activités', gdNum(acts.length), `${gdHours(acts.reduce((s, a) => s + a.min, 0) / 60)} au total`),
                 gdTile('Course', `${gdNum(km(runs))}${unit('km')}`, `${runs.length} sorties`),
                 gdTile('Vélo', `${gdNum(km(rides))}${unit('km')}`, `${rides.length} sorties`),
-                gdTile('Meilleur 5 km', best5k && gdPace(best5k.f5k), best5k ? gdDayYear(best5k.d) : 'aucun sur la période'),
-                gdTile('Plus longue course', lr && `${gdNum(lr.km, 1)}${unit('km')}`, lr ? gdDayYear(lr.d) : ''),
-                gdTile('Plus longue sortie vélo', lb && `${gdNum(lb.km, 1)}${unit('km')}`, lb ? gdDayYear(lb.d) : '')
+                gdTile('Plus longue course', lr && gdLink(lr, `${gdNum(lr.km, 1)}${unit('km')}`), lr ? gdLink(lr, gdDayYear(lr.d)) : ''),
+                gdTile('Plus longue sortie vélo', lb && gdLink(lb, `${gdNum(lb.km, 1)}${unit('km')}`), lb ? gdLink(lb, gdDayYear(lb.d)) : '')
             ].join('');
 
             // Liste des activités
@@ -1613,7 +1868,7 @@
             document.getElementById('gd-act-count').textContent = `· ${list.length}`;
             document.getElementById('gd-act-body').innerHTML = list.slice(0, gdLimit).map(a => {
                 const speed = !a.v ? '–' : a.s === 'Course' || a.s === 'Marche' || a.s === 'Randonnée' ? `${gdPace(1000 / a.v)} /km` : `${gdNum(a.v * 3.6, 1)} km/h`;
-                return `<tr><td>${gdDayYear(a.d)}</td><td class="gd-name" title="${gdEsc(a.n)}">${gdEsc(a.n)}</td>` +
+                return `<tr><td>${gdDayYear(a.d)}</td><td class="gd-name" title="${gdEsc(a.n)}">${gdLink(a, gdEsc(a.n))}</td>` +
                     `<td><span class="inline-flex items-center gap-1.5"><i class="fa-solid ${SPORT_ICONS[a.s] || 'fa-stopwatch'} ${sportStyle(a.s).icon}"></i>${gdEsc(sportLabel(a.s))}</span></td>` +
                     `<td class="num">${a.km ? gdNum(a.km, 1) + ' km' : '–'}</td><td class="num">${gdMinutes(a.min)}</td><td class="num">${speed}</td>` +
                     `<td class="num">${a.hr ? gdNum(a.hr) : '–'}</td><td class="num">${a.dplus ? gdNum(a.dplus) + ' m' : '–'}</td>` +
@@ -1970,7 +2225,7 @@
 
             const parsed = [];
             // FC seuil du profil ("178 bpm") : base des zones si la montre n'en fournit pas
-            const thresholdHr = parseInt(userProfile && userProfile.threshold_hr) || null;
+            const thresholdHr = thresholdHeartRate();
             for (const file of fileList) {
                 try {
                     const buffer = await file.arrayBuffer();
@@ -2263,10 +2518,11 @@
             return null;
         }
 
+        // held : l'effort compte comme tenu. Plus rapide que la cible : réussi (progresser), signalé quand même
         const VERDICTS = {
-            ok: { icon: 'fa-circle-check', color: 'text-success', label: 'Tenu' },
+            ok: { icon: 'fa-circle-check', color: 'text-success', label: 'Tenu', held: true },
             slow: { icon: 'fa-arrow-down', color: 'text-amber-600 dark:text-amber-400', label: 'Trop lent' },
-            fast: { icon: 'fa-arrow-up', color: 'text-amber-600 dark:text-amber-400', label: 'Trop rapide' },
+            fast: { icon: 'fa-circle-check', color: 'text-success', label: 'Tenu', warning: 'Trop vite', held: true },
             easy: { icon: 'fa-arrow-down', color: 'text-amber-600 dark:text-amber-400', label: 'Trop facile' },
             hard: { icon: 'fa-arrow-up', color: 'text-amber-600 dark:text-amber-400', label: 'Trop intense' },
             short: { icon: 'fa-scissors', color: 'text-amber-600 dark:text-amber-400', label: 'Trop court' }
@@ -2322,33 +2578,48 @@
 
             const efforts = pairs ? pairs.filter(p => p.planned.step.type === 'active') : [];
             if (efforts.length > 0) {
-                let held = 0;
+                let held = 0, faster = 0;
                 efforts.forEach(({ planned, lap }) => {
                     const s = planned.step;
                     const verdict = VERDICTS[judgeLap(w, s, lap, a.zone_basis, zones)];
-                    if (verdict === VERDICTS.ok) held++;
+                    if (verdict.held) held++;
+                    if (verdict === VERDICTS.fast) faster++;
+                    // Toujours sur une ligne : l'étape prévue se tronque, le réalisé et le verdict jamais.
+                    // iPhone (< 640 px) : sans la FC, verdict en icônes seulement (texte en infobulle)
                     const li = document.createElement('li');
-                    li.className = 'flex flex-wrap items-baseline gap-x-2';
+                    li.className = 'flex items-center gap-2 min-w-0 whitespace-nowrap';
                     const what = document.createElement('span');
-                    what.className = 'text-muted';
-                    what.textContent = `${planned.reps ? `${planned.rep}/${planned.reps} · ` : ''}${s.distance_m ? `${s.distance_m} m` : formatStepDuration(s.duration_sec)} ${stepInfo(s).label}`;
+                    what.className = 'min-w-0 truncate text-muted';
+                    what.textContent = what.title = `${planned.reps ? `${planned.rep}/${planned.reps} · ` : ''}${s.distance_m ? `${s.distance_m} m` : formatStepDuration(s.duration_sec)} ${stepInfo(s).label}`;
                     const done = document.createElement('span');
-                    done.className = 'text-ink font-medium';
+                    done.className = 'shrink-0 text-ink font-medium tabular-nums';
                     const time = lap.timer || lap.elapsed;
                     done.textContent = [
                         time ? formatStepDuration(time) : '',
-                        w.type === 'Course' && lap.avg_speed > 0 ? paceText(lap.avg_speed) : '',
-                        lap.avg_hr ? `FC ${Math.round(lap.avg_hr)}` : ''
+                        w.type === 'Course' && lap.avg_speed > 0 ? paceText(lap.avg_speed) : ''
                     ].filter(Boolean).join(' · ');
+                    if (lap.avg_hr) {
+                        const hr = document.createElement('span');
+                        hr.className = 'hidden sm:inline';
+                        hr.textContent = `${done.textContent ? ' · ' : ''}FC ${Math.round(lap.avg_hr)}`;
+                        done.append(hr);
+                    }
+                    const warn = 'text-amber-600 dark:text-amber-400';
                     const tag = document.createElement('span');
-                    tag.className = `ml-auto font-semibold ${verdict.color}`;
-                    tag.innerHTML = `<i class="fa-solid ${verdict.icon} mr-1"></i>`;
-                    tag.append(verdict.label);
+                    tag.className = `ml-auto shrink-0 font-semibold ${verdict.color}`;
+                    tag.title = verdict.warning ? `${verdict.label}, ${verdict.warning.toLowerCase()}` : verdict.label;
+                    tag.innerHTML = `<i class="fa-solid ${verdict.icon}"></i>`
+                        + (verdict.warning ? `<i class="fa-solid fa-arrow-up ml-1 sm:hidden ${warn}"></i>` : '');
+                    const text = document.createElement('span');
+                    text.className = `hidden sm:inline ml-1${verdict.warning ? ` ${warn}` : ''}`;
+                    text.textContent = verdict.warning || verdict.label;
+                    tag.append(text);
                     li.append(what, done, tag);
                     list.appendChild(li);
                 });
                 score = Math.round(held / efforts.length * 10);
-                summary = `${held} effort${held > 1 ? 's' : ''} tenu${held > 1 ? 's' : ''} sur ${efforts.length} · ${durations}.`;
+                summary = `${held} effort${held > 1 ? 's' : ''} tenu${held > 1 ? 's' : ''} sur ${efforts.length}`
+                    + (faster ? ` (dont ${faster} plus rapide${faster > 1 ? 's' : ''} que la cible)` : '') + ` · ${durations}.`;
             } else {
                 // Tours non alignables : jugement sur la durée totale
                 const ratio = plannedMin > 0 ? doneMin / plannedMin : null;
@@ -2372,14 +2643,15 @@
         // ==========================================
         // SORTIE RÉALISÉE : ZONES, COURBES, CARTE
         // ==========================================
-        // Courbes proposées ; l'allure (course) est inversée : plus rapide = plus haut
+        // Courbes proposées, la première affichée par défaut : allure ou vitesse (la cible des séances), puis FC.
+        // L'allure (course) est inversée : plus rapide = plus haut
         function chartMetrics(w) {
             const clock = sec => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
             return [
-                { key: 'hr', label: 'FC', format: v => `${Math.round(v)} bpm`, tick: v => `${Math.round(v)}` },
                 w.type === 'Course'
                     ? { key: 'speed', label: 'Allure', transform: v => v > 0.8 ? 1000 / v : null, invert: true, format: v => `${clock(v)} /km`, tick: clock }
                     : { key: 'speed', label: 'Vitesse', transform: v => v * 3.6, format: v => `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km/h`, tick: v => `${Math.round(v)}` },
+                { key: 'hr', label: 'FC', format: v => `${Math.round(v)} bpm`, tick: v => `${Math.round(v)}` },
                 { key: 'pwr', label: 'Puissance', format: v => `${Math.round(v)} W`, tick: v => `${Math.round(v)}` },
                 { key: 'alt', label: 'Altitude', format: v => `${Math.round(v)} m`, tick: v => `${Math.round(v)}` },
                 { key: 'cad', label: 'Cadence', format: v => `${Math.round(v)} /min`, tick: v => `${Math.round(v)}` }
@@ -3719,7 +3991,8 @@
 
         document.addEventListener('keydown', (e) => {
             if (detailsModal.classList.contains('hidden')) return;
-            if (e.key === 'Escape') { closeDetailsModal(); return; }
+            // preventDefault : la fenêtre en dessous (page Garmin) reste ouverte
+            if (e.key === 'Escape') { e.preventDefault(); closeDetailsModal(); return; }
             if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
             if (e.key === 'ArrowLeft') navigateDetails(-1);
             if (e.key === 'ArrowRight') navigateDetails(1);
@@ -3741,7 +4014,7 @@
             });
         });
         document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') return;
+            if (e.key !== 'Escape' || e.defaultPrevented) return;
             Object.entries(MODAL_CLOSERS).forEach(([id, close]) => {
                 if (id !== 'details-modal' && !document.getElementById(id).classList.contains('hidden')) close();
             });

@@ -19,7 +19,7 @@ Pas de build, pas de `npm install` : du HTML/JS natif, Tailwind via CDN, et Supa
   - **Sortie réalisée** : temps par zone de FC (base FC seuil de la montre ou du profil, sinon FC max), Training Effect, courbes FC / allure ou vitesse / puissance / altitude / cadence avec survol, carte du parcours (Leaflet + OpenStreetMap).
   - **Tours dans les courbes** : une bande par tour (teintée selon la zone de l'étape quand la séance .FIT de l'app a été suivie), séparateurs et numéros, palier de la moyenne du tour (FC, allure ou vitesse, puissance, cadence), tour indiqué dans la bulle. Tableau des tours dessous (durée, distance, allure ou vitesse, FC, puissance) : toucher une ligne surligne le tour dans la courbe, toucher la courbe surligne la ligne.
 - **Synchro de la montre en un clic** (bouton « Montre » de l'en-tête, montre branchée en USB sur un PC Windows ou un Mac avec le relais installé) : importe les nouvelles sorties, retire de la montre les séances de l'app datées d'avant aujourd'hui et y dépose celles des 14 prochains jours, dans l'ordre chronologique.
-- **Profil athlète** : chronos et allures 5K / 10K, VO2 Max, allure et FC au seuil lactique. Ces valeurs servent à personnaliser les séances générées.
+- **Profil athlète** (« Mon profil ») : ce que Garmin ne partage pas avec l'app, saisi à la main : prédictions 5K / 10K, VO2 Max, allure au seuil lactique. Ces valeurs servent à personnaliser les séances générées. La FC au seuil, la FC max, la FC de repos et les meilleurs 5 / 10 km des 6 dernières semaines viennent de Garmin (« Données Garmin › Repères course », avec un bouton pour reporter ces temps dans le profil).
 - **Générateur de plan (« coach »)** : selon l'objectif (vitesse / VO2max, seuil / rythme, endurance / fond, force / puissance, maintien), valable pour tous les sports, ton niveau d'énergie (en forme, normal, fatigué) et le nombre de séances voulues par sport en semaine et le week-end, il crée les séances de la semaine en tenant compte des deux dernières semaines. Pour chaque sport : une séance clé et une séance secondaire liées à l'objectif (via la colonne `category` de `training_bank`), le reste en endurance et une sortie longue le week-end. Un aperçu dans la fenêtre montre ce qui sera généré.
 - **Export Garmin (.FIT)** : les séances des 14 prochains jours partent sur la montre avec la synchro (bouton « Montre ») ; une séance seule se télécharge aussi depuis sa fiche (bouton « .FIT »). Le fichier, écrit par [fitBuilder.js](fitBuilder.js), contient :
   - le nom « 10-22 Jeu - Titre » : mois-jour et jour abrégé, pour garder l'ordre chronologique sur la montre (fin décembre, quand les 14 jours de la synchro débordent sur janvier, l'année est ajoutée : « 26-12-29 Mar », « 27-01-03 Sam ») ;
@@ -56,6 +56,16 @@ python -m http.server 8000
 Ouvre ensuite `http://localhost:8000` (ou l'adresse affichée), puis crée un compte.
 
 L'extension VS Code **Live Server** fonctionne aussi.
+
+## Installer en web app
+
+Le site est installable comme une application ([manifest.webmanifest](manifest.webmanifest), icônes dans [icons/](icons/), service worker [sw.js](sw.js)). Il faut le site en ligne (HTTPS, ex. GitHub Pages) ou `localhost` ; pas en ouvrant le fichier.
+
+- **Brave / Chrome / Edge (ordinateur)** : icône « Installer » au bout de la barre d'adresse, ou menu ☰ › *Enregistrer et partager* › *Installer la page en tant qu'application*. L'app s'ouvre dans sa propre fenêtre.
+- **Brave / Chrome (Android)** : menu › *Installer l'application* (ou *Ajouter à l'écran d'accueil*).
+- **iPhone / iPad** : Safari › Partager › *Sur l'écran d'accueil*.
+
+Le service worker passe toujours par le réseau d'abord : chaque mise à jour du site est prise au prochain chargement. Hors connexion, l'app s'ouvre sur la dernière version chargée (sans données, Supabase demande le réseau).
 
 ## Configuration Supabase
 
@@ -106,7 +116,7 @@ La montre ne donne que les activités. La santé (sommeil, Body Battery, VFC…)
 
 ## Mes données Garmin
 
-Bouton **« Données »** de l'en-tête : VFC nocturne et sa plage normale, FC au repos, sommeil par phase, Body Battery, stress, pas, âge physique, volume d'entraînement par sport, temps par zone FC, records (meilleur 5 km, plus longues sorties) et liste filtrable de toutes les activités, sur 30 jours, 90 jours, 1 an ou tout l'historique. Lu dans Supabase (tables `garmin_*` et `activities`).
+Bouton **« Données »** de l'en-tête, inspiré de Garmin Connect : indicateurs du jour en haut (score de sommeil, Body Battery, VFC, FC au repos, stress, pas, minutes intensives, âge physique), puis **Sommeil** (nuit détaillée : score, coucher → lever, phases, FC, respiration ; toucher une nuit du graphique pour l'afficher), **Body Battery** (plus haut / plus bas, rechargé / dépensé, même principe), volume d'entraînement par sport, temps par zone FC, VFC et sa plage normale, FC au repos, stress, pas, records, repères course et liste filtrable des activités, sur 7 jours (par défaut), 30 jours, 90 jours ou 1 an. Lu dans Supabase (tables `garmin_*` et `activities`).
 
 Depuis octobre 2026, Garmin Connect donne à chacun une **Personal API Key** pour lire ses propres données (lecture seule ; ~100 requêtes / minute).
 
