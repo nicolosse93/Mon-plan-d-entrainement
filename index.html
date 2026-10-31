@@ -3445,9 +3445,20 @@
 
         // Après un ajout : calendrier placé sur la date des nouvelles séances, cartes animées, pastille « +N ajoutées »
         async function refreshAndHighlightNew(beforeIds, focusDate) {
+            // Le calendrier ne bouge que si la date n'est pas déjà affichée, et juste assez : semaine visée en dernière
+            // ligne si elle est après la plage, en première si elle est avant
             if (focusDate) {
                 const [y, m, d] = focusDate.split('-');
-                currentDateView = new Date(y, m - 1, d); // date locale (new Date('YYYY-MM-DD') serait en UTC : la veille au Québec)
+                const focusMonday = getMonday(new Date(y, m - 1, d)); // date locale (new Date('YYYY-MM-DD') serait en UTC : la veille au Québec)
+                const start = getMonday(currentDateView), weeks = getVisibleWeeks();
+                const end = new Date(start);
+                end.setDate(start.getDate() + (weeks - 1) * 7);
+                if (focusMonday < start) currentDateView = focusMonday;
+                else if (focusMonday > end) {
+                    const newStart = new Date(focusMonday);
+                    newStart.setDate(focusMonday.getDate() - (weeks - 1) * 7);
+                    currentDateView = newStart;
+                }
             }
             await fetchWorkouts();
             const added = workouts.filter(w => !beforeIds.has(String(w.id)));
