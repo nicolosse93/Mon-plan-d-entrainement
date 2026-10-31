@@ -232,10 +232,6 @@
                 <i class="fa-solid fa-arrows-rotate text-accent"></i>
                 <span class="hidden lg:inline">Montre</span>
             </button>
-            <button onclick="openGarminModal()" title="Mes données Garmin (santé, activités, records)" class="bg-raised hover:bg-raised-hover text-ink h-8 px-2.5 rounded-lg text-sm transition flex items-center gap-1.5">
-                <i class="fa-solid fa-chart-line text-accent"></i>
-                <span class="hidden lg:inline">Données</span>
-            </button>
             <button id="theme-toggle" type="button" title="Forcer le thème clair / sombre (au rechargement : réglage de l'appareil)" aria-label="Basculer le thème clair / sombre" class="h-8 w-8 rounded-lg bg-raised hover:bg-raised-hover text-accent shrink-0 transition">
                 <i class="fa-solid fa-moon"></i>
             </button>
@@ -1188,6 +1184,7 @@
             document.getElementById('demo-badge').classList.remove('hidden');
             fetchWorkouts();
             fetchProfile();
+            fetchGarminSnapshot();
             showToast("<strong>Mode démo</strong> : essaie tout librement (générer, déplacer, exporter…). Rien n'est enregistré : tout disparaît en quittant ou en rechargeant la page.", 10000);
         }
 
@@ -1199,6 +1196,7 @@
             workouts = [];
             userProfile = {};
             garminHrZones = null;
+            garminSnapshot = null;
             document.getElementById('profile-form').reset();
             document.getElementById('demo-badge').classList.add('hidden');
             hideToast();
@@ -1215,6 +1213,7 @@
                 userEmailDisplay.textContent = session.user.email;
                 // Synchro auto après le calendrier : seules les séances qu'elle ajoute sont mises en évidence
                 fetchWorkouts().then(autoSyncGarmin);
+                fetchGarminSnapshot();
                 fetchProfile();
             } else {
                 authScreen.classList.remove('hidden');
@@ -2060,6 +2059,7 @@
                 // Page Garmin fermée : graphiques redessinés à son ouverture (cachés, ils n'ont pas de largeur)
                 if (document.getElementById('garmin-modal').classList.contains('hidden')) gdData = null;
                 else await loadGarminData();
+                fetchGarminSnapshot(); // pastille « Ma forme » du résumé
                 if (acts.length) await refreshAndHighlightNew(beforeIds, null);
                 if (auto && acts.length) showToast(`<strong>Garmin</strong> : ${acts.length} nouvelle${acts.length > 1 ? 's' : ''} activité${acts.length > 1 ? 's' : ''} importée${acts.length > 1 ? 's' : ''}.`, 6000);
             } catch (e) {
@@ -2597,38 +2597,7 @@
             return { acute, ratio, level, weeks, hasData: activities.length > 0 };
         }
 
-        const LOAD_LEVELS = {
-            low: { icon: 'fa-arrow-trend-down', color: 'text-muted', label: 'Sous-charge' },
-            good: { icon: 'fa-circle-check', color: 'text-success', label: 'Charge équilibrée' },
-            warn: { icon: 'fa-triangle-exclamation', color: 'text-amber-600 dark:text-amber-400', label: 'Charge en hausse' },
-            risk: { icon: 'fa-circle-exclamation', color: 'text-red-500', label: 'Risque de surcharge' }
-        };
         const formatRatio = r => r.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
-        // Tuile du résumé de semaine : charge 7 jours, état (icône + mot) et barres des 6 dernières semaines
-        function loadTileHtml(tile, heading) {
-            const st = getLoadStatus();
-            if (!st.hasData) {
-                return `<div class="${tile}">${heading('fa-heart-pulse', 'Charge')}
-                    <p class="text-xs text-muted">Synchronise ta montre pour suivre ta charge et ta fatigue.</p>
-                    <button type="button" onclick="syncWatch()" class="mt-1.5 text-xs font-semibold text-accent hover:underline"><i class="fa-solid fa-arrows-rotate mr-1"></i>Synchroniser</button></div>`;
-            }
-            const max = Math.max(1, ...st.weeks.map(w => w.load));
-            const bars = st.weeks.map((w, i) => {
-                const label = `Semaine du ${w.start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : charge ${w.load}`;
-                const height = w.load > 0 ? Math.max(6, Math.round(w.load / max * 100)) : 0;
-                return `<div class="flex-1 max-w-[24px] h-full flex items-end" title="${label}" aria-label="${label}">
-                    <div class="w-full rounded-t ${i === st.weeks.length - 1 ? 'bg-accent' : 'bg-muted/35'}" style="height:${height}%"></div></div>`;
-            }).join('');
-            const lvl = st.level && LOAD_LEVELS[st.level];
-            const status = lvl
-                ? `<p class="text-xs font-semibold ${lvl.color} mt-0.5"><i class="fa-solid ${lvl.icon} mr-1"></i>${lvl.label}</p>
-                   <p class="text-[11px] text-muted">${formatRatio(st.ratio)}× ta moyenne de 4 semaines</p>`
-                : `<p class="text-[11px] text-muted mt-0.5">2 semaines d'historique pour juger ta fatigue</p>`;
-            return `<div class="${tile}">${heading('fa-heart-pulse', 'Charge 7 jours')}
-                <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${st.acute}</p>${status}
-                <div class="mt-2 h-8 flex items-end gap-[2px]" role="img" aria-label="Charge des 6 dernières semaines, semaine en cours en couleur">${bars}</div></div>`;
-        }
 
         // Forme du moment pour le générateur. Chaque signal vaut 'fatigue', 'caution' ou 'good' :
         //  - VFC (statut Garmin de la dernière nuit) : basse / faible -> fatigue, déséquilibrée -> caution, équilibrée -> good
@@ -3829,6 +3798,54 @@
         }
 
         // Résumé de la semaine active (première ligne du calendrier) : progression, volume, sports, prochaine séance
+        // Pastille « Ma forme » en tête du résumé : dernières valeurs Garmin (sommeil, Body Battery, VFC) ; un toucher
+        // ouvre Mes données Garmin. garminSnapshot : null tant que pas lu, puis les 4 derniers jours (le plus récent d'abord)
+        let garminSnapshot = null;
+        async function fetchGarminSnapshot() {
+            if (demoMode) { garminSnapshot = []; }
+            else {
+                const since = new Date();
+                since.setDate(since.getDate() - 3);
+                const { data, error } = await supabaseClient.from('garmin_daily')
+                    .select('date, hrv_last_night, hrv_status, body_battery_max, sleep_score:raw->sleep->sleepScores->overall->value, sleep_quality:raw->sleep->sleepScores->overall->>qualifierKey')
+                    .gte('date', toDateStr(since)).order('date', { ascending: false });
+                garminSnapshot = error ? [] : (data || []);
+            }
+            const el = document.getElementById('week-summary-garmin');
+            if (el) el.outerHTML = garminTileHtml();
+        }
+
+        function garminTileHtml() {
+            const days = garminSnapshot || [];
+            const latest = f => days.find(d => d[f] != null);
+            const sl = latest('sleep_score'), bb = latest('body_battery_max'), hrv = latest('hrv_last_night');
+            const q = sl && GD_SLEEP_QUALITY[sl.sleep_quality];
+            const st = hrv && GD_HRV_STATUS[hrv.hrv_status];
+            const kpi = (label, value, unit, note, color) => `<div class="min-w-0">
+                    <p class="text-[10px] text-muted truncate">${label}</p>
+                    <p class="text-lg sm:text-xl font-bold text-ink leading-tight tabular-nums whitespace-nowrap">${value ?? '–'}${value != null && unit ? `<span class="text-[11px] font-semibold text-muted"> ${unit}</span>` : ''}</p>
+                    <p class="text-[10px] font-semibold truncate" ${color ? `style="color:var(${color})"` : ''}>${note || '&nbsp;'}</p>
+                </div>`;
+            let body;
+            if (garminSnapshot === null) body = '<p class="text-xs text-muted">Chargement…</p>';
+            else if (demoMode) body = '<p class="text-xs text-muted">Pas de données Garmin en mode démo.</p>';
+            else if (!sl && !bb && !hrv) body = '<p class="text-xs text-muted">Sommeil, VFC, Body Battery : ouvre tes données Garmin pour les synchroniser.</p>';
+            else {
+                const newest = [sl, bb, hrv].filter(Boolean).map(d => d.date).sort().pop();
+                body = `<div class="grid grid-cols-3 gap-2">
+                        ${kpi('Sommeil', sl && sl.sleep_score, '/100', q && q[0], q && q[1])}
+                        ${kpi('Body Battery', bb && bb.body_battery_max, '', '', null)}
+                        ${kpi('VFC', hrv && hrv.hrv_last_night, 'ms', st && st[0], st && st[1])}
+                    </div>
+                    ${newest < toDateStr(new Date()) ? `<p class="text-[10px] text-muted mt-1">Dernières données : ${gdDay(newest)}</p>` : ''}`;
+            }
+            return `<button type="button" id="week-summary-garmin" onclick="openGarminModal()" title="Mes données Garmin (santé, activités, records)"
+                class="col-span-2 xl:col-span-1 flex flex-col justify-start text-left bg-accent/5 hover:bg-accent/10 border border-accent/40 hover:border-accent rounded-xl p-2.5 sm:p-3 shadow-sm min-w-0 transition">
+                    <p class="flex items-center text-[10px] uppercase tracking-wider font-semibold text-accent mb-1"><i class="fa-solid fa-heart-pulse mr-1"></i>Ma forme · Garmin<i class="fa-solid fa-chevron-right ml-auto"></i></p>
+                    ${body}
+                </button>`;
+        }
+
         function renderWeekSummary(monday, todayStr) {
             const box = document.getElementById('week-summary');
             const sunday = new Date(monday);
@@ -3843,21 +3860,8 @@
             const tile = 'bg-surface border border-line rounded-xl p-2.5 sm:p-3 shadow-sm min-w-0';
             const heading = (icon, label) => `<p class="text-[10px] uppercase tracking-wider font-semibold text-muted mb-1"><i class="fa-solid ${icon} mr-1"></i>${label}</p>`;
 
-            // Répartition par sport
-            const bySport = {};
-            week.forEach(w => {
-                bySport[w.type] = bySport[w.type] || { count: 0, min: 0 };
-                bySport[w.type].count++;
-                bySport[w.type].min += getWorkoutMinutes(w);
-            });
-            const sportRows = Object.entries(bySport).map(([type, s]) => `
-                <div class="flex items-center gap-2 text-xs">
-                    <span class="w-6 h-6 rounded-md border flex items-center justify-center shrink-0 ${sportStyle(type).chip}"><i class="fa-solid ${SPORT_ICONS[type] || 'fa-circle'} text-[10px]"></i></span>
-                    <span class="text-ink font-semibold">${s.count}×</span>
-                    <span class="text-muted ml-auto">${s.min > 0 ? formatDuration(s.min) : ''}</span>
-                </div>`).join('');
-
             box.innerHTML = `
+                ${garminTileHtml()}
                 <div class="${tile}">
                     ${heading('fa-list-check', 'Semaine')}
                     <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${done.length}<span class="text-sm text-muted font-semibold"> / ${week.length} séances</span></p>
@@ -3869,11 +3873,6 @@
                     <p class="text-lg sm:text-xl font-bold text-ink leading-tight">${totalMin > 0 ? formatDuration(totalMin) : '–'}</p>
                     <p class="text-xs text-muted mt-0.5">${doneMin > 0 ? `${formatDuration(doneMin)} réalisées` : 'Rien de réalisé encore'}</p>
                 </div>
-                <div class="${tile}">
-                    ${heading('fa-chart-pie', 'Sports')}
-                    <div class="space-y-1">${sportRows || '<p class="text-xs text-muted">Aucune séance</p>'}</div>
-                </div>
-                ${loadTileHtml(tile, heading)}
                 <div class="${tile} col-span-2 md:col-span-1" id="week-summary-next">
                     ${heading('fa-forward', 'Prochaine séance')}
                 </div>`;
