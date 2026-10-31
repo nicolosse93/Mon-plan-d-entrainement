@@ -4013,7 +4013,8 @@
             zone4: { label: 'Seuil Z4', level: 4 }, zone5: { label: 'VO2max Z5', level: 5 }, seuil: { label: 'Seuil', level: 4 },
             sweetspot: { label: 'Sweetspot', level: 3.5 }, ftp: { label: 'FTP', level: 4 }, overunder: { label: 'Over-under', level: 4.5 },
             vitesse_10k: { label: 'Allure 10K', level: 4.5 }, vitesse_5k: { label: 'Allure 5K', level: 5 }, vma: { label: 'VMA', level: 5.5 },
-            pma: { label: 'PMA', level: 5.5 }, sprint: { label: 'Sprint', level: 6 }, force: { label: 'Force', level: 4.5 }, renfo: { label: 'Muscu', level: 3 }
+            pma: { label: 'PMA', level: 5.5 }, sprint: { label: 'Sprint', level: 6 }, force: { label: 'Force', level: 4.5 }, renfo: { label: 'Muscu', level: 3 },
+            allure: { label: 'Allure cible', level: 4.5 }
         };
 
         function stepInfo(s) {
@@ -4037,7 +4038,10 @@
         // Zone d'allure ciblée par une étape de course (profil requis) : effort -> sa zone,
         // échauffement / retour au calme -> endurance (Z2), récup -> aucune. Partagé par le détail et l'export .FIT
         function stepPaceZone(w, s, zones) {
-            if (w.type !== 'Course' || !zones) return null;
+            if (w.type !== 'Course') return null;
+            // Allure écrite dans la séance (« 5 km à 5:00 /km ») : ±5 s/km, même sans profil
+            if (s.type === 'active' && s.pace_sec) return { label: 'Allure cible', range: [s.pace_sec - 5, s.pace_sec + 5] };
+            if (!zones) return null;
             const key = s.type === 'active' ? intensityToZone[s.intensity]
                 : (s.type === 'warmup' || s.type === 'cooldown') ? 'ef' : null;
             const z = key ? zones[key] : null;
@@ -4139,7 +4143,8 @@
             if (/\b5\s*k\b|allure 5/.test(t)) zones.add('5k');
             if (/vma|vo2/.test(t)) zones.add('vma');
             if (/sprint|accél/.test(t)) zones.add('sprint');
-            if (zones.size === 0) zones.add('ef');
+            // Rien de reconnu : endurance, sauf allure écrite en clair (affichée à part par renderDetailPaces)
+            if (zones.size === 0 && !readExplicitPace(text)) zones.add('ef');
             return zones;
         }
 
@@ -4152,9 +4157,15 @@
             }
             box.classList.remove('hidden');
 
+            // Allure écrite dans la séance (« 5 km à 5:00 /km », jour de course) : affichée en premier, même sans profil
+            const explicit = readExplicitPace(w.main_block);
+            const explicitRow = explicit ? `<div class="flex items-center justify-between gap-3">
+                    <span class="text-ink">Allure visée</span>
+                    <span class="font-semibold text-accent tabular-nums whitespace-nowrap">${secondsToPace(explicit)}</span>
+                </div>` : '';
             const zones = getRunningPaceZones();
             if (!zones) {
-                list.innerHTML = `<p class="text-xs text-muted">Renseigne tes prédictions 5K / 10K dans ton profil pour voir tes allures cibles.</p>`;
+                list.innerHTML = explicitRow + `<p class="text-xs text-muted">Renseigne tes prédictions 5K / 10K dans ton profil pour voir tes allures cibles.</p>`;
                 return;
             }
 
@@ -4162,7 +4173,7 @@
             const order = ['recup', 'ef', 'tempo', 'seuil', '10k', '5k', 'vma', 'sprint'];
             const keys = order.filter(k => zoneKeys.has(k) || k === 'ef');
             const fmt = s => secondsToPace(s).replace(' /km', '');
-            list.innerHTML = keys.map(k => {
+            list.innerHTML = explicitRow + keys.map(k => {
                 const z = zones[k];
                 const label = k === 'ef' && !zoneKeys.has('ef') ? 'Échauffement / retour au calme (Z2)' : z.label;
                 const value = z.range ? `${fmt(z.range[0])} – ${fmt(z.range[1])} /km` : 'Effort maximal';
@@ -5013,6 +5024,19 @@
             return found ? found[1] : null;
         }
 
+        // Allure écrite en clair (« 5:00 /km », « 4'55/km », « 4:55 min/km ») -> secondes par km, sinon null
+        function readExplicitPace(text) {
+            const m = normalizeText(text).match(/(\d{1,2})\s*[:'h]\s*(\d{2})\s*(?:min\s*)?\/\s*km/);
+            return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : null;
+        }
+        // Intensité d'une étape d'effort : allure en clair (prioritaire), sinon mots-clés
+        function effortExtra(text, fallback) {
+            const pace = readExplicitPace(text);
+            if (pace) return { intensity: 'allure', pace_sec: pace };
+            const intensity = readIntensity(text);
+            return intensity || fallback ? { intensity: intensity || fallback } : {};
+        }
+
         // Étape à partir d'une quantité : durée, ou distance avec durée estimée selon le sport
         function quantityStep(type, q, extra, sport) {
             if (q.meters) return { type, distance_m: q.meters, duration_sec: Math.round(q.meters * (SEC_PER_METER[sport] || 0.3)), ...extra };
@@ -5037,16 +5061,16 @@
                 const seg = normalizeText(raw).replace(/[()]/g, ' ');
                 const rep = seg.match(/^(\d+)\s*[x×*]\s*(.+)$/);
                 if (rep) {
-                    // Effort avant le premier séparateur de récup ("/", ",", "récup"), récup après
+                    // Effort avant le premier séparateur de récup ("/", ",", "récup"), récup après ; le « / » de « /km » n'en est pas un
                     const body = rep[2];
-                    const cut = body.search(/\/|,|\brecup|\br\s*\d/);
+                    const cut = body.search(/\/(?!\s*km)|,|\brecup|\br\s*\d/);
                     const effortText = cut >= 0 ? body.slice(0, cut) : body;
                     const recText = cut >= 0 ? body.slice(cut) : '';
                     const q = readQuantity(effortText);
                     if (!q) { unknown.push(raw); return; }
-                    const intensity = readIntensity(effortText);
-                    if (!intensity) warnings.push(`« ${raw} » : intensité non précisée, Z4 par défaut.`);
-                    const sub = [quantityStep('active', q, { intensity: intensity || 'zone4' }, w.type)];
+                    const known = effortExtra(effortText, null);
+                    if (!known.intensity) warnings.push(`« ${raw} » : intensité non précisée, Z4 par défaut.`);
+                    const sub = [quantityStep('active', q, known.intensity ? known : { intensity: 'zone4' }, w.type)];
                     const rq = recText && readQuantity(recText);
                     if (rq) sub.push(quantityStep('rest', rq, {}, w.type));
                     main.push({ type: 'repeat', iterations: parseInt(rep[1]), steps: sub });
@@ -5058,7 +5082,7 @@
                 if (intensity === 'zone1' && /^\s*\d[^a-z]*\s*(?:min|mn|s|sec)?\s*recup/.test(seg)) {
                     main.push(quantityStep('rest', q, {}, w.type));
                 } else {
-                    main.push(quantityStep('active', q, { intensity: intensity || 'zone2' }, w.type));
+                    main.push(quantityStep('active', q, effortExtra(seg, 'zone2'), w.type));
                 }
             });
 
