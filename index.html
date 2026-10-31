@@ -1810,6 +1810,10 @@
                 `<text x="38" y="45" text-anchor="middle" style="fill:${gdTheme('--ink')};font-size:21px;font-weight:700">${Math.round(value)}</text></svg>`;
         }
 
+        // Objectif de pas : le plus récent réglé dans Garmin Connect, appliqué à toute la période (les jours passés
+        // gardent en base l'ancien objectif automatique de Garmin) ; 7 000 si Garmin n'en donne pas
+        const GD_STEP_GOAL = 7000;
+
         function renderGarminTiles() {
             // Moyennes de la période choisie, comparées à la période précédente de même durée
             const since = gdSince(gdPeriod), before = new Date(since + 'T12:00');
@@ -1833,7 +1837,8 @@
             const q = score == null ? null : GD_SLEEP_QUALITY[score >= 90 ? 'EXCELLENT' : score >= 80 ? 'GOOD' : score >= 60 ? 'FAIR' : 'POOR'];
             const lastHrv = [...j].reverse().find(x => x.hrv != null);
             const st = lastHrv && GD_HRV_STATUS[lastHrv.hrvStatus];
-            const goalDays = j.filter(x => x.steps != null && x.stepGoal), reached = goalDays.filter(x => x.steps >= x.stepGoal).length;
+            const stepGoal = ([...gdData.jours].reverse().find(x => x.stepGoal) || {}).stepGoal || GD_STEP_GOAL;
+            const goalDays = j.filter(x => x.steps != null), reached = goalDays.filter(x => x.steps >= stepGoal).length;
             const fa = gdData.fitnessAge;
             // Minutes intensives cumulées (objectif OMS de Garmin : 150 par semaine, ramené à la période)
             const im = j.reduce((s, x) => s + (x.im || 0), 0);
@@ -1848,7 +1853,7 @@
                 gdTile(label('FC au repos'), rhr != null && `${gdNum(rhr)}${gdUnit('bpm')}`, vsPrev('rhr')),
                 gdTile(label('Stress moyen'), stress != null && gdNum(stress), vsPrev('stress')),
                 gdTile(label('Pas / jour'), steps != null && gdNum(steps),
-                    goalDays.length ? `objectif atteint ${reached} / ${goalDays.length} j` : vsPrev('steps')),
+                    goalDays.length ? `objectif ${gdNum(stepGoal)} atteint ${reached} / ${goalDays.length} j` : vsPrev('steps')),
                 gdTile(label('Minutes intensives'), j.length ? gdNum(im) : null, `objectif ${gdNum(imGoal)} (150 / sem.)`),
                 gdTile('Âge physique', fa?.fitnessAge && `${gdNum(fa.fitnessAge, 1)}${gdUnit('ans')}`,
                     fa ? `Âge réel ${fa.chronologicalAge ?? '–'} · atteignable ${gdNum(fa.achievableFitnessAge, 1)}` : '')
