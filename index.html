@@ -83,6 +83,14 @@
         /* main.app-main (plus spécifique que .p-3) : les styles du CDN Tailwind sont injectés après celui-ci */
         main.app-main { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px)); }
         @media (max-width: 639px) { main.app-main { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); } }
+        /* À partir de sm (iPad, ordinateur) l'appli tient dans l'écran : la page elle-même ne défile plus et ne rebondit plus
+           (seuls le calendrier et les fenêtres défilent à l'intérieur). 100dvh = zone réellement visible ; 100vh, sur iPad
+           dans Safari, inclut la place des barres d'outils et faisait déborder la page de quelques dizaines de pixels */
+        @media (min-width: 640px) {
+            html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+            body.min-h-screen { min-height: 0; }
+            #app-content { height: 100vh; height: 100dvh; }
+        }
         /* Séances tout juste ajoutées : apparition en cascade puis halo pulsé (couleur d'accent) */
         @keyframes workout-pop {
             0%   { opacity: 0; transform: translateY(10px) scale(.92); }
