@@ -763,24 +763,65 @@
     <!-- MODAL EXPORT GARMIN (.FIT) -->
     <!-- MODAL GÉNÉRATEUR INTELLIGENT DE SEMAINE -->
     <div id="generator-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-surface border border-line w-full max-w-lg md:max-w-4xl rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div class="bg-surface border border-line w-full max-w-lg md:max-w-4xl lg:max-w-6xl rounded-xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
             <div class="shrink-0 flex items-center gap-2 px-4 sm:px-5 pt-4 pb-3 border-b border-line">
                 <h3 class="flex-1 min-w-0 text-lg sm:text-xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-wand-magic-sparkles text-accent"></i>
                     <span class="truncate">Générateur Coach Intermédiaire</span>
                 </h3>
+                <button type="button" id="gen-info-btn" aria-expanded="false" aria-controls="gen-info" title="Comment le générateur choisit tes séances" class="h-9 px-2.5 shrink-0 rounded-lg text-sm font-semibold text-muted hover:text-ink hover:bg-raised transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info"></i><span>Info</span>
+                </button>
                 <button type="button" onclick="closeGeneratorModal()" aria-label="Fermer" title="Fermer (Échap)" class="-mr-1 h-9 w-9 shrink-0 rounded-lg text-muted hover:text-ink hover:bg-raised transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
             <form id="generator-form" class="flex-1 min-h-0 flex flex-col">
-                <!-- Grand écran : réglages + aperçu à gauche, sports et séances à droite -->
-                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 grid md:grid-cols-2 gap-x-5 gap-y-4 content-start">
+                <!-- Grand écran : réglages | sports et jours | aperçu ; tablette : 2 colonnes, aperçu dessous ; téléphone : empilé -->
+                <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 grid md:grid-cols-2 lg:grid-cols-[1fr_1.3fr_1fr] gap-x-5 gap-y-4 content-start">
+                <!-- Fonctionnement du générateur (bouton Info) : à garder en phase avec suggestEnergy, autoWeekType, getRoleSpec et planWeek -->
+                <section id="gen-info" class="hidden md:col-span-2 lg:col-span-3 bg-inset border border-line rounded-lg p-3 sm:p-4 text-xs text-muted space-y-3" aria-label="Fonctionnement du générateur">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-semibold text-ink"><i class="fa-solid fa-gears text-accent mr-1.5"></i>Comment le générateur construit ta semaine</p>
+                        <button type="button" id="gen-info-close" class="text-xs font-semibold text-accent hover:underline">Fermer</button>
+                    </div>
+                    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-3">
+                        <div>
+                            <p class="font-semibold text-ink mb-0.5">1. Ta forme → niveau d'énergie</p>
+                            <p>À l'ouverture, il lit tes 3 derniers jours Garmin et ta charge :</p>
+                            <ul class="list-disc pl-4 mt-0.5 space-y-0.5">
+                                <li><b>VFC</b> : basse ou faible = fatigue ; déséquilibrée = vigilance.</li>
+                                <li><b>Sommeil</b> (moyenne des 3 dernières nuits) : &lt; 60 = fatigue ; &lt; 70 = vigilance.</li>
+                                <li><b>FC au repos</b> vs ta moyenne : +8 bpm = fatigue ; +5 bpm = vigilance.</li>
+                                <li><b>Charge 7 jours</b> vs ta moyenne de 4 semaines : &gt; 1,5× = fatigue ; &gt; 1,3× = vigilance.</li>
+                            </ul>
+                            <p class="mt-1">Un signal de fatigue ou deux de vigilance : <b>« Fatigué »</b> est choisi. Un seul de vigilance : « Pêche d'enfer » est retiré. VFC équilibrée et bon sommeil : feu vert. Tu peux toujours changer le choix.</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-ink mb-0.5">2. Type de semaine (cycle)</p>
+                            <p>En <b>Automatique</b>, il compare la charge de chacune des 3 semaines précédentes à ta moyenne des 8 semaines d'avant. Si les 3 sont chargées (≥ 80 % de cette moyenne), il propose une <b>semaine de récup</b> : séances plus courtes, la clé reste mais à effort ≤ 7, la secondaire devient de l'endurance, pas de sortie la plus longue. Sinon, semaine de charge.</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-ink mb-0.5">3. Rôle de chaque séance</p>
+                            <p>Pour chaque sport, en semaine : la 1<sup>re</sup> séance est la <b>clé</b> (effort 6 à 10, catégorie de ton objectif), la 2<sup>e</sup> la <b>secondaire</b> (effort 5 à 10, catégorie de soutien), les autres de l'<b>endurance</b> (effort ≤ 5). Le week-end : une <b>sortie longue</b> d'abord (sauf en muscu).</p>
+                            <p class="mt-1">« Fatigué » : tout à effort ≤ 4. « Pêche d'enfer » : clé et secondaire à effort ≥ 7.</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-ink mb-0.5">4. Placement sur tes jours</p>
+                            <p>Il essaie toutes les répartitions possibles sur les jours cochés et garde celle qui <b>évite deux séances dures d'affilée</b> (<i class="fa-solid fa-fire text-orange-500"></i>, tous sports confondus), puis deux fois le même sport d'affilée. Si c'est impossible avec tes jours, l'aperçu te prévient.</p>
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-1">
+                            <p class="font-semibold text-ink mb-0.5">5. Choix dans ta banque</p>
+                            <p>Pour chaque séance, il cherche dans ta banque une séance qui correspond à la catégorie et à l'effort (sinon l'effort seul, sinon la catégorie seule), en écartant celles des 2 dernières semaines et celles déjà placées, puis tire au hasard. Sortie longue : parmi les 3 plus longues ; semaine de récup : parmi la moitié la plus courte. Si rien ne correspond, une séance de base est créée.</p>
+                        </div>
+                    </div>
+                </section>
+                <!-- 1. Réglages : objectif, énergie (proposée d'après la forme), type de semaine -->
                 <div class="space-y-4 min-w-0">
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Objectif principal</label>
-                    <select id="gen-goal" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
+                    <select id="gen-goal" class="w-full bg-inset border border-line rounded-lg px-3 py-2.5 text-ink focus:outline-none focus:border-accent">
                         <!-- Options générées depuis GEN_GOALS -->
                     </select>
                     <p id="gen-goal-desc" class="mt-1.5 text-xs text-muted"></p>
@@ -788,13 +829,43 @@
 
                 <div>
                     <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Niveau d'énergie</label>
-                    <select id="gen-energy" class="w-full bg-inset border border-line rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-accent">
+                    <select id="gen-energy" class="w-full bg-inset border border-line rounded-lg px-3 py-2.5 text-ink focus:outline-none focus:border-accent">
                         <option value="haute">Pêche d'enfer</option>
                         <option value="normale" selected>Normal / Stable</option>
                         <option value="fatigue">Fatigué (Besoin de récup)</option>
                     </select>
-                    <!-- Proposition d'après la charge des 7 derniers jours (activités importées) -->
-                    <p id="gen-energy-hint" class="hidden mt-1.5 text-xs"></p>
+                    <!-- Forme du moment : VFC, sommeil, FC au repos (Garmin) et charge des 7 derniers jours -->
+                    <div id="gen-energy-hint" class="hidden mt-1.5 text-xs space-y-0.5"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Type de semaine</label>
+                    <select id="gen-week" class="w-full bg-inset border border-line rounded-lg px-3 py-2.5 text-ink focus:outline-none focus:border-accent">
+                        <option value="auto" selected>Automatique</option>
+                        <option value="charge">Semaine de charge</option>
+                        <option value="recup">Semaine de récup (volume réduit)</option>
+                    </select>
+                    <!-- Cycle : semaine de récup proposée après 3 semaines chargées d'affilée -->
+                    <p id="gen-week-hint" class="mt-1.5 text-xs text-muted"></p>
+                </div>
+                </div>
+
+                <!-- 2. Sports, nombre de séances et jours disponibles -->
+                <div class="space-y-4 min-w-0">
+                <div>
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Sports de la semaine</label>
+                    <div id="gen-sports" class="flex flex-wrap gap-2">
+                        <!-- Pastilles générées dynamiquement -->
+                    </div>
+                </div>
+
+                <div>
+                    <div class="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] gap-2 text-xs uppercase tracking-wider text-muted font-semibold mb-1">
+                        <span class="hidden sm:block">Séances</span><span class="text-center">Semaine</span><span class="text-center">Week-end</span>
+                    </div>
+                    <div id="gen-sport-rows" class="space-y-2">
+                        <!-- Une ligne par sport sélectionné -->
+                    </div>
                 </div>
 
                 <div>
@@ -810,31 +881,17 @@
                     </div>
                 </div>
 
-                <div class="bg-inset border border-line rounded-lg p-3 text-xs text-muted space-y-1">
-                    <p class="font-semibold text-accent"><i class="fa-solid fa-circle-check mr-1"></i> Séances tirées de ta banque d'entraînements :</p>
-                    <div id="gen-goal-preview" class="space-y-1"></div>
-                </div>
-                </div>
-
-                <div class="space-y-4 min-w-0">
-                <div>
-                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Sports de la semaine</label>
-                    <div id="gen-sports" class="flex flex-wrap gap-2">
-                        <!-- Pastilles générées dynamiquement -->
-                    </div>
-                </div>
-
-                <div>
-                    <div class="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 text-xs uppercase tracking-wider text-muted font-semibold mb-1">
-                        <span class="hidden sm:block">Séances</span><span class="text-center">Semaine</span><span class="text-center">Week-end</span>
-                    </div>
-                    <div id="gen-sport-rows" class="space-y-2">
-                        <!-- Une ligne par sport sélectionné -->
-                    </div>
-                </div>
-
                 <!-- Vérification séances / jours sélectionnés (1 séance max par jour) -->
                 <div id="gen-days-check" role="status" aria-live="polite" class="rounded-lg border px-3 py-2 text-xs"></div>
+                </div>
+
+                <!-- 3. Aperçu de la semaine (sous les deux colonnes sur tablette) -->
+                <div class="min-w-0 md:col-span-2 lg:col-span-1">
+                    <label class="block text-xs uppercase tracking-wider text-muted font-semibold mb-1">Aperçu de la semaine</label>
+                    <div class="bg-inset border border-line rounded-lg p-3 text-xs text-muted space-y-1">
+                        <p class="font-semibold text-accent"><i class="fa-solid fa-circle-check mr-1"></i> Séances tirées de ta banque d'entraînements :</p>
+                        <div id="gen-goal-preview" class="space-y-1"></div>
+                    </div>
                 </div>
                 </div>
 
@@ -2491,23 +2548,118 @@
                 <div class="mt-2 h-8 flex items-end gap-[2px]" role="img" aria-label="Charge des 6 dernières semaines, semaine en cours en couleur">${bars}</div></div>`;
         }
 
-        // Générateur : « Fatigué » proposé si la charge s'emballe (ratio > 1,5), simple avertissement au-delà de 1,3
-        function suggestEnergyFromLoad() {
+        // Forme du moment pour le générateur. Chaque signal vaut 'fatigue', 'caution' ou 'good' :
+        //  - VFC (statut Garmin de la dernière nuit) : basse / faible -> fatigue, déséquilibrée -> caution, équilibrée -> good
+        //  - sommeil (score moyen des 3 dernières nuits) : < 60 -> fatigue, < 70 -> caution, >= 80 -> good
+        //  - FC au repos (3 derniers jours vs les 25 précédents) : +8 bpm -> fatigue, +5 bpm -> caution
+        //  - charge 7 jours vs moyenne de 4 semaines : > 1,5× -> fatigue, > 1,3× -> caution
+        // Décision : un signal « fatigue » ou deux « caution » -> Fatigué ; un « caution » -> pas de Pêche d'enfer ;
+        // VFC et sommeil bons sans alerte -> feu vert (Pêche d'enfer possible, jamais imposée)
+        async function fetchReadinessDays() {
+            if (demoMode) return [];
+            const since = new Date();
+            since.setDate(since.getDate() - 28);
+            const { data, error } = await supabaseClient.from('garmin_daily')
+                .select('date, hrv_last_night, hrv_status, resting_hr, sleep_score:raw->sleep->sleepScores->overall->value')
+                .gte('date', toDateStr(since)).order('date');
+            return error ? [] : (data || []);
+        }
+
+        function assessReadiness(days) {
+            const signals = [];
+            const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return toDateStr(d); };
+            const recent = days.filter(d => d.date >= daysAgo(2));
+            const mean = list => list.length ? list.reduce((s, x) => s + x, 0) / list.length : null;
+
+            const hrv = [...recent].reverse().find(d => d.hrv_status);
+            if (hrv) {
+                const label = `VFC ${(GD_HRV_STATUS[hrv.hrv_status] || [hrv.hrv_status])[0].toLowerCase()}${hrv.hrv_last_night ? ` (${hrv.hrv_last_night} ms)` : ''}`;
+                const level = hrv.hrv_status === 'LOW' || hrv.hrv_status === 'POOR' ? 'fatigue' : hrv.hrv_status === 'UNBALANCED' ? 'caution' : 'good';
+                signals.push({ key: 'hrv', level, text: label });
+            }
+            const scores = recent.map(d => d.sleep_score).filter(v => v != null);
+            if (scores.length >= 2) {
+                const s = Math.round(mean(scores));
+                const level = s < 60 ? 'fatigue' : s < 70 ? 'caution' : s >= 80 ? 'good' : 'ok';
+                signals.push({ key: 'sleep', level, text: `sommeil ${s}/100 en moyenne sur ${scores.length} nuits` });
+            }
+            const rhrNow = mean(recent.map(d => d.resting_hr).filter(Boolean));
+            const rhrRef = mean(days.filter(d => d.date < daysAgo(2)).map(d => d.resting_hr).filter(Boolean));
+            if (rhrNow != null && rhrRef != null && days.filter(d => d.date < daysAgo(2) && d.resting_hr).length >= 7) {
+                const diff = Math.round(rhrNow - rhrRef);
+                if (diff >= 5) signals.push({ key: 'rhr', level: diff >= 8 ? 'fatigue' : 'caution', text: `FC au repos +${diff} bpm vs ta moyenne` });
+            }
+            const st = getLoadStatus();
+            if (st.level === 'risk' || st.level === 'warn') {
+                signals.push({ key: 'load', level: st.level === 'risk' ? 'fatigue' : 'caution', text: `charge 7 jours ${formatRatio(st.ratio)}× ta moyenne de 4 semaines` });
+            }
+
+            const count = level => signals.filter(s => s.level === level).length;
+            const goodKeys = signals.filter(s => s.level === 'good').map(s => s.key);
+            const decision = count('fatigue') > 0 || count('caution') >= 2 ? 'fatigue'
+                : count('caution') === 1 ? 'normale'
+                : goodKeys.includes('hrv') && goodKeys.includes('sleep') ? 'feu-vert' : null;
+            return { signals, decision, hasGarmin: recent.length > 0 };
+        }
+
+        // Ouverture du générateur : énergie proposée d'après la forme (modifiable), signaux affichés sous le choix
+        async function suggestEnergy() {
             const hint = document.getElementById('gen-energy-hint');
             hint.classList.add('hidden');
-            const st = getLoadStatus();
-            if (st.level !== 'warn' && st.level !== 'risk') return;
-            const lvl = LOAD_LEVELS[st.level];
+            const r = assessReadiness(await fetchReadinessDays());
             const select = document.getElementById('gen-energy');
-            if (st.level === 'risk' && select.value !== 'fatigue') {
-                select.value = 'fatigue';
+            const proposed = r.decision === 'fatigue' ? 'fatigue' : r.decision === 'normale' && select.value === 'haute' ? 'normale' : null;
+            if (proposed && select.value !== proposed) {
+                select.value = proposed;
                 select.dispatchEvent(new Event('change'));
             }
-            hint.className = `mt-1.5 text-xs ${lvl.color}`;
-            hint.innerHTML = `<i class="fa-solid ${lvl.icon} mr-1"></i>`;
-            hint.append(st.level === 'risk'
-                ? `« Fatigué » proposé : ta charge des 7 derniers jours vaut ${formatRatio(st.ratio)}× ta moyenne de 4 semaines.`
-                : `Ta charge des 7 derniers jours vaut ${formatRatio(st.ratio)}× ta moyenne : évite « Pêche d'enfer ».`);
+            const ICONS = { fatigue: 'fa-circle-exclamation text-red-500', caution: 'fa-triangle-exclamation text-amber-500', good: 'fa-circle-check text-success', ok: 'fa-circle text-muted' };
+            const headline = {
+                fatigue: '<b class="text-red-500">« Fatigué » proposé</b>',
+                normale: '<b class="text-amber-600 dark:text-amber-400">Évite « Pêche d\'enfer » cette semaine</b>',
+                'feu-vert': '<b class="text-success">Feu vert : tu récupères bien</b>'
+            }[r.decision];
+            const lines = r.signals.map(s => `<p class="text-muted"><i class="fa-solid ${ICONS[s.level]} w-4"></i>${gdEsc(s.text)}</p>`);
+            if (!r.hasGarmin && !demoMode) lines.push('<p class="text-muted"><i class="fa-solid fa-circle-info w-4"></i>Pas de données Garmin récentes : VFC et sommeil non pris en compte.</p>');
+            if (!headline && !lines.length) return;
+            hint.innerHTML = (headline ? `<p>${headline}</p>` : '') + lines.join('');
+            hint.classList.remove('hidden');
+        }
+
+        // Cycle de charge : charge de chaque semaine (lundi -> dimanche) avant le lundi donné, la plus ancienne d'abord
+        function weeklyLoadsBefore(monday, count) {
+            const loads = [];
+            for (let i = count; i >= 1; i--) {
+                const start = new Date(monday);
+                start.setDate(start.getDate() - 7 * i);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                const from = toDateStr(start), to = toDateStr(end);
+                loads.push({ start: from, load: activities.filter(a => a.start_date_local >= from && a.start_date_local <= to).reduce((s, a) => s + (a.load || 0), 0) });
+            }
+            return loads;
+        }
+
+        // Semaine de récup proposée après 3 semaines chargées d'affilée (charge >= 80 % de la moyenne des 8 semaines
+        // précédentes). Une semaine encore en cours est jugée sur la part déjà écoulée
+        function autoWeekType(monday) {
+            const weeks = weeklyLoadsBefore(monday, 11);
+            const last3 = weeks.slice(-3), ref8 = weeks.slice(0, 8).filter(w => w.load > 0);
+            if (ref8.length < 4) return { type: 'charge', reason: "Pas assez d'historique pour un cycle : semaine de charge." };
+            const ref = ref8.reduce((s, w) => s + w.load, 0) / ref8.length;
+            const today = toDateStr(new Date());
+            const loaded = last3.map(w => {
+                const end = new Date(w.start + 'T12:00');
+                end.setDate(end.getDate() + 6);
+                const elapsed = today > toDateStr(end) ? 7 : Math.max(1, Math.round((new Date(today + 'T12:00') - new Date(w.start + 'T12:00')) / 86400000) + 1);
+                return w.load >= 0.8 * ref * elapsed / 7;
+            });
+            const fmt = n => Math.round(n).toLocaleString('fr-FR');
+            if (loaded.every(Boolean)) {
+                return { type: 'recup', reason: `Semaine de récup proposée : 3 semaines chargées d'affilée (${last3.map(w => fmt(w.load)).join(', ')} ; moyenne ${fmt(ref)}).` };
+            }
+            const streak = loaded.reverse().findIndex(x => !x);
+            return { type: 'charge', reason: `Semaine de charge${streak > 0 ? ` (${streak} semaine${streak > 1 ? 's' : ''} chargée${streak > 1 ? 's' : ''} d'affilée sur 3 avant la récup)` : ''}.` };
         }
 
         // ==========================================
@@ -4211,12 +4363,23 @@
         }
 
         function openGeneratorModal() {
-            suggestEnergyFromLoad();
+            suggestEnergy();
+            updateDaysCheck();
             generatorModal.classList.remove('hidden');
         }
         function closeGeneratorModal() {
             generatorModal.classList.add('hidden');
         }
+        // Bouton Info : explication du moteur en haut de la fenêtre
+        function toggleGenInfo(open) {
+            const panel = document.getElementById('gen-info'), btn = document.getElementById('gen-info-btn');
+            panel.classList.toggle('hidden', !open);
+            btn.setAttribute('aria-expanded', open);
+            btn.classList.toggle('text-accent', open);
+            if (open) panel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+        document.getElementById('gen-info-btn').addEventListener('click', () => toggleGenInfo(document.getElementById('gen-info').classList.contains('hidden')));
+        document.getElementById('gen-info-close').addEventListener('click', () => toggleGenInfo(false));
 
         // Pastilles des jours disponibles (0 = lundi ... 6 = dimanche)
         const dayPills = document.querySelectorAll('#gen-days .gen-day-pill');
@@ -4309,8 +4472,10 @@
             return [...weekRoles, ...weRoles];
         }
 
-        // Catégories et fourchette d'effort d'un rôle, selon l'objectif et le niveau d'énergie
-        function getRoleSpec(role, sportKey, goalKey, energy) {
+        // Catégories et fourchette d'effort d'un rôle, selon l'objectif, le niveau d'énergie et le type de semaine.
+        // Semaine de récup : volume réduit (séances plus courtes, pas de sortie la plus longue), la clé reste mais
+        // plafonnée à 7, la secondaire devient de l'endurance
+        function getRoleSpec(role, sportKey, goalKey, energy, week = 'charge') {
             const goal = GEN_GOALS[goalKey];
             const keyCats = (sportKey === 'Course' && goal.course) ? goal.course.key : goal.key;
             let spec;
@@ -4326,6 +4491,12 @@
                 else spec = { ...spec, max: 4, longest: false };
             } else if (energy === 'haute' && (role === 'cle' || role === 'secondaire')) {
                 spec.min = 7;
+            }
+            if (week === 'recup' && energy !== 'fatigue') {
+                if (role === 'cle') spec = { ...spec, min: Math.min(spec.min, 6), max: 7 };
+                else if (role === 'secondaire') spec = { cats: ['endurance', 'technique'], min: 0, max: 5 };
+                else if (role === 'longue') spec = { cats: ['endurance'], min: 0, max: 5 };
+                spec.short = true;
             }
             if (goal.maxEffort) {
                 spec.max = Math.min(spec.max, goal.maxEffort);
@@ -4348,36 +4519,154 @@
 
             const fresh = results.filter(s => !avoidTitles.includes(s.title));
             let pool = fresh.length > 0 ? fresh : results;
-            // Sortie longue : parmi les 3 plus longues
+            // Sortie longue : parmi les 3 plus longues ; semaine de récup : parmi la moitié la plus courte
             if (spec.longest) pool = [...pool].sort((a, b) => (b.duration_minutes || 0) - (a.duration_minutes || 0)).slice(0, 3);
+            else if (spec.short) pool = [...pool].sort((a, b) => (a.duration_minutes || 0) - (b.duration_minutes || 0)).slice(0, Math.ceil(pool.length / 2));
             return pool[Math.floor(Math.random() * pool.length)];
         }
 
         function describeRole(role, spec) {
             const cats = spec.cats.map(c => CATEGORY_LABELS[c] || c).join('/');
-            if (role === 'cle') return `clé ${cats}`;
-            if (role === 'secondaire') return `secondaire ${cats}`;
-            if (role === 'longue') return spec.longest ? 'sortie longue' : 'sortie endurance';
-            return 'endurance';
+            const short = spec.short ? ' courte' : '';
+            if (role === 'cle') return `clé ${cats}${short}`;
+            if (role === 'secondaire') return spec.min >= 5 ? `secondaire ${cats}` : `endurance${short}`;
+            if (role === 'longue') return spec.longest ? 'sortie longue' : `sortie endurance${short}`;
+            return `endurance${short}`;
         }
 
-        // Aperçu de la semaine : ce que l'objectif va produire pour chaque sport coché
+        // Séance dure : effort minimal >= 5 ou sortie la plus longue
+        const isHardSpec = spec => spec.min >= 5 || !!spec.longest;
+
+        // Semaine à générer : celle qui suit la dernière séance prévue (sinon la semaine en cours), ou la suivante s'il
+        // ne reste pas assez de jours cochés. Jours disponibles : 0 = lundi ... 6 = dimanche
+        function getGenTarget() {
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            let start = today;
+            const last = workouts.reduce((max, w) => !max || w.date > max ? w.date : max, null);
+            if (last && last >= toDateStr(today)) {
+                const [y, m, d] = last.split('-');
+                start = new Date(y, m - 1, Number(d) + 1, 12); // au moins 1 jour après la dernière séance
+            }
+            const monday = getMonday(start);
+            monday.setHours(12, 0, 0, 0);
+            const offset = Math.round((start - monday) / 86400000);
+            const active = getActiveGenSports();
+            const neededWeek = active.reduce((s, x) => s + x.week, 0), neededWe = active.reduce((s, x) => s + x.we, 0);
+            const selected = getSelectedDays();
+            let weekdays = [0, 1, 2, 3, 4].filter(d => selected.includes(d) && d >= offset);
+            let weekends = [5, 6].filter(d => selected.includes(d) && d >= offset);
+            if (weekdays.length < neededWeek || weekends.length < neededWe) {
+                monday.setDate(monday.getDate() + 7);
+                weekdays = [0, 1, 2, 3, 4].filter(d => selected.includes(d));
+                weekends = [5, 6].filter(d => selected.includes(d));
+            }
+            // Mar, jeu, lun, ven, mer puis sam, dim si plus de jours que de séances
+            weekdays = [1, 3, 0, 4, 2].filter(d => weekdays.includes(d)).slice(0, neededWeek).sort((a, b) => a - b);
+            weekends = weekends.slice(0, neededWe);
+            return { monday, weekdays, weekends };
+        }
+
+        // Toutes les permutations distinctes d'une liste (5 éléments au plus : 120)
+        function uniquePermutations(items, key) {
+            if (items.length <= 1) return [items];
+            const out = [], seen = new Set();
+            items.forEach((item, i) => {
+                if (seen.has(key(item))) return;
+                seen.add(key(item));
+                uniquePermutations([...items.slice(0, i), ...items.slice(i + 1)], key).forEach(rest => out.push([item, ...rest]));
+            });
+            return out;
+        }
+
+        // Séances de la semaine (sport, rôle, jour) : rôles de chaque sport (clé, secondaire, endurance en semaine ;
+        // longue le week-end), puis répartition sur les jours qui évite deux séances dures d'affilée (tous sports),
+        // puis deux fois le même sport d'affilée ; à égalité, la clé avant la secondaire et l'ordre alterné habituel
+        function planWeek(activeSports, weekdays, weekends, goal, energy, week) {
+            const hardOf = (sport, role) => isHardSpec(getRoleSpec(role, sport, goal, energy, week));
+            const items = slot => {
+                // Ordre alterné de départ (course, vélo, course…) : sert de départage
+                const lists = activeSports.map(s => {
+                    const roles = getSportRoles(s.key, s.week, s.we);
+                    return (slot === 'week' ? roles.slice(0, s.week) : roles.slice(s.week)).map(role => ({ sport: s.key, role }));
+                });
+                const out = [];
+                while (lists.some(l => l.length)) lists.forEach(l => { if (l.length) out.push(l.shift()); });
+                return out;
+            };
+            const key = it => `${it.sport}|${it.role}`;
+            const score = slots => {
+                let s = 0;
+                for (let i = 1; i < slots.length; i++) {
+                    if (slots[i].slotDay - slots[i - 1].slotDay !== 1) continue;
+                    if (slots[i].hard && slots[i - 1].hard) s += 10;
+                    if (slots[i].sport === slots[i - 1].sport) s += 2;
+                }
+                // Clé avant secondaire pour un même sport
+                slots.forEach((a, i) => slots.slice(i + 1).forEach(b => { if (a.sport === b.sport && a.role === 'secondaire' && b.role === 'cle') s += 0.5; }));
+                return s;
+            };
+            let best = null;
+            for (const wk of uniquePermutations(items('week'), key)) {
+                for (const we of uniquePermutations(items('we'), key)) {
+                    const slots = [...wk.map((it, i) => ({ ...it, slotDay: weekdays[i] })), ...we.map((it, i) => ({ ...it, slotDay: weekends[i] }))]
+                        .filter(it => it.slotDay != null).map(it => ({ ...it, hard: hardOf(it.sport, it.role) }));
+                    slots.sort((a, b) => a.slotDay - b.slotDay);
+                    const sc = score(slots);
+                    if (!best || sc < best.score) best = { slots, score: sc };
+                }
+            }
+            const slots = best ? best.slots : [];
+            const backToBack = slots.filter((it, i) => i > 0 && it.hard && slots[i - 1].hard && it.slotDay - slots[i - 1].slotDay === 1);
+            return { slots, backToBack };
+        }
+
+        // Type de semaine choisi (Automatique -> d'après les semaines passées)
+        function getGenWeek(monday) {
+            const choice = document.getElementById('gen-week').value;
+            const auto = autoWeekType(monday);
+            return { type: choice === 'auto' ? auto.type : choice, auto };
+        }
+
+        // Aperçu de la semaine : jour par jour (rôle de chaque séance, séances dures marquées) si les jours collent,
+        // sinon ce que l'objectif va produire pour chaque sport coché
         function updateGenPreview() {
             const goalKey = goalSelect.value;
             const energy = document.getElementById('gen-energy').value;
             document.getElementById('gen-goal-desc').textContent = GEN_GOALS[goalKey].desc;
 
-            const lines = getActiveGenSports().filter(s => s.week + s.we > 0).map(s => {
-                const counts = new Map();
-                getSportRoles(s.key, s.week, s.we).forEach(role => {
-                    const label = describeRole(role, getRoleSpec(role, s.key, goalKey, energy));
-                    counts.set(label, (counts.get(label) || 0) + 1);
+            const active = getActiveGenSports().filter(s => s.week + s.we > 0);
+            const target = getGenTarget();
+            const week = getGenWeek(target.monday);
+            document.getElementById('gen-week-hint').textContent = `Semaine du ${target.monday.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} · ${week.auto.reason}`;
+            const sportLabel = key => GEN_SPORTS.find(g => g.key === key).label;
+
+            let lines;
+            if (active.length && getDaysCheck().ok) {
+                const plan = planWeek(active, target.weekdays, target.weekends, goalKey, energy, week.type);
+                lines = plan.slots.map(it => {
+                    const day = new Date(target.monday);
+                    day.setDate(day.getDate() + it.slotDay);
+                    const label = describeRole(it.role, getRoleSpec(it.role, it.sport, goalKey, energy, week.type));
+                    return `<p class="flex items-baseline gap-1.5"><span class="w-16 shrink-0 tabular-nums first-letter:uppercase">${day.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}</span>` +
+                        `<span><span class="text-ink font-semibold">${sportLabel(it.sport)}</span> · ${label}${it.hard ? ' <i class="fa-solid fa-fire text-orange-500" title="Séance dure"></i>' : ''}</span></p>`;
                 });
-                const parts = [...counts].map(([label, n]) => n > 1 ? `${n}× ${label}` : label);
-                const sport = GEN_SPORTS.find(g => g.key === s.key);
-                return `<p>• <span class="text-ink font-semibold">${sport.label}</span> : ${parts.join(' · ')}</p>`;
-            });
+                if (plan.backToBack.length) {
+                    lines.push('<p class="text-amber-600 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Deux séances dures d\'affilée impossibles à éviter avec ces jours : ajoute un jour de repos entre elles si tu peux.</p>');
+                }
+            } else {
+                lines = active.map(s => {
+                    const counts = new Map();
+                    getSportRoles(s.key, s.week, s.we).forEach(role => {
+                        const label = describeRole(role, getRoleSpec(role, s.key, goalKey, energy, week.type));
+                        counts.set(label, (counts.get(label) || 0) + 1);
+                    });
+                    const parts = [...counts].map(([label, n]) => n > 1 ? `${n}× ${label}` : label);
+                    return `<p>• <span class="text-ink font-semibold">${sportLabel(s.key)}</span> : ${parts.join(' · ')}</p>`;
+                });
+            }
             if (energy === 'fatigue') lines.push('<p class="text-amber-600 dark:text-amber-400">• Fatigué : toutes les séances à effort ≤ 4</p>');
+            else if (week.type === 'recup') lines.push('<p class="text-accent">• Semaine de récup : séances plus courtes, une seule séance intense par sport (effort ≤ 7)</p>');
             if (energy === 'haute') lines.push('<p class="text-accent">• Pêche d\'enfer : séances clé et secondaire à effort ≥ 7</p>');
             document.getElementById('gen-goal-preview').innerHTML = lines.join('') || '<p>Sélectionne au moins un sport.</p>';
         }
@@ -4387,6 +4676,7 @@
             updateGenPreview();
         });
         document.getElementById('gen-energy').addEventListener('change', updateGenPreview);
+        document.getElementById('gen-week').addEventListener('change', updateGenPreview);
 
         // Sports cochés et nombre de séances semaine / week-end, mémorisés dans ce navigateur
         let genSports = {
@@ -4462,7 +4752,7 @@
                 if (!state.on) return;
                 const row = document.createElement('div');
                 // Mobile : nom du sport au-dessus de ses 2 compteurs ; desktop : tout sur une ligne
-                row.className = 'grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_7.5rem] gap-2 items-center';
+                row.className = 'grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] gap-2 items-center';
                 const name = document.createElement('span');
                 name.className = 'col-span-2 sm:col-span-1 text-sm font-semibold text-ink truncate';
                 name.innerHTML = `<i class="fa-solid ${s.icon} mr-1.5 text-muted"></i>${s.label}`;
@@ -5029,49 +5319,17 @@
             const { data: { user } } = await supabaseClient.auth.getUser();
             if (!user) return;
 
-            let intensityTag = energy === 'fatigue' ? ' (Allégé - Récup)' : '';
+            // Séances depuis 2 semaines (à venir comprises), à ne pas reproposer. Dates comparées en texte
+            // AAAA-MM-JJ : l'ancien plancher du 1er août tombait dans le futur de janvier à juillet et vidait la liste
+            const twoWeeksAgo = new Date();
+            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+            const since = toDateStr(twoWeeksAgo);
+            const recentWorkouts = workouts.filter(w => w.date >= since);
 
-            // Fetch the last workout date and recent workouts to avoid repetition
-            let lastWorkoutDate = null;
-            let recentWorkouts = [];
-            
-            // August 1st of the current year
-            const augFirst = new Date(new Date().getFullYear(), 7, 1).toISOString().split('T')[0];
-
-            if (workouts && workouts.length > 0) {
-                // Find the latest workout date
-                const sortedWorkouts = [...workouts].sort((a, b) => new Date(b.date) - new Date(a.date));
-                // Date locale à midi (new Date('YYYY-MM-DD') serait minuit UTC, soit la veille au soir au Québec)
-                const [ly, lm, ld] = sortedWorkouts[0].date.split('-');
-                lastWorkoutDate = new Date(ly, lm - 1, ld, 12);
-                
-                // Get workouts from the last 2 weeks relative to today, but only if they are after August 1st
-                const twoWeeksAgo = new Date();
-                twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-                
-                recentWorkouts = workouts.filter(w => {
-                    const wDate = new Date(w.date);
-                    return wDate >= twoWeeksAgo && w.date >= augFirst;
-                });
-            }
-
-            // Determine the starting Monday for the new plan
-            let targetStartDate = new Date(); // Default to today
-            // To ensure local time calculations don't shift a day backward/forward
-            targetStartDate.setHours(12, 0, 0, 0);
-
-            if (lastWorkoutDate && lastWorkoutDate >= new Date(new Date().setHours(0,0,0,0))) {
-                // If there are future workouts, start the new week after the last workout
-                targetStartDate = new Date(lastWorkoutDate);
-                targetStartDate.setDate(targetStartDate.getDate() + 1); // Start at least 1 day after the last workout
-                targetStartDate.setHours(12, 0, 0, 0);
-            }
-
-            // Adjust to the nearest Monday from the targetStartDate
-            let monday = new Date(targetStartDate);
-            const currentDayOfWeek = monday.getDay() === 0 ? 7 : monday.getDay();
-            monday.setDate(monday.getDate() - currentDayOfWeek + 1);
-            monday.setHours(12, 0, 0, 0);
+            // Semaine visée, jours retenus et type de semaine (charge / récup), comme dans l'aperçu
+            const { monday, weekdays: chosenWeekdays, weekends: chosenWeekends } = getGenTarget();
+            const weekType = getGenWeek(monday).type;
+            const intensityTag = energy === 'fatigue' || weekType === 'recup' ? ' (Allégé - Récup)' : '';
 
             // Calculate easy pace (roughly 1 minute slower than 5k pace or 45s slower than 10k pace)
             let baseEasyPace = "5:30 /km"; // Default
@@ -5155,7 +5413,7 @@
             async function pickFromBank(sport, role, fallback) {
                 const sessions = await getBankSessionsForSport(sport);
                 // Éviter les séances des 2 dernières semaines et celles déjà placées cette semaine
-                const s = pickBankSession(sessions, getRoleSpec(role, sport, goal, energy), recentTitles);
+                const s = pickBankSession(sessions, getRoleSpec(role, sport, goal, energy, weekType), recentTitles);
                 if (!s) return fallback;
                 recentTitles.push(s.title);
                 return { type: s.sport, title: s.title, warmup: s.warmup, main: s.main_block, cooldown: s.cooldown };
@@ -5172,74 +5430,14 @@
 
             let inserts = [];
 
-            let scheduledSlots = [];
-            
-            let neededWeekdays = activeSports.reduce((sum, s) => sum + s.week, 0);
-            let neededWeekends = activeSports.reduce((sum, s) => sum + s.we, 0);
-
-            let offset = 0;
-            if (targetStartDate > monday) {
-                 const diffTime = Math.abs(targetStartDate - monday);
-                 offset = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-            }
-
-            // Jours cochés dans les pastilles
-            const selectedDays = getSelectedDays();
-            const selectedWeekdays = [0, 1, 2, 3, 4].filter(d => selectedDays.includes(d));
-            const selectedWeekends = [5, 6].filter(d => selectedDays.includes(d));
-
             const daysCheck = getDaysCheck();
             if (!daysCheck.ok) {
                 alert("Le nombre de séances doit correspondre aux jours sélectionnés (1 séance max par jour) :\n\n" + daysCheck.problems.join('\n'));
                 return;
             }
 
-            let availableWeekdays = selectedWeekdays.filter(d => d >= offset);
-            let availableWeekends = selectedWeekends.filter(d => d >= offset);
-
-            if (availableWeekdays.length < neededWeekdays || availableWeekends.length < neededWeekends) {
-                // Not enough days left in current week, start fresh next week
-                monday.setDate(monday.getDate() + 7);
-                availableWeekdays = selectedWeekdays;
-                availableWeekends = selectedWeekends;
-            }
-
-            let preferredWeekdays = [1, 3, 0, 4, 2]; // Tue, Thu, Mon, Fri, Wed
-            let chosenWeekdays = preferredWeekdays.filter(d => availableWeekdays.includes(d)).slice(0, neededWeekdays).sort((a,b)=>a-b);
-            
-            let preferredWeekends = [5, 6]; // Sat, Sun
-            let chosenWeekends = preferredWeekends.filter(d => availableWeekends.includes(d)).slice(0, neededWeekends).sort((a,b)=>a-b);
-
-            // Alterne les sports d'un jour à l'autre (course, vélo, course...) plutôt que de les regrouper
-            function interleaveSports(slot, isWe) {
-                const remaining = activeSports.map(s => ({ sport: s.key, count: s[slot] }));
-                const list = [];
-                while (remaining.some(r => r.count > 0)) {
-                    remaining.forEach(r => {
-                        if (r.count > 0) {
-                            list.push({ sport: r.sport, isWe });
-                            r.count--;
-                        }
-                    });
-                }
-                return list;
-            }
-
-            let weekActivities = interleaveSports('week', false);
-            let weekendActivities = interleaveSports('we', true);
-
-            for (let i = 0; i < weekActivities.length; i++) {
-                scheduledSlots.push({ ...weekActivities[i], slotDay: chosenWeekdays[i] });
-            }
-            for (let i = 0; i < weekendActivities.length; i++) {
-                scheduledSlots.push({ ...weekendActivities[i], slotDay: chosenWeekends[i] });
-            }
-
-            scheduledSlots.sort((a, b) => a.slotDay - b.slotDay);
-
-            // Rôle de chaque séance (clé, secondaire, endurance, longue) dans l'ordre des jours, par sport
-            const sportRoles = Object.fromEntries(activeSports.map(s => [s.key, getSportRoles(s.key, s.week, s.we)]));
-            scheduledSlots.forEach(item => { item.role = sportRoles[item.sport].shift() || 'endurance'; });
+            // Rôle et jour de chaque séance : séances dures espacées, sports alternés (voir planWeek)
+            const scheduledSlots = planWeek(activeSports, chosenWeekdays, chosenWeekends, goal, energy, weekType).slots;
 
             for (const item of scheduledSlots) {
                 let targetDate = new Date(monday);
